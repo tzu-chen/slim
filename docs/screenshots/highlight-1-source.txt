@@ -1,0 +1,40 @@
+ slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ slim_demo (/tmp/slim/fixtures/demo)
+SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_succ   │ route: search “searchWithin_succ” Fixtures.searchWithin_succ
+╭ Search [local+lib] ─────────────────╮╭ Source …o/Fixtures/Trust.lean │ syntax + semantic (complete) ──╮╭ [1 Ment] 2 By 3 Evid 4 Mod 5 Idx ─────────╮
+│/ searchWithin_succ                  ││ 47 │ `sorry` token in its source text but still depends on     ││Lexical mentions                           │
+│1 name match · 0 in map · 0 ms       ││    │   `sorryAx`. -/                                           ││ Identifiers in this declaration's text    │
+│ thm   …xtures.searchWithin_succ name││ 48 │ macro "fixture_trust_me" : tactic => `(tactic| sorry)     ││  that match indexed names (as written or  │
+│                                     ││ 49 │                                                           ││  under an enclosing namespace). NOT       │
+│                                     ││ 50 │ /-- TEST FIXTURE: proved only by the `fixture_trust_me`   ││  resolved by Lean: open namespaces, local │
+│                                     ││    │   macro, that is, by a hidden `sorry`.                    ││  variables, notation and macros are       │
+│                                     ││ 51 │ The statement says that the search is monotone in its     ││  ignored.                                 │
+│                                     ││    │   fuel: one more unit of fuel never turns a               ││Graph → struc Demo.Graph                   │
+│                                     ││ 52 │ successful search into a failure. -/                      ││                                           │
+│                                     ││ 53 │ theorem searchWithin_succ {g : Graph} {n s t : Nat} :     ││                                           │
+│                                     ││ 54 │     g.searchWithin n s t = true → g.searchWithin (n + 1)  ││                                           │
+│                                     ││    │       s t = true := by                                    ││                                           │
+│                                     ││ 55 │   fixture_trust_me                                        ││                                           │
+│                                     ││ 56 │                                                           ││                                           │
+│                                     ││ 57 │ /-- TEST FIXTURE: a custom axiom. It asserts without      ││                                           │
+│                                     ││    │   proof that a search with as many units of               ││                                           │
+│                                     ││ 58 │ fuel as the graph has edges finds every reachable target. ││                                           │
+│                                     ││    │   (The statement is true, since a                         ││                                           │
+│                                     ││ 59 │ shortest path never uses an edge twice, but here it is    ││                                           │
+│                                     ││    │   assumed rather than proved.) -/                         ││                                           │
+│                                     ││ 60 │ axiom oracle_axiom (g : Graph) (s t : Nat) :              ││                                           │
+│                                     ││ 61 │     g.Reach s t → g.searchWithin g.edges.length s t = true││                                           │
+│                                     ││ 62 │                                                           ││                                           │
+│                                     ││ 63 │ /-- TEST FIXTURE: a theorem that depends on the custom    ││                                           │
+│                                     ││    │   axiom `oracle_axiom`: reachability is                   ││                                           │
+│                                     ││ 64 │ decided by a single search whose fuel is the number of    ││                                           │
+│                                     ││    │   edges. -/                                               ││                                           │
+│                                     ││ 65 │ theorem reach_iff_bounded_search {g : Graph} {s t : Nat} :││                                           │
+│                                     ││ 66 │     g.Reach s t ↔ g.searchWithin g.edges.length s t =     ││                                           │
+│                                     ││    │       true :=                                             ││                                           │
+│                                     ││ 67 │   ⟨oracle_axiom g s t, searchWithin_sound⟩                ││                                           │
+│                                     ││ 68 │                                                           ││───────────────────────────────────────────│
+│                                     ││ 69 │ /-- TEST FIXTURE: a small sample graph with the cycle `1  ││Written once, on line 53 (j/k highlights   │
+│                                     ││    │   → 2 → 3 → 1` and an entry path                          ││it). Lexical: `Graph` equals the indexed   │
+│                                     ││ 70 │ `4 → 0 → 1`. -/                                           ││name Demo.Graph; Lean may resolve it       │
+╰─────────────────────────────────────╯╰────────────────────────────────────────────────────────────────╯╰───────────────────────────────────────────╯
+ j/k scroll · s source · i implicit · m bookmark · a trail · * goal · M map · A goal view · [ ] back/fwd · ? help

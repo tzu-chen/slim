@@ -1,0 +1,30 @@
+ slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ slim_demo (/tmp/slim/data/src
+Architecture map │ goal: none │ map: none (generated outline only) │ / search │ Esc declarations
+╭ Architecture map ──────────────────────╮╭ Detail ────────────────────────────────────────────────╮
+│▾ No project map                        ││directory / namespace prefix SlimDemo.Fixtures          │
+│  No lean-view.toml at /tmp/slim/data/s…││ Generated organization: this outline mirrors files,    │
+│  Everything else works without one. A …││     not mathematics. A directory or namespace is not   │
+│  `slim map init <PROJECT_DIR>` prints …││     automatically a mathematical chapter.              │
+│▾ Files and namespaces       [generated]││                                                        │
+│  ▾ SlimDemo                          73││Counts ──────────────────────────────────────────────── │
+│    ▸ Fixtures                        25││ 2 files · 25 indexed declarations (lexical candidates) │
+│    ▸ Graph                           16││ theorems 13 · definitions 9 · types 1 (structure,      │
+│    ▸ Relation                        32││     class, inductive) · instances 1 · axioms 1         │
+│                                        ││ 22 of these 25 have a doc comment (88%)                │
+│                                        ││ 213 lines, 31 of them from the end of a theorem's      │
+│                                        ││     statement to the end of its proof (14%)            │
+│                                        ││ 1 declaration with a `sorry`/`admit` token in the text │
+│                                        ││     (lexical; other placeholders are not seen)         │
+│                                        ││ last modified <1m ago (when it was indexed)            │
+│                                        ││ Counts are sizes, not progress: there is no percent    │
+│                                        ││     proved.                                            │
+│                                        ││ S skims the statements here · f searches within it · I │
+│                                        ││     shows where it sits in the import order · o        │
+│                                        ││     changes the column (now: declarations).            │
+│                                        ││                                                        │
+│                                        ││                                                        │
+│                                        ││                                                        │
+│                                        ││                                                        │
+│                                        ││                                                        │
+╰────────────────────────────────────────╯╰────────────────────────────────────────────────────────╯
+ ⏎ open · Space expand · * goal · a trail · m bookmark · Q question · r reload map · A goal · T trai

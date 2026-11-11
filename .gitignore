@@ -1,0 +1,7 @@
+/target/
+/exporter/.lake/
+/fixtures/demo/.lake/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.names

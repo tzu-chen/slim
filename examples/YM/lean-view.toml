@@ -1,0 +1,1485 @@
+# Architecture map for the YM results and verification repository
+# (https://github.com/yang-mills-group/YM), shipped with slim as an example of a
+# project map for a large formalization. The README of slim walks through it.
+# Schema 1 is documented in slim's docs/map.md. All curation below is an
+# unaccepted AI suggestion based on the source at the recorded revision.
+# It is not a Lean dependency export, proof audit, or human acceptance record.
+#
+# Open the REPOSITORY ROOT so submission, checks, and examples are indexed:
+#   slim path/to/YM --map examples/YM/lean-view.toml
+#   slim map check path/to/YM --map examples/YM/lean-view.toml
+# (or copy this file to the root of the YM checkout and run `slim path/to/YM`).
+# In the UI: M map; * pin goal; A curated argument; T shared reading trails;
+# S skim a group; / declaration search; r reload while viewing the map.
+#
+# Expected source-only ambiguity (not missing declarations): the two review
+# endpoint names occur in both checks/ solutions and verification/ references.
+# map check reports exactly these TWO unresolved/ambiguous names. Their hashes
+# below fingerprint the checks/ solution files. Navigate to those files in the
+# declaration browser; do not interpret a reference placeholder as the solution.
+# YangMills.jointExistence and duplicated provenance definitions are explained in
+# prose/module locators instead of adding more ambiguous declaration anchors.
+#
+# Source module locators below are paths relative to the repository root, with
+# slashes replaced by dots; they are not the Lake import names of the nested
+# ym_core package. Original submitted files are untouched.
+
+schema = 1
+
+[project]
+name = "YM"
+title = "YM — October construction and independent review"
+description = "A suggested reading map of the 28 October 2026 submission and the A1–A8 review checks. Start with the three endpoints, then follow their mathematical components and reading trails. The source claims, review specifications, examples and dated verification evidence are distinct. No mass gap or unique infinite-volume limit is claimed here. Two review endpoint names are intentionally ambiguous in a repository-wide source scan because their frozen reference statements are also present; choose the checks/ solutions. This map validates navigation only and does not rerun Lean or Comparator."
+revision = "55ba9fc36293b3f4d52c6b1f813169a0be76ee98"
+
+# Source entries
+
+[[source]]
+id = "scope"
+citation = "YM review group, What the formal checks cover. Local file: submissions/openai-20261028/docs/checks.md."
+
+[[source]]
+id = "submitted"
+citation = "OpenAI October distribution, Wilson Yang–Mills construction. Local file: submissions/openai-20261028/submission/README.md."
+
+[[source]]
+id = "examples"
+citation = "YM review group, Worked examples in Lean; A1–A8 labels for the assessment dated 10 November 2026. Local file: docs/examples/README.md."
+
+[[source]]
+id = "chain"
+citation = "YM review group, OctoberChain: following the accepted construction through its interfaces. Local file: submissions/openai-20261028/docs/examples/OctoberChain.lean."
+
+[[source]]
+id = "evidence"
+citation = "YM review group, Verification evidence, including the 5 November replay and 10 November example compilations. Local file: submissions/openai-20261028/evidence/README.md."
+
+# Objective entries
+
+[[objective]]
+decl = "YMReview.Acceptance.combined_acceptance"
+title = "Combined review acceptance (A7)"
+purpose = "One Wilson family and one Final per refinement satisfy the review clauses together."
+explanation = "Read CombinedAcceptance for the quantifiers, Accepted for the clauses and accepted_of_source for their assembly. The proof lives in checks/CombinedAcceptance.lean; verification/AcceptanceChallenge.lean is an intentionally separate reference with the same declaration name.\n\nThe solution is checks/CombinedAcceptance.lean. The separate verification/AcceptanceChallenge.lean intentionally declares the same name with a placeholder proof. A whole-repository source index therefore reports this name as ambiguous; choose the checks/ solution in the declaration browser. The proof obtains its witnesses once from YangMills.constructed and invokes accepted_of_source.\n\nSource: submissions/openai-20261028/checks/CombinedAcceptance.lean:111."
+paper = [
+  { text = "The combined witness", source = "scope" },
+]
+limitations = [
+  "Source-only whole-repository navigation reports two candidates for this name; choose the checks/ solution.",
+  "No mass gap, confinement, intrinsic reference mass, unique infinite-volume limit or all-orders perturbative matching is asserted.",
+  "This name has two source candidates by design; source_sha256 records the solution file.",
+  "Combined acceptance does not assert a mass gap, confinement, infinite-volume uniqueness or all-orders perturbative matching.",
+]
+origin = "ai-suggestion"
+source_sha256 = "40f8c57aa96db688784fe57491c87ad6cc69f061d58174802b8593ac83ef0d92"
+
+[[objective]]
+decl = "YangMills.constructed"
+title = "Submitted joint continuum construction"
+purpose = "A fixed Wilson family supports joint reconstruction, OPE, trace and contact conclusions after refinement."
+explanation = "This is the detailed submitted theorem. The public YangMills.jointExistence theorem in submission/Solution.lean projects it to YangMills.JointExistence. Use this uniquely named entry point because the public theorem also has a same-name reference placeholder.\n\nFix the positive blocking-kernel penalty first. For each requested extraction order, choose a refinement, table, Final, all-phase reconstruction, OPE reader, contact devices and comparison data together. Solution.lean projects this to YangMills.jointExistence. The latter name also occurs in the intentional Challenge.lean reference placeholder, so this uniquely named theorem is the map entry point.\n\nSource: submissions/openai-20261028/submission/Construction.lean:15."
+paper = [
+  { text = "The public challenge; The detailed construction theorem", source = "submitted" },
+]
+limitations = [
+  "This map is an account of the repository’s architecture, not a new verification of the claimed mathematics.",
+  "The construction permits volume refinement; it does not supply a mass-gap or infinite-volume uniqueness theorem.",
+  "This map describes the submitted statement and proof organization; it is not a new kernel or Comparator check.",
+  "The result does not assert an infinite-volume uniqueness theorem or a positive mass gap.",
+]
+origin = "ai-suggestion"
+source_sha256 = "86286ed17925b3e729cd2f721347e27054ea935f2653ceaa35b3b49fc25c343c"
+
+[[objective]]
+decl = "YMReview.OPE.constructed"
+title = "Common OPE with explicit radii (A8)"
+purpose = "Retain the public hierarchy properties and CommonOPE on one hierarchy at each extracted volume order."
+explanation = "The implementation is checks/OPECheck.lean. Its adapter from_source applies directly to any hierarchy with the submitted OPE property. The 5 November Comparator evidence for this endpoint is separate from the combined review evidence.\n\nThe solution is checks/OPECheck.lean; verification/OPEChallenge.lean is the separate reference placeholder with the same name. In a source-only repository scan choose the checks/ solution. The proof obtains the public hierarchy from YangMills.jointExistence and applies from_source to its OPE clause.\n\nSource: submissions/openai-20261028/checks/OPECheck.lean:56."
+paper = [
+  { text = "The additional OPE check (A8)", source = "scope" },
+  { text = "Release-package replay on 5 November 2026", source = "evidence" },
+]
+limitations = [
+  "A same-name reference in verification/OPEChallenge.lean makes this name ambiguous in a repository-wide source scan.",
+  "No theorem here equates this endpoint’s existential witness with the witness chosen by combined_acceptance.",
+  "Explicit perturbative coefficient values and uniqueness across OPE prescriptions are outside this check.",
+  "This name has two source candidates by design; source_sha256 records the solution file.",
+  "This separate existential endpoint does not identify its chosen witness with the one chosen by combined_acceptance.",
+]
+origin = "ai-suggestion"
+source_sha256 = "ef5926e323e8fa47b8096a04e5a4c4cdaeba7a90545be9613e77c6eda5f75578"
+
+# Group entries
+
+[[group]]
+id = "submission"
+title = "October submission: public and detailed results"
+order = 10
+kind = "component"
+purpose = "Start at the statements before following the original construction into its implementation."
+explanation = "All source in submissions/openai-20261028/submission/ is the preserved October distribution. The review lives in checks/. PublicTheory, PublicWilson and ChallengeSpec define the public target; the bridges export the detailed YM construction into that interface."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "The public challenge; The detailed construction theorem", source = "submitted" },
+]
+limitations = [
+  "The November submission is outside this repository snapshot and this map.",
+]
+landmarks = [
+  "YangMills.constructed",
+  "YangMills.JointExistence",
+  "YangMills.Hierarchy.Properties",
+  "YangMills.GaugeGroup",
+  "YangMills.GaugeGroup.IsSimple",
+  "YangMills.su2Theory",
+]
+modules = [
+  "submissions.openai-20261028.submission.Construction",
+  "submissions.openai-20261028.submission.ChallengeSpec",
+  "submissions.openai-20261028.submission.PublicTheory",
+  "submissions.openai-20261028.submission.ConcreteSU2",
+  "submissions.openai-20261028.submission.Solution",
+]
+
+[[group]]
+id = "lattice"
+title = "Wilson lattice law, observables and limits"
+parent = "submission"
+order = 10
+kind = "component"
+purpose = "Relate the actual lattice measure and local insertions to the public limit statement."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "Wilson origin", source = "submitted" },
+]
+limitations = [
+  "The lattice limit gives the unselected table. Selecting a phase is a subsequent construction, not an identification of that phase with the mixture.",
+]
+landmarks = [
+  "YM.Family",
+  "YangMills.wilsonLaw",
+  "YangMills.wilsonFamily",
+  "YangMills.regular",
+  "YangMills.moment_eq",
+  "YangMills.fromWilson",
+  "YangMills.wilsonLimit",
+]
+modules = [
+  "submissions.openai-20261028.submission.YM.Source.Construction",
+  "submissions.openai-20261028.submission.PublicWilson",
+  "submissions.openai-20261028.submission.WilsonBridge",
+  "submissions.openai-20261028.submission.HierarchyBridge",
+]
+
+[[group]]
+id = "construction"
+title = "RG run and continuum assembly"
+parent = "submission"
+order = 20
+kind = "component"
+purpose = "Follow the finite construction through extraction to the joint internal endpoint."
+explanation = "These are selected gateways into the many RG modules, rather than a directory census. The argument for YangMills.constructed shows how these interfaces are assembled."
+origin = "ai-suggestion"
+reviewed = false
+limitations = [
+  "Requested orders may be refined. A unique thermodynamic limit is not part of this interface.",
+]
+landmarks = [
+  "YM.Independent.constructionRun",
+  "YM.Independent.fundedRun",
+  "YM.R2IGoals.fromFunded",
+  "YM.Extraction.Order",
+  "YM.Nonperturbative.continuum_with_position_tests",
+  "YM.Nonperturbative.existence",
+  "YM.Independent.Core",
+]
+modules = [
+  "submissions.openai-20261028.submission.YM.Independent.ConstructionRun",
+  "submissions.openai-20261028.submission.YM.R2I.Campaign.Accepted",
+  "submissions.openai-20261028.submission.YM.Extraction.Orders",
+  "submissions.openai-20261028.submission.YM.Nonperturbative.Continuum",
+  "submissions.openai-20261028.submission.YM.Nonperturbative.Headlines",
+  "submissions.openai-20261028.submission.YM.Independent.Core",
+]
+
+[[group]]
+id = "phases"
+title = "Mixed table, phases and relativistic reconstruction"
+parent = "submission"
+order = 30
+kind = "component"
+purpose = "Keep the unselected lattice limit, character ensemble and selected relativistic theory distinct."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "Wightman reconstruction", source = "submitted" },
+  { text = "Sections 3–6", source = "chain" },
+]
+limitations = [
+  "Uniqueness of a translation-invariant vacuum inside a reconstructed phase does not imply uniqueness of phase or of the large-volume limit.",
+]
+landmarks = [
+  "YM.Spec.Final",
+  "YM.Table",
+  "YM.OS.Selection",
+  "YM.Boundary.Wightman",
+  "YM.EveryPhase.Almanac",
+  "YangMills.hierarchy",
+  "YangMills.Hierarchy.Reconstructed",
+  "YangMills.publicReconstruction",
+]
+modules = [
+  "submissions.openai-20261028.submission.YM.Spec.Closed",
+  "submissions.openai-20261028.submission.YM.Euclid.Table",
+  "submissions.openai-20261028.submission.YM.Phase.Mixture",
+  "submissions.openai-20261028.submission.YM.Fields.System",
+  "submissions.openai-20261028.submission.YM.EveryPhase.Pack",
+  "submissions.openai-20261028.submission.HierarchyBridge",
+  "submissions.openai-20261028.submission.ChallengeSpec",
+]
+
+[[group]]
+id = "ope-contacts"
+title = "OPE, contact extensions and trace tests"
+parent = "submission"
+order = 40
+kind = "component"
+purpose = "Read the extra source conclusions retained alongside reconstruction."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "The detailed construction theorem", source = "submitted" },
+]
+limitations = [
+  "Contact extension is for the constructed prescription; uniqueness over other prescriptions and raw cutoff convergence on collision diagonals are outside the stated result.",
+  "The trace comparison excludes the specified finite mass-shell Wick profiles; it is not a general exclusion of all continuous-mass generalized free fields.",
+]
+landmarks = [
+  "YM.OPE.Orbits.Reader",
+  "YangMills.Hierarchy.OperatorProductExpansion",
+  "YangMills.publicOPE",
+  "YM.Contacts.Devices",
+  "YM.Nonperturbative.contacts_on",
+  "YangMills.contactDistribution",
+  "YangMills.publicTrace",
+]
+modules = [
+  "submissions.openai-20261028.submission.YM.OPE.Orbits.Cuts",
+  "submissions.openai-20261028.submission.ChallengeSpec",
+  "submissions.openai-20261028.submission.HierarchyBridge",
+  "submissions.openai-20261028.submission.YM.Contacts.Tomography",
+  "submissions.openai-20261028.submission.YM.Nonperturbative.Continuum",
+  "submissions.openai-20261028.submission.ContactBridge",
+  "submissions.openai-20261028.submission.TraceBridge",
+]
+
+[[group]]
+id = "review"
+title = "Independent review: combined acceptance (A7)"
+order = 20
+kind = "component"
+purpose = "Read the quantifiers, the clause record, then the proof and individual adapters."
+explanation = "The A1–A8 labels follow docs/examples/README.md and the current check-scope table. The two review endpoints retain their deliberate reference/solution name ambiguities in a repository-wide source scan."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "The combined witness", source = "scope" },
+]
+limitations = [
+  "The combined theorem and the separate A8 endpoint do not identify their existential witnesses with each other.",
+]
+landmarks = [
+  "YMReview.Acceptance.CombinedAcceptance",
+  "YMReview.Acceptance.Accepted",
+  "YMReview.Acceptance.combined_acceptance",
+  "YMReview.Acceptance.accepted_of_source",
+  "YMReview.Acceptance.SourceConclusions",
+]
+modules = [
+  "submissions.openai-20261028.checks.AcceptanceSpec",
+  "submissions.openai-20261028.checks.CombinedAcceptance",
+]
+
+[[group]]
+id = "review-lattice"
+title = "A3/A5 — lattice law and common scale"
+parent = "review"
+order = 30
+kind = "component"
+purpose = "Inspect the finite-law correspondence, the order of the two limits and the exact meaning of the positive probe."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "A3, A5 and A7 rows of the scope table", source = "scope" },
+]
+limitations = [
+  "Full fixed-volume UV convergence is followed by extracted IR convergence.",
+  "The positive probe is not a mass-gap conclusion.",
+]
+landmarks = [
+  "YMReview.Acceptance.LatticeAndScale",
+  "YMLGTBridge.law_preserving",
+  "YMReview.Acceptance.finite_law_on_family",
+  "YMReview.Acceptance.lattice_and_scale",
+  "YMReview.CommonScale.positive_common_reference",
+  "YMReview.TwoPointScale.MassLimit",
+  "YMReview.TwoPointScale.mass_limit",
+]
+modules = [
+  "submissions.openai-20261028.checks.AcceptanceSpec",
+  "submissions.openai-20261028.checks.LGTWilsonBridge",
+  "submissions.openai-20261028.checks.CombinedAcceptance",
+  "submissions.openai-20261028.checks.CommonScaleAudit",
+  "submissions.openai-20261028.checks.TwoPointPhysicalObservable",
+]
+
+[[group]]
+id = "review-os"
+title = "A1 — scalar OS axioms and growth"
+parent = "review"
+order = 10
+kind = "component"
+purpose = "Follow the selected scalar kernel through integrability, E0–E4 and the corrected E0′ estimate."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "A1; The OS correspondence", source = "scope" },
+]
+limitations = [
+  "The comparison concerns the selected centered stress trace.",
+  "Diagonal-flat tests do not determine contact terms supported on collision diagonals.",
+]
+landmarks = [
+  "YMReview.Acceptance.PhaseAndOS",
+  "YMReview.Acceptance.phase_and_os",
+  "YMOSBridge.scalarKernel",
+  "YMOSBridge.schwinger",
+  "YMOSBridge.schwinger_integrable",
+  "YMOSBridge.E0_tempered",
+  "YMOSBridge.E2_reflection_positive",
+  "YMOSBridge.E4_cluster",
+  "YMOSBridge.E0_prime_growth",
+  "YMOSBridge.verifiedOS",
+  "YMOSBridge.verifiedOS_growth",
+]
+modules = [
+  "submissions.openai-20261028.checks.AcceptanceSpec",
+  "submissions.openai-20261028.checks.CombinedAcceptance",
+  "submissions.openai-20261028.checks.SourceScalar",
+  "submissions.openai-20261028.checks.Temperedness",
+  "submissions.openai-20261028.checks.ReflectionPositivity",
+  "submissions.openai-20261028.checks.CompleteOS",
+  "submissions.openai-20261028.checks.ArityGrowth",
+  "submissions.openai-20261028.checks.Invariance",
+  "submissions.openai-20261028.checks.RemainingObligations",
+]
+
+[[group]]
+id = "review-operators"
+title = "A2 — registered operator content"
+parent = "review"
+order = 20
+kind = "component"
+purpose = "Distinguish label exhaustion and field-space equivalences from an independent identification of the full quantum theory."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "A2: Registered operator content", source = "scope" },
+]
+limitations = [
+  "The field identifications are complex linear equivalences, not algebra isomorphisms or an identification with an independently constructed canonical Yang–Mills Hilbert space.",
+]
+landmarks = [
+  "YMReview.Acceptance.OperatorContent",
+  "YMReview.Acceptance.operator_content",
+  "YMReview.OperatorCompleteness.local_field_content",
+  "YMReview.OperatorCompleteness.phase_field_content",
+  "YMReview.OperatorCompleteness.registered_words_dense",
+]
+modules = [
+  "submissions.openai-20261028.checks.AcceptanceSpec",
+  "submissions.openai-20261028.checks.CombinedAcceptance",
+  "submissions.openai-20261028.checks.CompletenessAudit",
+]
+
+[[group]]
+id = "review-trace"
+title = "A4 — leading short-distance trace law"
+parent = "review"
+order = 40
+kind = "component"
+purpose = "Track the same centered field into the punctured-space limit with coefficient 3 dim(g) / pi^4."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "A4: Leading short-distance behavior", source = "scope" },
+]
+limitations = [
+  "This is a leading logarithmic law, not two-loop or all-orders perturbative matching.",
+]
+landmarks = [
+  "YMReview.Acceptance.LeadingTrace",
+  "YMReview.Acceptance.leading_trace",
+  "YMAFBridge.K₂",
+  "YMAFBridge.same_center",
+]
+modules = [
+  "submissions.openai-20261028.checks.AcceptanceSpec",
+  "submissions.openai-20261028.checks.CombinedAcceptance",
+  "submissions.openai-20261028.checks.AFSourceBridge",
+]
+
+[[group]]
+id = "review-ward"
+title = "A6 — translation Ward identity"
+parent = "review"
+order = 60
+kind = "component"
+purpose = "Read the actual derivative, fixed normalization, integrability and admissible cutoff-window hypotheses."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "A6: Stress-tensor normalization", source = "scope" },
+]
+limitations = [
+  "This check does not establish contact or dilation Ward identities or uniqueness under stress-tensor improvements.",
+]
+landmarks = [
+  "YMReview.Acceptance.TranslationWard",
+  "YMReview.Acceptance.translation_ward",
+  "YMReview.WardAudit.phase_translation_derivative",
+  "YMReview.WardAudit.phase_window_independent",
+]
+modules = [
+  "submissions.openai-20261028.checks.AcceptanceSpec",
+  "submissions.openai-20261028.checks.CombinedAcceptance",
+  "submissions.openai-20261028.checks.WardFormulationAudit",
+]
+
+[[group]]
+id = "review-ope"
+title = "A8 — separate common OPE check"
+parent = "review"
+order = 80
+kind = "component"
+purpose = "Make quantifier order, phase uniformity and the field dictionary explicit."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "The additional OPE check (A8)", source = "scope" },
+  { text = "Release-package replay on 5 November 2026", source = "evidence" },
+]
+limitations = [
+  "Common coefficients do not imply equal phases.",
+  "The check does not determine explicit perturbative coefficient values or uniqueness across all normalization and OPE prescriptions.",
+]
+landmarks = [
+  "YMReview.OPE.CommonOPE",
+  "YMReview.OPE.from_source",
+  "YMReview.OPE.constructed",
+  "YMReview.OPE.phase_difference",
+  "YMReview.OPE.channel_assembly",
+  "YMReview.OPE.single_field",
+]
+modules = [
+  "submissions.openai-20261028.checks.OPESpec",
+  "submissions.openai-20261028.checks.OPECheck",
+]
+
+[[group]]
+id = "walkthroughs"
+title = "Commented examples: follow the objects"
+order = 30
+kind = "component"
+purpose = "Use the seven commented Lean files to connect the review specifications with the submitted definitions."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "A1–A8 worked-example table", source = "examples" },
+  { text = "Sections 1–6", source = "chain" },
+]
+limitations = [
+  "The examples are supplementary Lean walkthroughs. Their historical compilation is separate from the Comparator endpoints.",
+]
+landmarks = [
+  "YMReview.Chain.actual_insertion_formula",
+  "YMReview.Chain.every_field_word_has_lattice_origin",
+  "YMReview.Chain.phase_second_moments_are_ground_products",
+  "YMReview.Chain.reconstructed_words_are_selected_boundary",
+  "YMReview.Chain.same_continuation_same_boundary",
+  "YMReview.Examples.OSAxioms.complete_OS_on_this_hierarchy",
+  "YMReview.Examples.OperatorContent.interacting_field_dictionary",
+  "YMReview.Examples.LatticeAndScale.positive_probe_on_the_accepted_witness",
+  "YMReview.Examples.LeadingTrace.centered_trace_has_mixed_lattice_origin",
+  "YMReview.Examples.TranslationWard.tensor_generates_translations",
+  "YMReview.Examples.CommonOPE.remainder_uniform_in_state",
+]
+modules = [
+  "submissions.openai-20261028.docs.examples.OctoberChain",
+  "submissions.openai-20261028.docs.examples.OSAxioms-20261028",
+  "submissions.openai-20261028.docs.examples.OperatorContent-20261028",
+  "submissions.openai-20261028.docs.examples.LatticeAndScale-20261028",
+  "submissions.openai-20261028.docs.examples.LeadingTrace-20261028",
+  "submissions.openai-20261028.docs.examples.TranslationWard-20261028",
+  "submissions.openai-20261028.docs.examples.CommonOPE-20261028",
+]
+
+[[group]]
+id = "foundations"
+title = "Imported review definitions and correspondence"
+order = 90
+kind = "foundation"
+purpose = "Inspect the local copies of the lgt, OSreconstruction and leading-law interfaces used by the review."
+explanation = "The modules below point to the copies compiled by the review. A repository-wide scan also sees their provenance copies, giving repeated declaration names. This group deliberately uses module locators rather than ambiguous declaration anchors. Use O to find a particular file in the outline and S to skim that file. Group skim lists landmarks only, so this locator-only group has none."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "The OS correspondence", source = "scope" },
+]
+limitations = [
+  "The normalized source correspondence and compilation recorded by the repository do not amount to rebuilding the full upstream OSreconstruction project.",
+]
+modules = [
+  "submissions.openai-20261028.checks.ImportedLGTData",
+  "submissions.openai-20261028.checks.ImportedAFSpecification",
+  "submissions.openai-20261028.checks.YangMills.OSRecon.Vendored.Axioms",
+  "submissions.openai-20261028.checks.YangMills.OSRecon.Vendored.ZeroDiagonal",
+  "submissions.openai-20261028.checks.YangMills.OSRecon.Growth",
+]
+
+[[group]]
+id = "verification"
+title = "Reference statements, audits and dated evidence"
+order = 100
+kind = "component"
+purpose = "Keep mathematical declarations, frozen Comparator targets, negative controls and historical tool results separate."
+explanation = "Reference proofs in submission/Challenge.lean and verification/*Challenge.lean intentionally use sorry. The solutions are submission/Solution.lean, checks/CombinedAcceptance.lean and checks/OPECheck.lean. Verification controls deliberately exercise changed statements, definitions and forbidden axioms. Read evidence/README.md for the dates and scope of each run; this map does not rerun them."
+origin = "ai-suggestion"
+reviewed = false
+paper = [
+  { text = "Admissions, axioms and negative controls", source = "scope" },
+  { text = "Historical evidence and release-package replay", source = "evidence" },
+]
+limitations = [
+  "A source scan is lexical navigation, not Lean verification or transitive axiom analysis.",
+  "Historical Comparator runs used development mode without Linux/Landrun isolation or an external kernel.",
+  "The 5 November OPE Comparator replay is separate from the earlier combined-endpoint run.",
+]
+modules = [
+  "submissions.openai-20261028.submission.Challenge",
+  "submissions.openai-20261028.verification.AcceptanceChallenge",
+  "submissions.openai-20261028.verification.OPEChallenge",
+  "submissions.openai-20261028.checks.AxiomAudit",
+]
+
+# Landmark entries
+
+[[landmark]]
+decl = "YangMills.JointExistence"
+purpose = "Public target: one Wilson family, with a refined continuum hierarchy for every increasing volume sequence."
+explanation = "The capital J distinguishes the proposition from the lower-case theorem jointExistence. Read the family-before-order quantifiers and then Hierarchy.Properties.\n\nSource: submissions/openai-20261028/submission/ChallengeSpec.lean:186."
+origin = "ai-suggestion"
+source_sha256 = "e48b0be2b72d16b9b87c6c1923b3ae814270387bf9312b5cb0661dfa3e243749"
+
+[[landmark]]
+decl = "YangMills.Hierarchy.Properties"
+purpose = "The four public clauses on the same hierarchy: Wilson limit, reconstruction, separated OPE and trace test."
+explanation = "Source: submissions/openai-20261028/submission/ChallengeSpec.lean:177."
+origin = "ai-suggestion"
+source_sha256 = "e48b0be2b72d16b9b87c6c1923b3ae814270387bf9312b5cb0661dfa3e243749"
+
+[[landmark]]
+decl = "YangMills.GaugeGroup"
+purpose = "Public compact matrix-group input, including its closed unitary image."
+explanation = "Source: submissions/openai-20261028/submission/PublicTheory.lean:25."
+origin = "ai-suggestion"
+source_sha256 = "94111ad258b4218a263fcc0a7136446d5a6eff0e090809b72036fb3a7aecfff8"
+
+[[landmark]]
+decl = "YangMills.GaugeGroup.IsSimple"
+purpose = "The nonabelian simplicity hypothesis on the real Lie algebra of the gauge group."
+explanation = "Source: submissions/openai-20261028/submission/PublicTheory.lean:39."
+origin = "ai-suggestion"
+source_sha256 = "94111ad258b4218a263fcc0a7136446d5a6eff0e090809b72036fb3a7aecfff8"
+
+[[landmark]]
+decl = "YangMills.su2Theory"
+purpose = "Concrete SU(2) specialization of the public existence theorem."
+explanation = "Source: submissions/openai-20261028/submission/ConcreteSU2.lean:15."
+origin = "ai-suggestion"
+source_sha256 = "646bc0cbc0b3bd8ea3dac779f8a9dc587c5b95e8d933fcefe566178374ec4114"
+
+[[landmark]]
+decl = "YM.Family"
+purpose = "Internal Wilson family: one RG history, label frames, local sections and cutoff-dependent transfer data."
+explanation = "Source: submissions/openai-20261028/submission/YM/Source/Construction.lean:24."
+origin = "ai-suggestion"
+source_sha256 = "bb1295924e7ddf502d1b7a04b8eec3d86de3a347eba813e5b0535a88353ae353"
+
+[[landmark]]
+decl = "YangMills.wilsonLaw"
+purpose = "Finite-volume normalized Wilson probability law on group-valued links."
+explanation = "Source: submissions/openai-20261028/submission/PublicWilson.lean:29."
+origin = "ai-suggestion"
+source_sha256 = "c1542c816cd42d23448b66b4cb021c7f3bdad64b64f1c643dde27147ce0c3233"
+
+[[landmark]]
+decl = "YangMills.wilsonFamily"
+purpose = "Expose the internal family through the public WilsonFamily interface."
+explanation = "Source: submissions/openai-20261028/submission/WilsonBridge.lean:20."
+origin = "ai-suggestion"
+source_sha256 = "e927fd2762c57175faa74f26bbf6cbc9999c20f2bbe4e7bce326b17092814298"
+
+[[landmark]]
+decl = "YangMills.regular"
+purpose = "Derive running coupling, continuity, gauge invariance and uniform finite lattice stencils from C.Makes."
+explanation = "Source: submissions/openai-20261028/submission/HierarchyBridge.lean:16."
+origin = "ai-suggestion"
+source_sha256 = "82c27a4ecb393c65566a09addd97d70aea7cc62b990d383293adde53d0fc423a"
+
+[[landmark]]
+decl = "YangMills.moment_eq"
+purpose = "Identify the public finite Wilson moments with the internal family moments."
+explanation = "Source: submissions/openai-20261028/submission/WilsonBridge.lean:49."
+origin = "ai-suggestion"
+source_sha256 = "e927fd2762c57175faa74f26bbf6cbc9999c20f2bbe4e7bce326b17092814298"
+
+[[landmark]]
+decl = "YangMills.fromWilson"
+purpose = "Transport the internal full-mesh and extracted-volume convergence to the public Wilson limit predicate."
+explanation = "Source: submissions/openai-20261028/submission/WilsonBridge.lean:62."
+origin = "ai-suggestion"
+source_sha256 = "e927fd2762c57175faa74f26bbf6cbc9999c20f2bbe4e7bce326b17092814298"
+
+[[landmark]]
+decl = "YangMills.wilsonLimit"
+purpose = "Connect the public hierarchy’s unselected correlations to the lattice limit."
+explanation = "Source: submissions/openai-20261028/submission/HierarchyBridge.lean:44."
+origin = "ai-suggestion"
+source_sha256 = "82c27a4ecb393c65566a09addd97d70aea7cc62b990d383293adde53d0fc423a"
+
+[[landmark]]
+decl = "YM.Independent.constructionRun"
+purpose = "Choose a Wilson run with RG funding and attached local-observable construction data."
+explanation = "This is a gateway into the large RG implementation: its proof calls the preselected run construction and the NativeComponentRecipe witnesses. The existence of a run is proved here, not assumed as input.\n\nSource: submissions/openai-20261028/submission/YM/Independent/ConstructionRun.lean:14."
+origin = "ai-suggestion"
+source_sha256 = "6e58a11542db2742fc0fd6e2efaca343499168642dde8ed62f7db5fe4fcd4b38"
+
+[[landmark]]
+decl = "YM.Independent.fundedRun"
+purpose = "Choose the run before any extraction order or observable is requested."
+explanation = "Source: submissions/openai-20261028/submission/YM/Independent/ConstructionRun.lean:30."
+origin = "ai-suggestion"
+source_sha256 = "6e58a11542db2742fc0fd6e2efaca343499168642dde8ed62f7db5fe4fcd4b38"
+
+[[landmark]]
+decl = "YM.R2IGoals.fromFunded"
+purpose = "Convert the funded campaign hypotheses into the Broad construction interface."
+explanation = "The continuum proof applies the resulting refinement interface to the requested order. Read the Broad specification and its refinement statement in the same module when descending further into the RG machinery.\n\nSource: submissions/openai-20261028/submission/YM/R2I/Campaign/Accepted.lean:150."
+origin = "ai-suggestion"
+source_sha256 = "f8de63bddc4e08350cd6fbd632f73568365d07d76c3a0bcee242c62fba91399b"
+
+[[landmark]]
+decl = "YM.Extraction.Order"
+purpose = "Pair of strictly increasing extraction sequences for mesh and physical volume."
+explanation = "The final result retains the full mesh sequence in its explicit UV clause and refines the requested volume sequence. Keeping both coordinates visible prevents confusing the two limits.\n\nSource: submissions/openai-20261028/submission/YM/Extraction/Orders.lean:34."
+origin = "ai-suggestion"
+source_sha256 = "4d7f6f2f3fc092219d817344e9a0bd9f82cc81ccea9f11a7f4ce92060314f9c7"
+
+[[landmark]]
+decl = "YM.Nonperturbative.continuum_with_position_tests"
+purpose = "Assemble extraction, all-phase reconstruction, OPE, contacts and leading position-test comparison on the chosen run."
+explanation = "Source: submissions/openai-20261028/submission/YM/Nonperturbative/Continuum.lean:28."
+origin = "ai-suggestion"
+source_sha256 = "dc710c47a991b8bc08daf0bd12f675e0e2e92c849c298bd18d57872d3b9859ad"
+
+[[landmark]]
+decl = "YM.Nonperturbative.existence"
+purpose = "Package the internal continuum output into the submitted headline specification."
+explanation = "Source: submissions/openai-20261028/submission/YM/Nonperturbative/Headlines.lean:19."
+origin = "ai-suggestion"
+source_sha256 = "8c36180f8cae5ff1d6575358daf880e593aec140b6e0e28df9c14c2c3738a194"
+
+[[landmark]]
+decl = "YM.Independent.Core"
+purpose = "Shared reconstruction, trace and OPE certificates for the same Final and reader."
+explanation = "Source: submissions/openai-20261028/submission/YM/Independent/Core.lean:18."
+origin = "ai-suggestion"
+source_sha256 = "08c2d44c7ad9addddbcd655123df404fd94c28fbc9de1c79717a4d62b628a600"
+
+[[landmark]]
+decl = "YM.Spec.Final"
+purpose = "The central record tying calibration, table, fields, phase choice and Wightman reconstruction to one family and extraction."
+explanation = "C is the lattice family, S its unselected table, and F carries the selected phase plus both continuations. Review clauses are parameterized by this same F; its existence and its consequences are separate assertions.\n\nSource: submissions/openai-20261028/submission/YM/Spec/Closed.lean:64."
+origin = "ai-suggestion"
+source_sha256 = "07e85b6dd3719a7cc595bf711ca1e4cb86db30ee39aff3188a95fc8621f15b5a"
+
+[[landmark]]
+decl = "YM.Table"
+purpose = "Multilinear Euclidean correlation table, parameterized by the field register."
+explanation = "The raw table type alone does not assert hierarchy laws or meaningful values at coincident points; those properties are supplied separately.\n\nSource: submissions/openai-20261028/submission/YM/Euclid/Table.lean:55."
+origin = "ai-suggestion"
+source_sha256 = "4aa0a8c1b530b627c005ee629ff0a40c96d0169e27102bffc2dc14378fc6bc3e"
+
+[[landmark]]
+decl = "YM.OS.Selection"
+purpose = "Ground-state resolution, character-indexed ensemble and selected point of the phase space."
+explanation = "Source: submissions/openai-20261028/submission/YM/Phase/Mixture.lean:127."
+origin = "ai-suggestion"
+source_sha256 = "6f0f1e1465f5365231fe7f7749df7ae7c8c7357dfa971c554cf43794fd379c5e"
+
+[[landmark]]
+decl = "YM.Boundary.Wightman"
+purpose = "Internal data for fields, symmetries and energy-momentum spectral measure."
+explanation = "This structure is data. The Realizes certificate retained by Spec.Final supplies the associated axioms.\n\nSource: submissions/openai-20261028/submission/YM/Fields/System.lean:117."
+origin = "ai-suggestion"
+source_sha256 = "ffe4c2f48313f708d93bec101c0773626f1060a8df7ffd072ec7ce35cedfe1ff"
+
+[[landmark]]
+decl = "YM.EveryPhase.Almanac"
+purpose = "Contours and reconstructed field data indexed by the characters of the same ground-state algebra."
+explanation = "Source: submissions/openai-20261028/submission/YM/EveryPhase/Pack.lean:117."
+origin = "ai-suggestion"
+source_sha256 = "9c3cc5fc708f4c144c05d2f720659190cd8bd60c0ae461ec5b9ca42c0a21a275"
+
+[[landmark]]
+decl = "YangMills.hierarchy"
+purpose = "Read the public hierarchy from the detailed Final and its OPE reader."
+explanation = "Source: submissions/openai-20261028/submission/HierarchyBridge.lean:27."
+origin = "ai-suggestion"
+source_sha256 = "82c27a4ecb393c65566a09addd97d70aea7cc62b990d383293adde53d0fc423a"
+
+[[landmark]]
+decl = "YangMills.Hierarchy.Reconstructed"
+purpose = "Public reconstruction conditions, including phase averaging, analytic continuation and vacuum boundary moments."
+explanation = "Source: submissions/openai-20261028/submission/ChallengeSpec.lean:117."
+origin = "ai-suggestion"
+source_sha256 = "e48b0be2b72d16b9b87c6c1923b3ae814270387bf9312b5cb0661dfa3e243749"
+
+[[landmark]]
+decl = "YangMills.publicReconstruction"
+purpose = "Translate the all-phase completion certificate into the public reconstruction conditions."
+explanation = "Source: submissions/openai-20261028/submission/HierarchyBridge.lean:79."
+origin = "ai-suggestion"
+source_sha256 = "82c27a4ecb393c65566a09addd97d70aea7cc62b990d383293adde53d0fc423a"
+
+[[landmark]]
+decl = "YM.OPE.Orbits.Reader"
+purpose = "OPE prescription and coherent field basis tied to the common differential filtration and rotations."
+explanation = "Source: submissions/openai-20261028/submission/YM/OPE/Orbits/Cuts.lean:17."
+origin = "ai-suggestion"
+source_sha256 = "463919871d88c9b9f58e198feba224b7cef5ba9ce1c6aa5a3cdf560936a8aec0"
+
+[[landmark]]
+decl = "YangMills.publicOPE"
+purpose = "Project the detailed separated OPE estimates to the public hierarchy interface."
+explanation = "Source: submissions/openai-20261028/submission/HierarchyBridge.lean:68."
+origin = "ai-suggestion"
+source_sha256 = "82c27a4ecb393c65566a09addd97d70aea7cc62b990d383293adde53d0fc423a"
+
+[[landmark]]
+decl = "YangMills.Hierarchy.OperatorProductExpansion"
+purpose = "One coefficient system with sufficiently-small-radius bounds uniform over admissible positions and phases."
+explanation = "Source: submissions/openai-20261028/submission/ChallengeSpec.lean:70."
+origin = "ai-suggestion"
+source_sha256 = "e48b0be2b72d16b9b87c6c1923b3ae814270387bf9312b5cb0661dfa3e243749"
+
+[[landmark]]
+decl = "YM.Contacts.Devices"
+purpose = "Contact-extension choices with their field prescription, orientations and detectors fixed."
+explanation = "Source: submissions/openai-20261028/submission/YM/Contacts/Tomography.lean:17."
+origin = "ai-suggestion"
+source_sha256 = "0ae3471473e0f63a28721fa2f386277e8fb3d046d437564803c9e47969ec777c"
+
+[[landmark]]
+decl = "YM.Nonperturbative.contacts_on"
+purpose = "Construct contact devices whose basis agrees with the ordinary OPE reader."
+explanation = "Source: submissions/openai-20261028/submission/YM/Nonperturbative/Continuum.lean:14."
+origin = "ai-suggestion"
+source_sha256 = "dc710c47a991b8bc08daf0bd12f675e0e2e92c849c298bd18d57872d3b9859ad"
+
+[[landmark]]
+decl = "YangMills.contactDistribution"
+purpose = "Expose the constructed contact distribution and its agreement with separated correlations."
+explanation = "Source: submissions/openai-20261028/submission/ContactBridge.lean:14."
+origin = "ai-suggestion"
+source_sha256 = "91276437a70e22d61a6c155b46482f47fa24ca308dc138fcda729f50f8dfb7c9"
+
+[[landmark]]
+decl = "YangMills.publicTrace"
+purpose = "Project the detailed stress-trace conclusions to the public non-freeness test."
+explanation = "Source: submissions/openai-20261028/submission/TraceBridge.lean:35."
+origin = "ai-suggestion"
+source_sha256 = "b3fa347e6ab79cd69a5b0e29a3ad1a743c9cedffe727a7f13bfc6328cf125a35"
+
+[[landmark]]
+decl = "YMReview.Acceptance.CombinedAcceptance"
+purpose = "A7 target: choose the family before the requested order; one refinement and one Final satisfy every clause."
+explanation = "Source: submissions/openai-20261028/checks/AcceptanceSpec.lean:172."
+origin = "ai-suggestion"
+source_sha256 = "c303146d967bda49354b97ef6b7c6a4c94bd3952835a50aabeaa55a233b4f2e9"
+
+[[landmark]]
+decl = "YMReview.Acceptance.Accepted"
+purpose = "The review clauses on a fixed Final: lattice, OS, Ward identity, operators, trace, positive probe and retained source conclusions."
+explanation = "Source: submissions/openai-20261028/checks/AcceptanceSpec.lean:160."
+origin = "ai-suggestion"
+source_sha256 = "c303146d967bda49354b97ef6b7c6a4c94bd3952835a50aabeaa55a233b4f2e9"
+
+[[landmark]]
+decl = "YMReview.Acceptance.accepted_of_source"
+purpose = "Assemble the review clauses for a supplied Final without choosing a new theory for each clause."
+explanation = "Source: submissions/openai-20261028/checks/CombinedAcceptance.lean:92."
+origin = "ai-suggestion"
+source_sha256 = "40f8c57aa96db688784fe57491c87ad6cc69f061d58174802b8593ac83ef0d92"
+
+[[landmark]]
+decl = "YMReview.Acceptance.SourceConclusions"
+purpose = "Retain the source reconstruction, OPE, contacts and leading comparison results on the accepted witness."
+explanation = "Source: submissions/openai-20261028/checks/AcceptanceSpec.lean:141."
+limitations = [
+  "Bundling a submitted conclusion does not independently validate the physical interpretation of every definition in it.",
+]
+origin = "ai-suggestion"
+source_sha256 = "c303146d967bda49354b97ef6b7c6a4c94bd3952835a50aabeaa55a233b4f2e9"
+
+[[landmark]]
+decl = "YMReview.Acceptance.LatticeAndScale"
+purpose = "A3/A5: finite Wilson law, full fixed-volume UV limit, extracted IR limit and common calibration."
+explanation = "Source: submissions/openai-20261028/checks/AcceptanceSpec.lean:34."
+origin = "ai-suggestion"
+source_sha256 = "c303146d967bda49354b97ef6b7c6a4c94bd3952835a50aabeaa55a233b4f2e9"
+
+[[landmark]]
+decl = "YMLGTBridge.law_preserving"
+purpose = "Identify the lgt and submitted Wilson measures under link reindexing and coupling conversion."
+explanation = "In this theorem the submitted coefficient is beta_lgt times the representation dimension. The combined clause uses beta_lgt = beta_submission / (g.n + 1).\n\nSource: submissions/openai-20261028/checks/LGTWilsonBridge.lean:107."
+origin = "ai-suggestion"
+source_sha256 = "59a4c89ba23ad012d9d2e893cf1da936cdeae0b40e0fac423ccf149ae8b80962"
+
+[[landmark]]
+decl = "YMReview.Acceptance.finite_law_on_family"
+purpose = "Apply the coupling conversion to the particular lattice family in the combined target."
+explanation = "Source: submissions/openai-20261028/checks/CombinedAcceptance.lean:13."
+origin = "ai-suggestion"
+source_sha256 = "40f8c57aa96db688784fe57491c87ad6cc69f061d58174802b8593ac83ef0d92"
+
+[[landmark]]
+decl = "YMReview.Acceptance.lattice_and_scale"
+purpose = "Assemble the lattice and calibration clause for the existing construction data."
+explanation = "Source: submissions/openai-20261028/checks/CombinedAcceptance.lean:22."
+origin = "ai-suggestion"
+source_sha256 = "40f8c57aa96db688784fe57491c87ad6cc69f061d58174802b8593ac83ef0d92"
+
+[[landmark]]
+decl = "YMReview.CommonScale.positive_common_reference"
+purpose = "A single positive reference coupling serves all lattice spacings and volumes."
+explanation = "Source: submissions/openai-20261028/checks/CommonScaleAudit.lean:31."
+origin = "ai-suggestion"
+source_sha256 = "ac9b14ad7532a98156eecd33a29ee05647f5798f2ea0c5f3d13a2d6c711d41d5"
+
+[[landmark]]
+decl = "YMReview.TwoPointScale.MassLimit"
+purpose = "A5: a fixed separated two-point probe has a positive finite correlation-root limit."
+explanation = "Source: submissions/openai-20261028/checks/TwoPointPhysicalObservable.lean:133."
+limitations = [
+  "Despite its name, MassLimit does not assert an intrinsic continuum reference mass or a spectral mass gap. The probe and centering may depend on F, but are fixed across N and p.",
+]
+origin = "ai-suggestion"
+source_sha256 = "bd2a2cc959f3c7f70d2a0e98b9f455f18f165767f0c81f71593e328385ea0ec0"
+
+[[landmark]]
+decl = "YMReview.TwoPointScale.mass_limit"
+purpose = "Transfer a nonzero mixed two-point pairing through the ordered lattice limits to the positive probe limit."
+explanation = "Source: submissions/openai-20261028/checks/TwoPointPhysicalObservable.lean:139."
+origin = "ai-suggestion"
+source_sha256 = "bd2a2cc959f3c7f70d2a0e98b9f455f18f165767f0c81f71593e328385ea0ec0"
+
+[[landmark]]
+decl = "YMReview.Acceptance.PhaseAndOS"
+purpose = "A1: identify the lattice-limit mixture and the selected stress-trace OS family on the same witness."
+explanation = "Source: submissions/openai-20261028/checks/AcceptanceSpec.lean:63."
+origin = "ai-suggestion"
+source_sha256 = "c303146d967bda49354b97ef6b7c6a4c94bd3952835a50aabeaa55a233b4f2e9"
+
+[[landmark]]
+decl = "YMReview.Acceptance.phase_and_os"
+purpose = "Assemble phase averaging, integrability and the independent scalar OS comparison."
+explanation = "Source: submissions/openai-20261028/checks/CombinedAcceptance.lean:40."
+origin = "ai-suggestion"
+source_sha256 = "40f8c57aa96db688784fe57491c87ad6cc69f061d58174802b8593ac83ef0d92"
+
+[[landmark]]
+decl = "YMOSBridge.scalarKernel"
+purpose = "Correlations of the centered stress trace in F’s already selected phase."
+explanation = "Source: submissions/openai-20261028/checks/SourceScalar.lean:14."
+origin = "ai-suggestion"
+source_sha256 = "8c39b1a21513d5270c2dacf27857614b2e282dd292b8afe09cafa808dc39be37"
+
+[[landmark]]
+decl = "YMOSBridge.schwinger"
+purpose = "Pair the selected scalar kernel with zero-diagonal Schwartz tests."
+explanation = "Source: submissions/openai-20261028/checks/Temperedness.lean:14."
+origin = "ai-suggestion"
+source_sha256 = "cdc87faf64a63b8070a2dcbb55097c2a4d35bee84fdcb34cfc9a7ce60fd6913a"
+
+[[landmark]]
+decl = "YMOSBridge.schwinger_integrable"
+purpose = "Prove integrability of the actual kernel-test pairing at every arity."
+explanation = "Source: submissions/openai-20261028/checks/Temperedness.lean:47."
+origin = "ai-suggestion"
+source_sha256 = "cdc87faf64a63b8070a2dcbb55097c2a4d35bee84fdcb34cfc9a7ce60fd6913a"
+
+[[landmark]]
+decl = "YMOSBridge.E0_tempered"
+purpose = "Continuity of each scalar Schwinger functional on the stated test space."
+explanation = "Source: submissions/openai-20261028/checks/Temperedness.lean:67."
+origin = "ai-suggestion"
+source_sha256 = "cdc87faf64a63b8070a2dcbb55097c2a4d35bee84fdcb34cfc9a7ce60fd6913a"
+
+[[landmark]]
+decl = "YMOSBridge.E2_reflection_positive"
+purpose = "Reflection positivity in the target Borchers-sequence formulation."
+explanation = "Source: submissions/openai-20261028/checks/ReflectionPositivity.lean:48."
+origin = "ai-suggestion"
+source_sha256 = "a5a1e3456b05c69d0357ceea09c9162ea38a0574099213412e7bbc5f09c88ea0"
+
+[[landmark]]
+decl = "YMOSBridge.E4_cluster"
+purpose = "Discharge the exact spatial clustering field of the target OS definition."
+explanation = "Source: submissions/openai-20261028/checks/CompleteOS.lean:37."
+origin = "ai-suggestion"
+source_sha256 = "4c4fdc2170e3443c86c55b66407752744f46783abf7a255476f8bc6b2e31936e"
+
+[[landmark]]
+decl = "YMOSBridge.E0_prime_growth"
+purpose = "Uniform arity growth with a Sobolev order increasing linearly with arity."
+explanation = "Source: submissions/openai-20261028/checks/ArityGrowth.lean:91."
+origin = "ai-suggestion"
+source_sha256 = "cefb98ba14f6da76bb189a669a8e31f9f8ef2d8ad1ac749df9050820a8fa7a5c"
+
+[[landmark]]
+decl = "YMOSBridge.verifiedOS"
+purpose = "Package E0–E4 for the original selected centered-trace hierarchy."
+explanation = "CompleteOS.lean discharges the cluster premise of completeOS from RemainingObligations.lean. That older filename does not mean E4 is still unproved here.\n\nSource: submissions/openai-20261028/checks/CompleteOS.lean:60."
+limitations = [
+  "This is the scalar bridge on diagonal-flat Schwartz tests. It is not an independently specified all-field OS bridge or a rebuild of the full upstream reconstruction theorem.",
+]
+origin = "ai-suggestion"
+source_sha256 = "4c4fdc2170e3443c86c55b66407752744f46783abf7a255476f8bc6b2e31936e"
+
+[[landmark]]
+decl = "YMOSBridge.verifiedOS_growth"
+purpose = "Attach the arity-linear E0′ condition to the same verifiedOS record."
+explanation = "Source: submissions/openai-20261028/checks/CompleteOS.lean:62."
+origin = "ai-suggestion"
+source_sha256 = "4c4fdc2170e3443c86c55b66407752744f46783abf7a255476f8bc6b2e31936e"
+
+[[landmark]]
+decl = "YMReview.Acceptance.OperatorContent"
+purpose = "A2: registered invariant-polynomial content, quotient fields, dense words and faithfulness."
+explanation = "Source: submissions/openai-20261028/checks/AcceptanceSpec.lean:112."
+origin = "ai-suggestion"
+source_sha256 = "c303146d967bda49354b97ef6b7c6a4c94bd3952835a50aabeaa55a233b4f2e9"
+
+[[landmark]]
+decl = "YMReview.Acceptance.operator_content"
+purpose = "Package the operator-content consequences of the same Final."
+explanation = "Source: submissions/openai-20261028/checks/CombinedAcceptance.lean:58."
+origin = "ai-suggestion"
+source_sha256 = "40f8c57aa96db688784fe57491c87ad6cc69f061d58174802b8593ac83ef0d92"
+
+[[landmark]]
+decl = "YMReview.OperatorCompleteness.local_field_content"
+purpose = "Identify each degree of the interacting quotient with the stated free on-shell invariant sector as complex vector spaces."
+explanation = "Source: submissions/openai-20261028/checks/CompletenessAudit.lean:45."
+origin = "ai-suggestion"
+source_sha256 = "36c15bb8b5e360610afb3eb18dc5d597abc2bbe231a9b6588c23467840f6b3a9"
+
+[[landmark]]
+decl = "YMReview.OperatorCompleteness.phase_field_content"
+purpose = "Show that each selected character retains the same degreewise field content."
+explanation = "Source: submissions/openai-20261028/checks/CompletenessAudit.lean:52."
+origin = "ai-suggestion"
+source_sha256 = "36c15bb8b5e360610afb3eb18dc5d597abc2bbe231a9b6588c23467840f6b3a9"
+
+[[landmark]]
+decl = "YMReview.OperatorCompleteness.registered_words_dense"
+purpose = "The span of all registered field words is dense in the selected reconstructed space."
+explanation = "Source: submissions/openai-20261028/checks/CompletenessAudit.lean:58."
+origin = "ai-suggestion"
+source_sha256 = "36c15bb8b5e360610afb3eb18dc5d597abc2bbe231a9b6588c23467840f6b3a9"
+
+[[landmark]]
+decl = "YMReview.Acceptance.LeadingTrace"
+purpose = "A4: a positive explicit leading logarithmic coefficient for the selected trace two-point kernel."
+explanation = "Source: submissions/openai-20261028/checks/AcceptanceSpec.lean:131."
+origin = "ai-suggestion"
+source_sha256 = "c303146d967bda49354b97ef6b7c6a4c94bd3952835a50aabeaa55a233b4f2e9"
+
+[[landmark]]
+decl = "YMReview.Acceptance.leading_trace"
+purpose = "Derive the all-directions leading trace limit from the trace tests on this same Final."
+explanation = "Source: submissions/openai-20261028/checks/CombinedAcceptance.lean:70."
+origin = "ai-suggestion"
+source_sha256 = "40f8c57aa96db688784fe57491c87ad6cc69f061d58174802b8593ac83ef0d92"
+
+[[landmark]]
+decl = "YMAFBridge.K₂"
+purpose = "The real selected centered-trace two-point kernel with one insertion at the origin."
+explanation = "Source: submissions/openai-20261028/checks/AFSourceBridge.lean:26."
+origin = "ai-suggestion"
+source_sha256 = "d018eec939692bec6c39d763c19f3544d67537f92f6308b7a5deccc7e78bb149"
+
+[[landmark]]
+decl = "YMAFBridge.same_center"
+purpose = "Identify the centered field used by the source trace theorem with the field of the scalar OS bridge."
+explanation = "Source: submissions/openai-20261028/checks/AFSourceBridge.lean:15."
+origin = "ai-suggestion"
+source_sha256 = "d018eec939692bec6c39d763c19f3544d67537f92f6308b7a5deccc7e78bb149"
+
+[[landmark]]
+decl = "YMReview.Acceptance.TranslationWard"
+purpose = "A6: a shell identity with fixed sign and coefficient for every central field and phase."
+explanation = "Source: submissions/openai-20261028/checks/AcceptanceSpec.lean:84."
+origin = "ai-suggestion"
+source_sha256 = "c303146d967bda49354b97ef6b7c6a4c94bd3952835a50aabeaa55a233b4f2e9"
+
+[[landmark]]
+decl = "YMReview.Acceptance.translation_ward"
+purpose = "Package the translation identity, shell integrability and window independence."
+explanation = "Source: submissions/openai-20261028/checks/CombinedAcceptance.lean:52."
+origin = "ai-suggestion"
+source_sha256 = "40f8c57aa96db688784fe57491c87ad6cc69f061d58174802b8593ac83ef0d92"
+
+[[landmark]]
+decl = "YMReview.WardAudit.phase_translation_derivative"
+purpose = "The same stress tensor generates the ordinary coordinate derivative of the inserted-field correlation."
+explanation = "Source: submissions/openai-20261028/checks/WardFormulationAudit.lean:25."
+origin = "ai-suggestion"
+source_sha256 = "5943d1d891f931404368d63a5b75e86e07b2c8a0c85b7df79aa2cb6056b48682"
+
+[[landmark]]
+decl = "YMReview.WardAudit.phase_window_independent"
+purpose = "Admissible shell windows give the same charge with the phase and fields held fixed."
+explanation = "Source: submissions/openai-20261028/checks/WardFormulationAudit.lean:53."
+origin = "ai-suggestion"
+source_sha256 = "5943d1d891f931404368d63a5b75e86e07b2c8a0c85b7df79aa2cb6056b48682"
+
+[[landmark]]
+decl = "YMReview.OPE.CommonOPE"
+purpose = "Explicit positive-radius coefficient and truncated-remainder bounds, uniform over admissible positions and phases."
+explanation = "The coefficients are fixed by T before spectators, truncation and phase are requested. The remainder radius is chosen before the phase and positions. Degrees are filtration labels, not asserted exact scaling dimensions.\n\nSource: submissions/openai-20261028/checks/OPESpec.lean:31."
+origin = "ai-suggestion"
+source_sha256 = "3ea7ffb5f7b386036ddb9bab7753d5bcc3e198853aee70b09f06be67891813dc"
+
+[[landmark]]
+decl = "YMReview.OPE.from_source"
+purpose = "Translate a hierarchy’s submitted OPE property into CommonOPE for that very hierarchy."
+explanation = "Source: submissions/openai-20261028/checks/OPECheck.lean:17."
+origin = "ai-suggestion"
+source_sha256 = "ef5926e323e8fa47b8096a04e5a4c4cdaeba7a90545be9613e77c6eda5f75578"
+
+[[landmark]]
+decl = "YMReview.OPE.phase_difference"
+purpose = "Two phases share the same coefficient system; their difference satisfies twice the original remainder bound."
+explanation = "Source: submissions/openai-20261028/checks/OPECheck.lean:28."
+origin = "ai-suggestion"
+source_sha256 = "ef5926e323e8fa47b8096a04e5a4c4cdaeba7a90545be9613e77c6eda5f75578"
+
+[[landmark]]
+decl = "YMReview.OPE.channel_assembly"
+purpose = "Assemble the OPE channels into the actual degree-j coefficient field."
+explanation = "Source: submissions/openai-20261028/checks/OPECheck.lean:72."
+origin = "ai-suggestion"
+source_sha256 = "ef5926e323e8fa47b8096a04e5a4c4cdaeba7a90545be9613e77c6eda5f75578"
+
+[[landmark]]
+decl = "YMReview.OPE.single_field"
+purpose = "Recover a single insertion exactly once the truncation includes its degree."
+explanation = "Source: submissions/openai-20261028/checks/OPECheck.lean:78."
+origin = "ai-suggestion"
+source_sha256 = "ef5926e323e8fa47b8096a04e5a4c4cdaeba7a90545be9613e77c6eda5f75578"
+
+[[landmark]]
+decl = "YMReview.Chain.actual_insertion_formula"
+purpose = "Walkthrough: expose the finite-cutoff local insertion and its coefficient change."
+explanation = "Source: submissions/openai-20261028/docs/examples/OctoberChain.lean:92."
+origin = "ai-suggestion"
+source_sha256 = "0cdf5fb7d1a5b5a05284f991004741f0e3ee0b6beb36c2a91505cbeec63ca8a2"
+
+[[landmark]]
+decl = "YMReview.Chain.every_field_word_has_lattice_origin"
+purpose = "Walkthrough: fixed raw representatives of continuum field words have full UV and extracted IR limits."
+explanation = "Source: submissions/openai-20261028/docs/examples/OctoberChain.lean:172."
+limitations = [
+  "The limiting correlation is the mixed table S, not automatically a selected phase.",
+]
+origin = "ai-suggestion"
+source_sha256 = "0cdf5fb7d1a5b5a05284f991004741f0e3ee0b6beb36c2a91505cbeec63ca8a2"
+
+[[landmark]]
+decl = "YMReview.Chain.phase_second_moments_are_ground_products"
+purpose = "Walkthrough: tie products of phase readings to products in the actual ground-state algebra."
+explanation = "Source: submissions/openai-20261028/docs/examples/OctoberChain.lean:216."
+origin = "ai-suggestion"
+source_sha256 = "0cdf5fb7d1a5b5a05284f991004741f0e3ee0b6beb36c2a91505cbeec63ca8a2"
+
+[[landmark]]
+decl = "YMReview.Chain.reconstructed_words_are_selected_boundary"
+purpose = "Walkthrough: identify selected reconstructed vacuum words with the selected continuation’s boundary distribution."
+explanation = "Source: submissions/openai-20261028/docs/examples/OctoberChain.lean:245."
+origin = "ai-suggestion"
+source_sha256 = "0cdf5fb7d1a5b5a05284f991004741f0e3ee0b6beb36c2a91505cbeec63ca8a2"
+
+[[landmark]]
+decl = "YMReview.Chain.same_continuation_same_boundary"
+purpose = "Walkthrough: equal analytic continuations have equal distributional boundary values."
+explanation = "Source: submissions/openai-20261028/docs/examples/OctoberChain.lean:269."
+limitations = [
+  "The equality-of-continuations hypothesis is essential; this is not uniqueness of the phase or of the large-volume limit.",
+]
+origin = "ai-suggestion"
+source_sha256 = "0cdf5fb7d1a5b5a05284f991004741f0e3ee0b6beb36c2a91505cbeec63ca8a2"
+
+[[landmark]]
+decl = "YMReview.Examples.OSAxioms.complete_OS_on_this_hierarchy"
+purpose = "A1 walkthrough endpoint: the chosen scalar hierarchy satisfies the target OS and growth records."
+explanation = "Source: submissions/openai-20261028/docs/examples/OSAxioms-20261028.lean:165."
+origin = "ai-suggestion"
+source_sha256 = "41436834656174bee5743c148357fd941d5a41450722a81ddc2236500fce97d8"
+
+[[landmark]]
+decl = "YMReview.Examples.OperatorContent.interacting_field_dictionary"
+purpose = "A2 walkthrough of the degreewise interacting-field dictionary."
+explanation = "Source: submissions/openai-20261028/docs/examples/OperatorContent-20261028.lean:89."
+origin = "ai-suggestion"
+source_sha256 = "3c0cb1eb1efee12313f2a645ea7fd9bc8e6c5f629f511607e6531057021d4897"
+
+[[landmark]]
+decl = "YMReview.Examples.LatticeAndScale.positive_probe_on_the_accepted_witness"
+purpose = "A3/A5 walkthrough of the positive probe on the already accepted witness."
+explanation = "Source: submissions/openai-20261028/docs/examples/LatticeAndScale-20261028.lean:151."
+origin = "ai-suggestion"
+source_sha256 = "4a85e9b74893e8535c34faf8398ce7052be35cd4fd35bdd0abf8220eeb5d2527"
+
+[[landmark]]
+decl = "YMReview.Examples.LeadingTrace.centered_trace_has_mixed_lattice_origin"
+purpose = "A4 walkthrough connecting the trace insertions to the mixed lattice limit."
+explanation = "Source: submissions/openai-20261028/docs/examples/LeadingTrace-20261028.lean:123."
+origin = "ai-suggestion"
+source_sha256 = "8c90d7f53ba793498bf37b9e848bd1d1d7d553bca91f361790852a43f6b5f31b"
+
+[[landmark]]
+decl = "YMReview.Examples.TranslationWard.tensor_generates_translations"
+purpose = "A6 walkthrough of the stress tensor’s normalized translation identity."
+explanation = "Source: submissions/openai-20261028/docs/examples/TranslationWard-20261028.lean:64."
+origin = "ai-suggestion"
+source_sha256 = "5d5da9a434a31e277f251e3607dd6937ec7268869f22cda4707a891028a89e22"
+
+[[landmark]]
+decl = "YMReview.Examples.CommonOPE.remainder_uniform_in_state"
+purpose = "A8 walkthrough displaying the radius-before-phase quantifier order."
+explanation = "Source: submissions/openai-20261028/docs/examples/CommonOPE-20261028.lean:79."
+origin = "ai-suggestion"
+source_sha256 = "e041afb3989bd80942e969839e6615621ac4f8bb5d4aa8c09c07e4aa9e3d1e6a"
+
+# Relation entries
+
+[[relation]]
+from = "YMReview.Acceptance.combined_acceptance"
+to = "YMReview.Acceptance.CombinedAcceptance"
+kind = "is stated with"
+note = "The target fixes the family-before-order quantifiers."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/CombinedAcceptance.lean"
+
+[[relation]]
+from = "YMReview.Acceptance.Accepted"
+to = "YMReview.Acceptance.LatticeAndScale"
+kind = "includes clause"
+note = "The lattice field refers to the same C, extraction order and table S."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/AcceptanceSpec.lean"
+
+[[relation]]
+from = "YMReview.Acceptance.Accepted"
+to = "YMReview.Acceptance.PhaseAndOS"
+kind = "includes clause"
+note = "The phase_os field concerns the selected trace and mixed table of this F."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/AcceptanceSpec.lean"
+
+[[relation]]
+from = "YMReview.Acceptance.Accepted"
+to = "YMReview.Acceptance.OperatorContent"
+kind = "includes clause"
+note = "The operators field retains the registered field content of F."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/AcceptanceSpec.lean"
+
+[[relation]]
+from = "YMReview.Acceptance.Accepted"
+to = "YMReview.Acceptance.LeadingTrace"
+kind = "includes clause"
+note = "The trace_uv field fixes the trace law on F."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/AcceptanceSpec.lean"
+
+[[relation]]
+from = "YMReview.Acceptance.Accepted"
+to = "YMReview.Acceptance.TranslationWard"
+kind = "includes clause"
+note = "The translation field fixes sign, coefficient and integrability."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/AcceptanceSpec.lean"
+
+[[relation]]
+from = "YMReview.Acceptance.Accepted"
+to = "YMReview.TwoPointScale.MassLimit"
+kind = "includes clause"
+note = "The positive_lattice_probe field asserts a positive fixed-probe limit."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/AcceptanceSpec.lean"
+
+[[relation]]
+from = "YMReview.Acceptance.Accepted"
+to = "YMReview.Acceptance.SourceConclusions"
+kind = "includes clause"
+note = "The source field retains the submitted conclusions with their source status."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/AcceptanceSpec.lean"
+
+[[relation]]
+from = "YMReview.Acceptance.CombinedAcceptance"
+to = "YMReview.Acceptance.Accepted"
+kind = "requires on the chosen witness"
+note = "One Accepted record serves every clause after each requested refinement."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/AcceptanceSpec.lean"
+
+[[relation]]
+from = "YangMills.constructed"
+to = "YM.Spec.Final"
+kind = "produces"
+note = "One Final is part of the joint witness for each refinement; this is a statement-level relationship."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/submission/Construction.lean"
+
+[[relation]]
+from = "YM.Spec.Final"
+to = "YM.Family"
+kind = "is parameterized by"
+note = "The construction family is fixed in the type of F."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/submission/YM/Spec/Closed.lean"
+
+[[relation]]
+from = "YM.Spec.Final"
+to = "YM.OS.Selection"
+kind = "contains"
+note = "The alpha field contains the ensemble and selected phase."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/submission/YM/Spec/Closed.lean"
+
+[[relation]]
+from = "YM.Spec.Final"
+to = "YM.Boundary.Wightman"
+kind = "contains"
+note = "The action field and realization certificate belong to the same Final."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/submission/YM/Spec/Closed.lean"
+
+[[relation]]
+from = "YMReview.Acceptance.phase_and_os"
+to = "YMAFBridge.same_center"
+kind = "identifies the observable with"
+note = "The same_trace clause ties the trace endpoint to the scalar OS field."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/CombinedAcceptance.lean"
+
+[[relation]]
+from = "YMReview.Acceptance.leading_trace"
+to = "YMAFBridge.K₂"
+kind = "is stated with"
+note = "The all-directions leading law is a limit of K₂ times the specified short-distance factors."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/CombinedAcceptance.lean"
+
+[[relation]]
+from = "YMReview.OPE.constructed"
+to = "YMReview.OPE.CommonOPE"
+kind = "is stated with"
+note = "The review OPE and public Properties hold for the same hierarchy T."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/OPECheck.lean"
+
+[[relation]]
+from = "YMReview.OPE.from_source"
+to = "YangMills.Hierarchy.OperatorProductExpansion"
+kind = "takes as hypothesis"
+note = "Translate the submitted eventual-radius estimates without choosing a new hierarchy."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/OPECheck.lean"
+
+[[relation]]
+from = "YMReview.OPE.phase_difference"
+to = "YMReview.OPE.CommonOPE"
+kind = "takes as hypothesis"
+note = "Apply the same uniform remainder twice and use the triangle inequality."
+origin = "ai-suggestion"
+evidence = "submissions/openai-20261028/checks/OPECheck.lean"
+
+# Argument entries
+
+[[argument]]
+goal = "YMReview.Acceptance.combined_acceptance"
+title = "How the combined review keeps one witness"
+summary = "AI-suggested reading of checks/CombinedAcceptance.lean: obtain one joint source witness, then prove all clauses for that F. These are curated steps, not a semantic dependency export."
+origin = "ai-suggestion"
+steps = [
+  { decl = "YangMills.constructed", why = "Choose the family once and obtain the joint source data for each refinement." },
+  { decl = "YMReview.Acceptance.accepted_of_source", why = "Assemble the clauses without taking a fresh existence witness for each one." },
+  { decl = "YMReview.Acceptance.lattice_and_scale", why = "Supply the finite-law, limits and calibration clause.", for = "YMReview.Acceptance.accepted_of_source" },
+  { decl = "YMReview.Acceptance.finite_law_on_family", why = "Match the finite Wilson measures after dividing by the representation dimension.", for = "YMReview.Acceptance.lattice_and_scale" },
+  { decl = "YMLGTBridge.law_preserving", why = "Transport the law under link reindexing.", for = "YMReview.Acceptance.finite_law_on_family" },
+  { decl = "YMReview.Acceptance.phase_and_os", why = "Use the same phase average and selected trace throughout.", for = "YMReview.Acceptance.accepted_of_source" },
+  { decl = "YMOSBridge.verifiedOS", why = "Insert the complete scalar OS record.", for = "YMReview.Acceptance.phase_and_os" },
+  { decl = "YMOSBridge.verifiedOS_growth", why = "Attach E0-prime for that same record.", for = "YMReview.Acceptance.phase_and_os" },
+  { decl = "YMReview.Acceptance.translation_ward", why = "Keep the fixed translation normalization and window statements.", for = "YMReview.Acceptance.accepted_of_source" },
+  { decl = "YMReview.Acceptance.operator_content", why = "Retain the field dictionary and dense faithful representation.", for = "YMReview.Acceptance.accepted_of_source" },
+  { decl = "YMReview.Acceptance.leading_trace", why = "Use the trace tests from the joint source certificate, not a new AF existence theorem.", for = "YMReview.Acceptance.accepted_of_source" },
+  { decl = "YMReview.TwoPointScale.mass_limit", why = "Use the same trace and ordered limits for the positive lattice probe.", for = "YMReview.Acceptance.accepted_of_source" },
+  { decl = "YMReview.Acceptance.SourceConclusions", why = "Repackage the remaining source certificates on their original witnesses.", for = "YMReview.Acceptance.accepted_of_source" },
+]
+
+[[argument]]
+goal = "YangMills.constructed"
+title = "From a chosen RG run to the public hierarchy"
+summary = "AI-suggested outline of Construction.lean and the internal endpoint it calls. The full analytic implementation lies below these selected gateways."
+origin = "ai-suggestion"
+steps = [
+  { decl = "YM.Nonperturbative.existence", why = "Obtain the internal headline existence package." },
+  { decl = "YM.Nonperturbative.continuum_with_position_tests", why = "Assemble extraction, reconstruction, OPE, contacts and leading position tests.", for = "YM.Nonperturbative.existence" },
+  { decl = "YM.Independent.constructionRun", why = "Supply a run with the prescribed positive penalty and the needed funded data.", for = "YM.Nonperturbative.continuum_with_position_tests" },
+  { decl = "YM.R2IGoals.fromFunded", why = "Refine each requested order using the funded campaign interface.", for = "YM.Nonperturbative.continuum_with_position_tests" },
+  { decl = "YM.Nonperturbative.contacts_on", why = "Choose contact devices with the same OPE basis.", for = "YM.Nonperturbative.continuum_with_position_tests" },
+  { decl = "YangMills.regular", why = "Export finite lattice regularity from the family’s Makes certificate." },
+  { decl = "YangMills.wilsonLimit", why = "Connect the public hierarchy to the unselected lattice limit." },
+  { decl = "YangMills.fromWilson", why = "Transport full UV and extracted IR convergence to the public law.", for = "YangMills.wilsonLimit" },
+  { decl = "YangMills.publicReconstruction", why = "Export the reconstruction and phase-average information." },
+  { decl = "YangMills.publicOPE", why = "Export the separated OPE bounds." },
+  { decl = "YangMills.publicTrace", why = "Export the centered trace test." },
+  { decl = "YangMills.contactDistribution", why = "Export the constructed distributional contact extension." },
+]
+
+[[argument]]
+goal = "YMOSBridge.verifiedOS"
+title = "The selected scalar OS bridge"
+summary = "AI-suggested outline of CompleteOS.lean and RemainingObligations.lean. The E0-prime growth certificate is a separate companion result, verifiedOS_growth."
+origin = "ai-suggestion"
+steps = [
+  { decl = "YMOSBridge.schwinger", why = "Use the actual selected scalar pairing as the S field." },
+  { decl = "YMOSBridge.scalarKernel", why = "Fix the observable and state from F before defining the pairing.", for = "YMOSBridge.schwinger" },
+  { decl = "YMOSBridge.schwinger_integrable", why = "Ensure the pairing is an integral of an integrable function.", for = "YMOSBridge.schwinger" },
+  { decl = "YMOSBridge.E0_tempered", why = "Supply continuity of the Schwinger functional." },
+  { decl = "YMOSBridge.E2_reflection_positive", why = "Supply reflection positivity for the target test sequences." },
+  { decl = "YMOSBridge.E4_cluster", why = "Discharge the last explicit premise of completeOS." },
+]
+
+[[argument]]
+goal = "YMReview.OPE.constructed"
+title = "Expose the same hierarchy’s explicit OPE radii"
+summary = "AI-suggested reading of checks/OPECheck.lean. The proof first obtains a hierarchy from YangMills.jointExistence in submission/Solution.lean; that public name is intentionally left as prose here because a source scan also finds its reference placeholder."
+origin = "ai-suggestion"
+steps = [
+  { decl = "YangMills.JointExistence", why = "Read the quantifier order of the public existence result used by the proof." },
+  { decl = "YangMills.Hierarchy.Properties", why = "The chosen hierarchy already has the submitted OPE property." },
+  { decl = "YMReview.OPE.from_source", why = "Convert its eventual small-radius bounds to explicit positive radii." },
+  { decl = "YangMills.Hierarchy.OperatorProductExpansion", why = "Inspect the submitted coefficient and remainder quantifiers.", for = "YMReview.OPE.from_source" },
+  { decl = "YMReview.OPE.CommonOPE", why = "Keep the hierarchy fixed and expose the radius-before-phase quantifiers.", for = "YMReview.OPE.from_source" },
+]
+
+# Trail entries
+
+[[trail]]
+id = "first-reading"
+title = "First reading: statements, one witness, scope"
+description = "AI-suggested route through the public construction and the independent combined review. Begin with the specification; use the unique accepted_of_source when a reference/solution name is ambiguous."
+stops = [
+  { decl = "YangMills.JointExistence", note = "Read what the public theorem promises for each requested volume sequence." },
+  { decl = "YangMills.Hierarchy.Properties", note = "Separate the four public clauses." },
+  { decl = "YangMills.constructed", note = "Inspect the detailed witness package before the public projection." },
+  { decl = "YM.Spec.Final", note = "Identify the lattice family, mixed table, selected phase and reconstruction." },
+  { decl = "YMReview.Acceptance.CombinedAcceptance", note = "Check that family choice precedes requested order." },
+  { decl = "YMReview.Acceptance.Accepted", note = "Read each review clause on this single F." },
+  { decl = "YMReview.Acceptance.accepted_of_source", note = "Follow the clause assembly through uniquely named supporting declarations." },
+  { decl = "YMReview.Acceptance.combined_acceptance", note = "Open checks/CombinedAcceptance.lean, not the reference placeholder." },
+  { decl = "YMReview.TwoPointScale.MassLimit", note = "Read exactly what the positive probe establishes.", question = "Which extra assertion would turn this fixed-probe result into an intrinsic spectral mass gap?" },
+]
+
+[[trail]]
+id = "lattice-to-boundary"
+title = "Lattice insertions to selected boundary values"
+description = "AI-suggested route through OctoberChain and the records it uses; keep the mixed table and selected phase separate."
+stops = [
+  { decl = "YM.Family", note = "Locate local sections, label frames and transfer data." },
+  { decl = "YMReview.Chain.actual_insertion_formula", note = "Unfold the actual finite-cutoff insertion." },
+  { decl = "YMLGTBridge.law_preserving", note = "Check the probability law and coupling conversion." },
+  { decl = "YMReview.Chain.every_field_word_has_lattice_origin", note = "Follow full UV and extracted IR limits of fixed representatives." },
+  { decl = "YM.OS.Selection", note = "Identify the ground-state algebra, ensemble and chosen phase." },
+  { decl = "YMReview.Chain.phase_second_moments_are_ground_products", note = "See what fixes phase products beyond their barycenter." },
+  { decl = "YMReview.Chain.reconstructed_words_are_selected_boundary", note = "Tie vacuum words to the selected continuation." },
+  { decl = "YMReview.Chain.same_continuation_same_boundary", note = "Keep the equality-of-continuations hypothesis.", question = "Why does this uniqueness statement leave phase and IR-limit uniqueness open?" },
+]
+
+[[trail]]
+id = "assessment-a1-a8"
+title = "Assessment A1–A8 through commented examples"
+description = "AI-suggested tour following the current assessment labels from docs/examples/README.md. A3 and A5 share the lattice/scale example; A7 is the combined theorem and A8 is separate."
+stops = [
+  { decl = "YMReview.Examples.OSAxioms.complete_OS_on_this_hierarchy", note = "A1: scalar OS record and arity growth; inspect the test space." },
+  { decl = "YMReview.Examples.OperatorContent.interacting_field_dictionary", note = "A2: field dictionary and its linear-algebraic scope." },
+  { decl = "YMReview.Acceptance.LatticeAndScale", note = "A3: finite law, full UV and extracted IR on the same family." },
+  { decl = "YMReview.Examples.LeadingTrace.centered_trace_has_mixed_lattice_origin", note = "A4: locate the trace observable’s mixed lattice origin." },
+  { decl = "YMReview.Acceptance.leading_trace", note = "A4: inspect the coefficient and the all-directions leading limit." },
+  { decl = "YMReview.Examples.LatticeAndScale.positive_probe_on_the_accepted_witness", note = "A5: a positive probe on the accepted witness." },
+  { decl = "YMReview.Examples.TranslationWard.tensor_generates_translations", note = "A6: inspect the fixed sign, coefficient and ordinary derivative." },
+  { decl = "YMReview.Acceptance.accepted_of_source", note = "A7: assemble the combined clauses on one F." },
+  { decl = "YMReview.Examples.CommonOPE.remainder_uniform_in_state", note = "A8: read radius-before-phase uniformity." },
+  { decl = "YMReview.OPE.constructed", note = "A8: choose checks/OPECheck.lean for the separate endpoint." },
+]
+
+[[trail]]
+id = "os-bridge"
+title = "Scalar OS axioms: kernel, pairing, positivity, cluster"
+description = "AI-suggested path through the review’s selected centered-trace bridge; this is not the all-field Wightman reconstruction route."
+stops = [
+  { decl = "YMOSBridge.scalarKernel", note = "Start with the chosen field and phase." },
+  { decl = "YMAFBridge.same_center", note = "Match the source trace field to the OS observable." },
+  { decl = "YMOSBridge.schwinger", note = "Inspect the zero-diagonal Schwartz domain." },
+  { decl = "YMOSBridge.schwinger_integrable", note = "Check that the displayed pairing is actually integrable." },
+  { decl = "YMOSBridge.E0_tempered", note = "Read continuity at each arity." },
+  { decl = "YMOSBridge.E2_reflection_positive", note = "Read positivity for the full target Borchers sequences." },
+  { decl = "YMOSBridge.E4_cluster", note = "Read the spatial separation quantifiers." },
+  { decl = "YMOSBridge.verifiedOS", note = "Assemble E0–E4 with no remaining cluster premise." },
+  { decl = "YMOSBridge.E0_prime_growth", note = "Distinguish arity-linear growth from a fixed-arity bound." },
+  { decl = "YMOSBridge.verifiedOS_growth", note = "Attach growth to the same OS record.", question = "Which contact-supported distributions are invisible to diagonal-flat tests?" },
+]
+
+[[trail]]
+id = "common-ope"
+title = "Common OPE: quantifiers, phases and actual fields"
+description = "AI-suggested path through the separate A8 adapter and its limitations."
+stops = [
+  { decl = "YangMills.Hierarchy.OperatorProductExpansion", note = "Inspect the submitted eventual-radius formulation." },
+  { decl = "YMReview.OPE.CommonOPE", note = "Compare the explicit radius and phase quantifiers." },
+  { decl = "YMReview.OPE.from_source", note = "See that the adapter changes the formulation while retaining T." },
+  { decl = "YMReview.OPE.phase_difference", note = "Common coefficients allow differing phases." },
+  { decl = "YMReview.OPE.channel_assembly", note = "Identify channel coefficients with the actual coefficient field." },
+  { decl = "YMReview.OPE.single_field", note = "Check exact recovery of a single insertion." },
+  { decl = "YMReview.OPE.constructed", note = "Open the checks/ solution to the separate existence target.", question = "What additional theorem would identify this chosen witness with the combined endpoint’s chosen witness?" },
+]
+

@@ -1,0 +1,30 @@
+ slim  SEMANTIC snapshot · Lean 4.33.1 │ ✓ sources match index │ demo: slim_demo (miniature library
+Goal explorer │ ◎ goal: Demo.Graph.searchWithin_sound │ curated │ uses │ / search │ Esc declarations
+╭ Goal explorer ─────────────────────────╮╭ Detail ────────────────────────────────────────────────╮
+│relation: Curated argument              ││theorem Demo.Rel.ReflTransGen.single                    │
+│direction: uses (A lists what A needs)  ││ module SlimDemo.Relation.Closure ·                     │
+│show: local+ext │ generated off         ││     SlimDemo/Relation/Closure.lean:34 · local          │
+│▾ ◎ Demo.Graph.searchWithin_sound       ││                                                        │
+│  ▸ [cur 1] def Graph.searchWithin      ││Path from the goal ──────────────────────────────────── │
+│  ▸ [cur 2] thm Graph.anyOf_eq_true     ││ Demo.Graph.searchWithin_sound                          │
+│  ▸ [cur 3] thm Graph.mem_succsOf       ││   uses [cur 4] Demo.Rel.ReflTransGen.head              │
+│  ▾ [cur 4] thm ReflTransGen.head       ││     uses [cur 5] Demo.Rel.ReflTransGen.single          │
+│    ▸ [cur 5] thm ReflTransGen.single   ││                                                        │
+│    ▸ [cur 6] thm ReflTransGen.trans    ││Why this edge is shown ──────────────────────────────── │
+│  ▸ [cur] def Graph.Reach               ││ · [cur 5] step 5 of a curated argument: the map says   │
+│                                        ││     ReflTransGen.head uses ReflTransGen.single         │
+│                                        ││     (authored). An explanation, not a Lean-derived     │
+│                                        ││     dependency.                                        │
+│                                        ││ the map's author says:                                 │
+│                                        ││ one step is a chain                                    │
+│                                        ││                                                        │
+│                                        ││Purpose ─────────────────────────────────────────────── │
+│                                        ││ not annotated                                          │
+│                                        ││                                                        │
+│                                        ││Statement (elaborated) ──────────────────────────────── │
+│                                        ││theorem Demo.Rel.ReflTransGen.single                    │
+│                                        ││    {α : Type u} {r : Demo.Rel α} {a b : α} (h : r a b) │
+│                                        ││        :                                               │
+│                                        ││    r.ReflTransGen a b                                  │
+╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 39% ─╯
+ Space unfold · ⏎ open · r relation kind · u direction · y T/V · L G H filters · c connect · * goal

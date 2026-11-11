@@ -1,0 +1,13 @@
+name = "slim_export"
+defaultTargets = ["slim-export"]
+
+[[lean_lib]]
+name = "SlimExport"
+roots = ["SlimExport.Compat"]
+
+[[lean_exe]]
+name = "slim-export"
+root = "Main"
+# The interpreter must find native implementations of Lean's own functions
+# when extensions/initializers of the loaded modules are run (--pp notation).
+supportInterpreter = true

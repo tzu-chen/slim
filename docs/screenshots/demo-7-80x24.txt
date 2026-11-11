@@ -1,0 +1,24 @@
+ slim  SEMANTIC snapshot · Lean 4.33.1 │ ✓ sources match index │ demo: slim_demo
+SlimDemo.Graph.Basic › Demo.Graph.Reach › trans   │ route: search “reach_trans”
+╭ Search [local+lib] ────╮╭ Declaration ───────────────────────────────────────╮
+│/ reach_trans           ││theorem Demo.Graph.Reach.trans                      │
+│1 name match · 1 text ·…││module SlimDemo.Graph.Basic ·                       │
+│ thm   …each.trans fuzzy││    SlimDemo/Graph/Basic.lean:85 · local            │
+│── documentation / stat…││                                                    │
+│ thm   …transitive» text││Statement (elaborated) ──────────────────────────── │
+│                        ││theorem Demo.Graph.Reach.trans                      │
+│                        ││    {g : Demo.Graph} {u v w : Nat}                  │
+│                        ││    (h₁ : g.Reach u v) (h₂ : g.Reach v w) :         │
+│                        ││    g.Reach u w                                     │
+│                        ││                                                    │
+│                        ││Documentation ───────────────────────────────────── │
+│                        ││ Reachability is transitive: a path from `u` to `v` │
+│                        ││ followed by a path from `v` to `w` gives a path    │
+│                        ││ from `u` to `w`.                                   │
+│                        ││                                                    │
+│                        ││Status & evidence ───────────────────────────────── │
+│                        ││ ✓ semantic declaration extracted from Lean 4.33.1  │
+│                        ││     build artifacts (project module, snapshot      │
+│                        ││     2026-11-11T05:11:54Z)                          │
+╰────────────────────────╯╰────────────────────────────────────────────── 44% ─╯
+ j/k scroll · s source · i implicit · m bookmark · a trail · * goal · M map · A

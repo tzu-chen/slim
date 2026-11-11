@@ -1,0 +1,32 @@
+ slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ YM (/tmp/YM)
+Reading trails │ ◎ goal: YangMills.constructed │ no active trail │ / search │ Esc declarations
+╭ Reading trails ────────────────────────────╮╭ Detail ──────────────────────────────────────────────────────╮
+│Your trails (0)                             ││none yet: a adds a stop, N names a trail                      │
+│    none yet: a adds a stop, N names a trail││ Trails are ordered by you, not by dependency. States         │
+│Shared trails in the project map (5)        ││     (unread, read, understood, revisit) are your             │
+│  + First reading: statements… 9 stops, not…││     annotations, not Lean verification.                      │
+│  + Lattice insertions to sel… 8 stops, not…││                                                              │
+│  + Assessment A1–A8 through … 10 stops, no…││                                                              │
+│  + Scalar OS axioms: kernel,… 10 stops, no…││                                                              │
+│  + Common OPE: quantifiers, … 7 stops, not…││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+│                                            ││                                                              │
+╰────────────────────────────────────────────╯╰──────────────────────────────────────────────────────────────╯
+ ⏎ open · s state · n note · Q question · - + move · d remove · N new · t active · r resume · E export · ? hel

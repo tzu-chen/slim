@@ -1,0 +1,73 @@
+'Demo.Rel' does not depend on any axioms
+'Demo.Rel.Reflexive' does not depend on any axioms
+'Demo.Rel.Symmetric' does not depend on any axioms
+'Demo.Rel.Transitive' does not depend on any axioms
+'Demo.Rel.Subrel' does not depend on any axioms
+'Demo.Rel.comp' does not depend on any axioms
+'Demo.Rel.inv' does not depend on any axioms
+'Demo.Rel.ext' depends on axioms: [propext, Quot.sound]
+'Demo.Rel.Subrel.antisymm' depends on axioms: [propext, Quot.sound]
+'Demo.Rel.Symmetric.inv_eq' depends on axioms: [propext, Quot.sound]
+'Demo.Rel.comp_assoc' depends on axioms: [propext, Quot.sound]
+'Demo.Rel.reflexive_or_exists_not_refl' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Demo.Rel.not_reflexive_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Demo.Rel.ReflTransGen' does not depend on any axioms
+'Demo.Rel.ReflTransGen.refl' does not depend on any axioms
+'Demo.Rel.ReflTransGen.tail' does not depend on any axioms
+'Demo.Rel.ReflTransGen.single' does not depend on any axioms
+'Demo.Rel.ReflTransGen.trans' does not depend on any axioms
+'Demo.Rel.ReflTransGen.head' does not depend on any axioms
+'Demo.Rel.ReflTransGen.lift' does not depend on any axioms
+'Demo.Rel.ReflTransGen.mono' does not depend on any axioms
+'Demo.Rel.ReflTransGen.least' does not depend on any axioms
+'Demo.Rel.ReflTransGen.idem' depends on axioms: [propext, Quot.sound]
+'Demo.Rel.TransGen' does not depend on any axioms
+'Demo.Rel.TransGen.single' does not depend on any axioms
+'Demo.Rel.TransGen.tail' does not depend on any axioms
+'Demo.Rel.transGen_iff_comp' does not depend on any axioms
+'Demo.Rel.SymmClosure' does not depend on any axioms
+'Demo.Rel.SymmClosure.symmetric' does not depend on any axioms
+'Demo.Rel.ReflTransGen.symmetric' does not depend on any axioms
+'Demo.Rel.EqvGen' does not depend on any axioms
+'Demo.Rel.EqvGen.equivalence' does not depend on any axioms
+'Demo.Graph' does not depend on any axioms
+'Demo.Graph.edges' does not depend on any axioms
+'Demo.Graph.Adj' does not depend on any axioms
+'Demo.Graph.Reach' does not depend on any axioms
+'Demo.Graph.mem_cons_iff' does not depend on any axioms
+'Demo.Graph.succsOf' does not depend on any axioms
+'Demo.Graph.mem_succsOf' does not depend on any axioms
+'Demo.Graph.Reach.trans' does not depend on any axioms
+'Demo.Graph.Subgraph' does not depend on any axioms
+'Demo.Graph.Reach.mono' does not depend on any axioms
+'Demo.Graph.anyOf' does not depend on any axioms
+'Demo.Graph.anyOf_eq_true' does not depend on any axioms
+'Demo.Graph.anyOf_of_mem' does not depend on any axioms
+'Demo.Graph.searchWithin' does not depend on any axioms
+'Demo.Graph.searchWithin_step' does not depend on any axioms
+'Demo.Graph.searchWithin_sound' does not depend on any axioms
+'Demo.Fixtures.searchWithin_complete' depends on axioms: [sorryAx]
+'Demo.Fixtures.searchWithin_correct' depends on axioms: [sorryAx]
+'Demo.Fixtures.search_trans' depends on axioms: [sorryAx]
+'Demo.Fixtures.searchWithin_succ' depends on axioms: [sorryAx]
+'Demo.Fixtures.oracle_axiom' depends on axioms: [Demo.Fixtures.oracle_axiom]
+'Demo.Fixtures.reach_iff_bounded_search' depends on axioms: [Demo.Fixtures.oracle_axiom]
+'Demo.Fixtures.sampleGraph' does not depend on any axioms
+'Demo.Fixtures.sample_search_native' depends on axioms: [Demo.Fixtures.sample_search_native._native.native_decide.ax_1_1]
+'Demo.Fixtures.sample_reach' does not depend on any axioms
+'_private.SlimDemo.Fixtures.Special.0.Demo.Fixtures.chain_reach_aux' does not depend on any axioms
+'Demo.Fixtures.reach_of_long_chain' does not depend on any axioms
+'Demo.Fixtures.closure_of_decide_eq' does not depend on any axioms
+'Demo.Fixtures.ℛ' does not depend on any axioms
+'Demo.Fixtures.step₁' does not depend on any axioms
+'Demo.Fixtures.reach_αβ' does not depend on any axioms
+'Demo.Fixtures.«reach is transitive»' does not depend on any axioms
+'Demo.Fixtures.instInhabitedGraph' does not depend on any axioms
+'Demo.Fixtures.WeightedEdge' does not depend on any axioms
+'Demo.Fixtures.WeightedEdge.src' does not depend on any axioms
+'Demo.Fixtures.WeightedEdge.dst' does not depend on any axioms
+'Demo.Fixtures.WeightedEdge.weight' does not depend on any axioms
+'Demo.Fixtures.firstEdge?' does not depend on any axioms
+'Demo.Fixtures.halvings' depends on axioms: [propext, Quot.sound]
+'Demo.Fixtures.hiddenVertex' does not depend on any axioms
+'Demo.Fixtures.dropUntilFrom' does not depend on any axioms

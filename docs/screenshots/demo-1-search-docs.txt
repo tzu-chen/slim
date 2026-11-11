@@ -1,0 +1,30 @@
+ slim  SEMANTIC snapshot · Lean 4.33.1 │ ✓ sources match index │ demo: slim_demo (miniature library
+type to search · Tab moves between panes · ? for help
+╭ Search [local+lib] ────╮╭ Declaration ─────────────────────────────╮╭ [1 Uses] 2 3 4 5 ──────────╮
+│/ decision procedure    ││Search for a declaration (/) or browse the││No declaration selected.    │
+│0 name matches · 4 text…││                                          ││                            │
+│── documentation / stat…││Reading flow:                             ││                            │
+│ inst  Nat.decLe    text││  /       search names (exact, prefix, wor││                            │
+│ thm   …f_decide_eq text││  ⏎       open; the centre shows statement││                            │
+│ inst  Nat.decLt    text││  1 2 3   what it uses · what uses it · ax││                            │
+│ thm   …hin_correct text││  ⏎ on a neighbour follows the edge; [ and││                            │
+│                        ││  m a     bookmark · add to the reading tr││                            │
+│                        ││  M A T   architecture map · goal explorer││                            │
+│                        ││  S I o   skim statements · import layers ││                            │
+│                        ││  f       search within the selected direc││                            │
+│                        ││  *       pin this declaration as the goal││                            │
+│                        ││  ?       all keys and what every edge and││                            │
+│                        ││                                          ││                            │
+│                        ││                                          ││                            │
+│                        ││                                          ││                            │
+│                        ││                                          ││                            │
+│                        ││                                          ││                            │
+│                        ││                                          ││                            │
+│                        ││                                          ││                            │
+│                        ││                                          ││                            │
+│                        ││                                          ││────────────────────────────│
+│                        ││                                          ││T = in statement · V = in   │
+│                        ││                                          ││proof/body · C =            │
+│                        ││                                          ││constructor. Coverage notes │
+╰────────────────────────╯╰──────────────────────────────────────────╯╰────────────────────────────╯
+ type to search · ↓/⏎ results · Esc stop typing · Tab panes · ? help

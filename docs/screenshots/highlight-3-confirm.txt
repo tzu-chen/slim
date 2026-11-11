@@ -1,0 +1,40 @@
+ slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ slim_demo (/tmp/slim/fixtures/demo)
+SlimDemo.Fixtures.Tr╭ Semantic highlighting: explicit trust decision ────────────────────────────────────────────────────────────╮
+╭ Search [local+lib]│Semantic highlighting index for `slim_demo` at /tmp/slim/fixtures/demo                                      │Mod 5 Idx ─────────╮
+│/ searchWithin_succ│  toolchain:   leanprover/lean4:v4.33.1 (/home/someone/.elan/toolchains/leanprover--lean4---v4.33.1)        │                   │
+│1 name match · 0 in│  runs:        `lake serve` of that toolchain (the Lean language server), which elaborates each file:       │laration's text    │
+│ thm   …xtures.sear│               this EXECUTES the project's macros, tactics and elaborators; lakefile.toml is read by Lake   │es (as written or  │
+│                   │                              as data                                                                       │espace). NOT       │
+│                   │  input:       9 Lean files (8 with existing build artifacts first), one document at a time                 │ namespaces, local │
+│                   │  never:       no build, no `lake update`, no downloads, no toolchain install; imports must already be built│d macros are       │
+│                   │               (documents are opened with dependencyBuildMode "never"; a file with stale imports is         │                   │
+│                   │                              recorded as failed)                                                           │                   │
+│                   │  sandbox:     bubblewrap 0.12.0: no network, read-only toolchain and project, private /tmp, cleared        │                   │
+│                   │                 environment, nothing writable                                                              │                   │
+│                   │  limits:      memory limit left to the enclosing resource guard (--cgroup none); 300 s per file            │                   │
+│                   │  writes only: the highlight cache /tmp/slim/data/hl-cache/projects/slim_demo-4af7aaeec804/highlight.sqlite │                   │
+│                   │  resumable:   each file is published when done; cancelling keeps finished files                            │                   │
+│                   │                                                                                                            │                   │
+│                   │This starts the project's own Lean language server and lets it elaborate the files, which                   │                   │
+│                   │runs project code (macros, tactics, elaborators), confined by the sandbox and limits above.                 │                   │
+│                   │It can take long on a large project; browsing stays available, and the job can be paused or                 │                   │
+│                   │cancelled. Nothing is installed, fetched or built. Trust is not remembered.                                 │                   │
+│                   │                                                                                                            │                   │
+│                   │Type yes and press ⏎ to run, Esc to cancel:                                                                 │                   │
+│                   │                                                                                                            │                   │
+│                   │                                                                                                            │                   │
+│                   │                                                                                                            │                   │
+│                   │                                                                                                            │                   │
+│                   │                                                                                                            │                   │
+│                   │                                                                                                            │                   │
+│                   │                                                                                                            │                   │
+│                   │                                                                                                            │                   │
+│                   │                                                                                                            │                   │
+│                   │                                                                                                            │                   │
+│                   │                                                                                                            │                   │
+│                   │                                                                                                            │───────────────────│
+│                   │                                                                                                            │ (j/k highlights   │
+│                   │                                                                                                            │uals the indexed   │
+│                   │                                                                                                            │y resolve it       │
+╰───────────────────╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯───────────────────╯
+ planning semantic indexing (nothing runs yet)…

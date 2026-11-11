@@ -1,0 +1,30 @@
+ slim  SEMANTIC snapshot · Lean 4.33.1 │ ✓ sources match index │ demo: slim_demo (miniature library
+Reading trails │ ◎ goal: Demo.Graph.searchWithin_sound │ active trail: The soundness of bounded sear
+╭ Reading trails ────────────────────────╮╭ Detail ────────────────────────────────────────────────╮
+│Your trails (2)                         ││theorem Demo.Fixtures.searchWithin_complete             │
+│▾ Reading trail                 0/1 read││ module SlimDemo.Fixtures.Trust ·                       │
+│    1. [      ] thm ReflTransGen.single…││     SlimDemo/Fixtures/Trust.lean:24 · local            │
+│▾ The soundness of bounded sea… 2/8 read││                                                        │
+│    1. [read  ] group Finite graphs and…││Stop 8 of 8 in "The soundness of bounded search in ten m│
+│    2. [unders] def Graph.Reach — reach…││ state: unread (your annotation, not Lean verification) │
+│    3. [      ] induc Rel.ReflTransGen …││ why it is on the route:                                │
+│    4. [      ] def Graph.searchWithin …││ the converse is only a test fixture                    │
+│    5. [      ] thm Graph.anyOf_eq_true…││ ? question: What would a proof of completeness need as │
+│    6. [      ] thm ReflTransGen.head —…││     its fuel bound?                                    │
+│    7. [      ] thm Graph.searchWithin_…││ s state · n explanation · Q question · - + move · d    │
+│    8. [      ] thm Fixtures.searchWith…││     remove                                             │
+│                                        ││                                                        │
+│                                        ││Purpose ─────────────────────────────────────────────── │
+│                                        ││ TEST FIXTURE: completeness of the search, stated with  │
+│                                        ││  a deliberately missing proof.                         │
+│                                        ││ annotation: authored                                   │
+│                                        ││                                                        │
+│                                        ││Statement (elaborated) ──────────────────────────────── │
+│                                        ││theorem Demo.Fixtures.searchWithin_complete             │
+│                                        ││    {g : Demo.Graph} {s t : Nat} (h : g.Reach s t) :    │
+│                                        ││    ∃ fuel, g.searchWithin fuel s t = true              │
+│                                        ││                                                        │
+│                                        ││In the map ──────────────────────────────────────────── │
+│                                        ││ · Deliberate test fixtures (not results)               │
+╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 40% ─╯
+ ⏎ open · s state · n note · Q question · - + move · d remove · N new · t active · r resume · E expo

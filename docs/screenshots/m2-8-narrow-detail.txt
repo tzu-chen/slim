@@ -1,0 +1,20 @@
+ slim  SEMANTIC snapshot | Lean 4.33.1 | ok sources match in
+Architecture map | goal: none
++ Detail --------------------------------------------------+
+|theorem Demo.Graph.searchWithin_sound                     |
+| module SlimDemo.Graph.Search |                           |
+|     SlimDemo/Graph/Search.lean:69 | local                |
+|                                                          |
+|Purpose ------------------------------------------------- |
+| If the Boolean search answers true, the target really is |
+|  reachable from the source.                              |
+| annotation: authored                                     |
+|                                                          |
+|Explanation --------------------------------------------- |
+| The search is a depth-first exploration that spends one  |
+|  unit of fuel per edge. Soundness is proved by recursion |
+|  on the fuel: with no fuel the search only accepts `s =  |
+|  t`; otherwise a successful search found a successor `w` |
+|  of `s` from which the smaller search succeeds, and the  |
++---------------------------------------------------- 20% -+
+ Tab back to the outline | j/k scroll | w wrap | Enter open

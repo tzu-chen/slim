@@ -1,0 +1,5 @@
+name = "slim_demo"
+defaultTargets = ["SlimDemo"]
+
+[[lean_lib]]
+name = "SlimDemo"

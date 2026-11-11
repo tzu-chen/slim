@@ -1,0 +1,276 @@
+{
+  "baseline_provider": "textmate-e1/vscode-lean4 0.0.240/9a799ff454ffe6fe",
+  "discover_ms": 23.352901999999997,
+  "local_files": 8708,
+  "local_mib": 94.400954246521,
+  "measured_files": 2193,
+  "navigation": {
+    "budget_mib": 128,
+    "files_in_cache_at_end": 2193,
+    "files_opened_and_fully_tokenized": 2193,
+    "open_ms": {
+      "max": 2.051828,
+      "mean": 0.921947951208391,
+      "n": 2193,
+      "p50": 0.97266,
+      "p95": 1.6076409999999999,
+      "p99": 1.8082040000000001
+    },
+    "peak_worker_cache_mib": 46.91301155090332,
+    "rss_after_mib": 81.8125,
+    "rss_before_mib": 26.41796875,
+    "seconds": 3.347661485
+  },
+  "open_ms": {
+    "alternating between two files 200 times": {
+      "all_answers_ms": {
+        "max": 1.017944,
+        "mean": 0.026729020000000003,
+        "n": 200,
+        "p50": 0.017932999999999998,
+        "p95": 0.018685,
+        "p99": 0.02132
+      },
+      "first_answer_ms": {
+        "max": 1.017743,
+        "mean": 0.026588045000000008,
+        "n": 200,
+        "p50": 0.017793,
+        "p95": 0.018545,
+        "p99": 0.021189999999999997
+      }
+    },
+    "files with notation/macros, top of file, cold": {
+      "all_answers_ms": {
+        "max": 1.6104470000000002,
+        "mean": 1.05334846,
+        "n": 50,
+        "p50": 1.218116,
+        "p95": 1.447142,
+        "p99": 1.6104470000000002
+      },
+      "first_answer_ms": {
+        "max": 1.609325,
+        "mean": 1.05199778,
+        "n": 50,
+        "p50": 1.2167530000000002,
+        "p95": 1.4459600000000001,
+        "p99": 1.609325
+      }
+    },
+    "largest files, jump to the last line, cold": {
+      "all_answers_ms": {
+        "max": 44.679784,
+        "mean": 11.19654055,
+        "n": 20,
+        "p50": 9.748999,
+        "p95": 10.414266999999999,
+        "p99": 44.679784
+      },
+      "first_answer_ms": {
+        "max": 44.679584,
+        "mean": 11.196286150000002,
+        "n": 20,
+        "p50": 9.748759,
+        "p95": 10.413847,
+        "p99": 44.679584
+      }
+    },
+    "largest files, jump to the last line, new worker with spans cached on disk": {
+      "all_answers_ms": {
+        "max": 0.9141210000000001,
+        "mean": 0.22138645,
+        "n": 20,
+        "p50": 0.18232,
+        "p95": 0.226341,
+        "p99": 0.9141210000000001
+      },
+      "first_answer_ms": {
+        "max": 0.91403,
+        "mean": 0.22126425000000002,
+        "n": 20,
+        "p50": 0.18220899999999998,
+        "p95": 0.226211,
+        "p99": 0.91403
+      }
+    },
+    "largest files, top of file, cold": {
+      "all_answers_ms": {
+        "max": 2.02097,
+        "mean": 1.5429116500000002,
+        "n": 20,
+        "p50": 1.5038580000000001,
+        "p95": 1.9462920000000001,
+        "p99": 2.02097
+      },
+      "first_answer_ms": {
+        "max": 2.019908,
+        "mean": 1.5418187,
+        "n": 20,
+        "p50": 1.502766,
+        "p95": 1.94522,
+        "p99": 2.019908
+      }
+    },
+    "ordinary files again, warm in memory": {
+      "all_answers_ms": {
+        "max": 0.045775,
+        "mean": 0.03646391499999997,
+        "n": 200,
+        "p50": 0.036297,
+        "p95": 0.040244999999999996,
+        "p99": 0.04289
+      },
+      "first_answer_ms": {
+        "max": 0.044433,
+        "mean": 0.03510643999999999,
+        "n": 200,
+        "p50": 0.034945,
+        "p95": 0.038892,
+        "p99": 0.041537
+      }
+    },
+    "ordinary files, top of file, cold": {
+      "all_answers_ms": {
+        "max": 1.308875,
+        "mean": 0.9852851199999995,
+        "n": 200,
+        "p50": 0.97814,
+        "p95": 1.1659089999999999,
+        "p99": 1.235279
+      },
+      "first_answer_ms": {
+        "max": 1.307953,
+        "mean": 0.9847487599999997,
+        "n": 200,
+        "p50": 0.9773589999999999,
+        "p95": 1.1650880000000001,
+        "p99": 1.234377
+      }
+    }
+  },
+  "project": "mathlib",
+  "render_frame_ms": {
+    "120x34": {
+      "off": {
+        "max": 0.298795,
+        "mean": 0.21727326587537113,
+        "n": 1685,
+        "p50": 0.21793600000000002,
+        "p95": 0.228355,
+        "p99": 0.233465
+      },
+      "syntax": {
+        "max": 0.9270349999999999,
+        "mean": 0.26915785281899124,
+        "n": 1685,
+        "p50": 0.230178,
+        "p95": 0.488629,
+        "p99": 0.6398400000000001
+      },
+      "syntax + semantic": {
+        "max": 0.9355509999999999,
+        "mean": 0.2690293477744805,
+        "n": 1685,
+        "p50": 0.230338,
+        "p95": 0.489251,
+        "p99": 0.6431260000000001
+      }
+    },
+    "200x60": {
+      "off": {
+        "max": 0.44374600000000003,
+        "mean": 0.3670954795252232,
+        "n": 1685,
+        "p50": 0.371311,
+        "p95": 0.393813,
+        "p99": 0.403782
+      },
+      "syntax": {
+        "max": 1.447823,
+        "mean": 0.4844045507418392,
+        "n": 1685,
+        "p50": 0.42246599999999995,
+        "p95": 0.784239,
+        "p99": 1.266166
+      },
+      "syntax + semantic": {
+        "max": 1.4898019999999998,
+        "mean": 0.487345710979227,
+        "n": 1685,
+        "p50": 0.42406900000000003,
+        "p95": 0.7975140000000001,
+        "p99": 1.265965
+      }
+    }
+  },
+  "root": "~/Codes/haagerup/lean/.lake/packages/mathlib",
+  "sampled": true,
+  "semantic_cache": {
+    "blob_bytes": {
+      "n": 0
+    },
+    "decode_all_chunks_ms": {
+      "n": 0
+    },
+    "note": "no semantic cache for this project",
+    "read_and_parse_ms": {
+      "n": 0
+    },
+    "records_with_tokens": 0,
+    "tokens_decoded": 0
+  },
+  "tokenize": {
+    "bytes": 26054100,
+    "first_240_lines_ms": {
+      "max": 1.9089720000000001,
+      "mean": 0.842558483812131,
+      "n": 2193,
+      "p50": 0.915694,
+      "p95": 1.487798,
+      "p99": 1.704351
+    },
+    "lines": 616134,
+    "lines_per_s": 182363.7144352479,
+    "mib_per_s": 7.354267402369895,
+    "per_file_ms": {
+      "max": 41.664734,
+      "mean": 1.5230136871865054,
+      "n": 2193,
+      "p50": 0.923238,
+      "p95": 4.844204,
+      "p99": 8.131400000000001
+    },
+    "rss_after_mib": 10.59375,
+    "rss_before_mib": 8.421875,
+    "seconds": 3.3785997500000002,
+    "slowest": [
+      {
+        "bytes": 453608,
+        "file": "Mathlib.lean",
+        "ms": 41.664734
+      },
+      {
+        "bytes": 67973,
+        "file": "Mathlib/Tactic/Translate/Core.lean",
+        "ms": 9.924064999999999
+      },
+      {
+        "bytes": 77724,
+        "file": "Mathlib/MeasureTheory/Integral/SetToL1.lean",
+        "ms": 9.912694
+      },
+      {
+        "bytes": 77011,
+        "file": "Mathlib/MeasureTheory/Integral/IntegralEqImproper.lean",
+        "ms": 9.77583
+      },
+      {
+        "bytes": 73326,
+        "file": "Mathlib/MeasureTheory/Measure/MeasureSpace.lean",
+        "ms": 9.628354999999999
+      }
+    ],
+    "tokens": 1744277
+  }
+}

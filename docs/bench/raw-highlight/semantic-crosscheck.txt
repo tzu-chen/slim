@@ -1,0 +1,27 @@
+HaagerupIzumi/Analytic/Contour.lean: identical — 7298 tokens from the server, 7298 stored (complete); {'keyword': 2933, 'variable': 4085, 'property': 280}
+HaagerupIzumi/Analytic/GammaK4MovingGeometry.lean: identical — 763 tokens from the server, 763 stored (complete); {'keyword': 186, 'variable': 550, 'property': 27}
+HaagerupIzumi/Analytic/NegColumn.lean: identical — 2327 tokens from the server, 2327 stored (complete); {'keyword': 963, 'variable': 1280, 'property': 84}
+HaagerupIzumi/C8/Lattice/KsQChk18.lean: identical — 37 tokens from the server, 37 stored (complete); {'keyword': 37}
+HaagerupIzumi/C8/Lattice/KsQChk63.lean: identical — 37 tokens from the server, 37 stored (complete); {'keyword': 37}
+HaagerupIzumi/C8/Lattice/ModelGrading.lean: identical — 1195 tokens from the server, 1195 stored (complete); {'keyword': 482, 'variable': 663, 'property': 50}
+HaagerupIzumi/C8/Lattice/P4ChkFRM05.lean: identical — 27 tokens from the server, 27 stored (complete); {'keyword': 24, 'variable': 2, 'property': 1}
+HaagerupIzumi/C8/Lattice/P4ChkFRP17.lean: identical — 27 tokens from the server, 27 stored (complete); {'keyword': 24, 'variable': 2, 'property': 1}
+HaagerupIzumi/C8/Lattice/P4ChkFRZ29.lean: identical — 27 tokens from the server, 27 stored (complete); {'keyword': 24, 'variable': 2, 'property': 1}
+HaagerupIzumi/C8/Lattice/P4Defs.lean: identical — 52 tokens from the server, 52 stored (complete); {'keyword': 46, 'property': 6}
+HaagerupIzumi/C8/Lattice/P4FLM3.lean: identical — 20 tokens from the server, 20 stored (complete); {'keyword': 20}
+HaagerupIzumi/C8/Lattice/P4ImgERP4.lean: identical — 14 tokens from the server, 14 stored (complete); {'keyword': 14}
+HaagerupIzumi/C8/Lattice/P4ImgFRZ16.lean: identical — 16 tokens from the server, 16 stored (complete); {'keyword': 16}
+HaagerupIzumi/C8/Lattice/P4IpFRP1.lean: identical — 60 tokens from the server, 60 stored (complete); {'keyword': 60}
+HaagerupIzumi/C8/Lattice/P4MgFRM4.lean: identical — 46 tokens from the server, 46 stored (complete); {'keyword': 46}
+HaagerupIzumi/C8/Lattice/P4StP3.lean: identical — 47 tokens from the server, 47 stored (complete); {'keyword': 21, 'variable': 2, 'property': 24}
+HaagerupIzumi/C8/Lattice/P4SubLkM33.lean: identical — 25 tokens from the server, 25 stored (complete); {'keyword': 22, 'property': 3}
+HaagerupIzumi/C8/Lattice/PCTLink.lean: no stored tokens (not compared)
+HaagerupIzumi/C8/Lattice/S2Close101.lean: identical — 18 tokens from the server, 18 stored (complete); {'keyword': 18}
+HaagerupIzumi/C8/Lattice/S2Close142.lean: identical — 18 tokens from the server, 18 stored (complete); {'keyword': 18}
+HaagerupIzumi/C8/Lattice/S2Close183.lean: identical — 18 tokens from the server, 18 stored (complete); {'keyword': 18}
+HaagerupIzumi/C8/Lattice/S2Close224.lean: identical — 24 tokens from the server, 24 stored (complete); {'keyword': 24}
+HaagerupIzumi/C8/Lattice/S2Close36.lean: identical — 24 tokens from the server, 24 stored (complete); {'keyword': 24}
+HaagerupIzumi/C8/Lattice/S2Close81.lean: identical — 18 tokens from the server, 18 stored (complete); {'keyword': 18}
+HaagerupIzumi/C8/Lattice/S2Rel11.lean: identical — 39 tokens from the server, 39 stored (complete); {'keyword': 39}
+HaagerupIzumi/C8/Lattice/S2SvOut0.lean: identical — 139 tokens from the server, 139 stored (complete); {'keyword': 139}
+HaagerupIzumi/C8/Lattice/Semantic.lean: identical — 575 tokens from the server, 575 stored (complete); {'keyword': 233, 'variable': 318, 'property': 24}

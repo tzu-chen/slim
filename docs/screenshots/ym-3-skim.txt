@@ -1,0 +1,32 @@
+ slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ YM (/tmp/YM)
+◎ goal: YangMills.constructed │ type to search · Tab moves between panes · ? for help
+╭ Search [local+lib] ────╮╭ Skim …ance (A7) │ 42 declarations │ proofs left out╮╭ [1 Ment] 2 3 4 5 ──────────╮
+│/                       ││ Statements are the header text as written, found   ││No declaration selected.    │
+│125396 names ready (6 m…││     by a lexical scan: not elaborated.             ││                            │
+│                        ││                                                    ││                            │
+│                        ││Independent review: combined acceptance (A7) ────── ││                            │
+│                        ││ map group · 5 landmarks listed here                ││                            │
+│                        ││ Read the quantifiers, the clause record, then the  ││                            │
+│                        ││     proof and individual adapters.                 ││                            │
+│                        ││▸ def CombinedAcceptance (g : YangMills.GaugeGroup) ││                            │
+│                        ││      (hg : g.IsSimple) (b : ℝ) : Prop              ││                            │
+│                        ││      Family precedes the requested … 3 lines folded││                            │
+│                        ││  structure Accepted (hg : g.IsSimple) (F :         ││                            │
+│                        ││      Spec.Final C o S) : Prop                      ││                            │
+│                        ││      Proposed combined acceptance a… 7 lines folded││                            │
+│                        ││  theorem combined_acceptance (g :                  ││                            │
+│                        ││      YangMills.GaugeGroup) (hg : g.IsSimple) (b :  ││                            │
+│                        ││      ℝ) (hb : 0 < b) : CombinedAcceptance g hg b   ││                            │
+│                        ││      All certified clauses hold sim… 8 lines folded││                            │
+│                        ││  theorem accepted_of_source (hg : g.IsSimple) (F : ││                            │
+│                        ││      Spec.Final C o S) (hr :                       ││                            │
+│                        ││      YangMills.WilsonRegularity                    ││                            │
+│                        ││      (YangMills.wilsonFamily C)) (ho :             ││                            │
+│                        ││      (Extraction.Order.mk Extraction.Sequence.full ││                            │
+│                        ││      o.per).Ordered C S) (hu :                     ││                            │
+│                        ││      FullVolume.PositionsUV C                      ││────────────────────────────│
+│                        ││      Extraction.Sequence.full) (hs :               ││T = in statement · V = in   │
+│                        ││      SourceConclusions hg F) : Accepted hg F       ││proof/body · C =            │
+│                        ││      Assemble the reviewed consequ… 11 lines folded││constructor. Coverage notes │
+╰────────────────────────╯╰───────────────────────────────────────────── 1/42 ─╯╰────────────────────────────╯
+ j/k next/previous statement · ⏎ open · S file/namespace · f search within · Esc close · [ back · ? help

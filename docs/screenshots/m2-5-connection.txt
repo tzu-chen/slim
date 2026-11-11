@@ -1,0 +1,30 @@
+ slim  SEMANTIC snapshot · Lean 4.33.1 │ ✓ sources match index │ demo: slim_demo (miniature library
+Goal explorer │ ◎ goal: Demo.Graph.searchWithin_sound │ Lean deps │ uses │ / search │ Esc declaratio
+╭ Goal explorer ─────────────────────────╮╭ Detail ────────────────────────────────────────────────╮
+│relation: Lean dependencies             ││abbrev Demo.Graph.searchWithin_sound._f                 │
+│direction: uses (A lists what A needs)  ││ module SlimDemo.Graph.Search ·                         │
+│show: local+ext │ generated off │ T+V+C ││     SlimDemo/Graph/Search.lean · local                 │
+│Connection found: 3 step(s) — Demo.Grap…││                                                        │
+│  1. thm Graph.searchWithin_sound  [V] →││Step 2 of 4 on the connection ───────────────────────── │
+│  2. abbr searchWithin_sound._f    [V] →││ · [V] Lean-derived: ReflTransGen.head occurs in the    │
+│  3. thm ReflTransGen.head         [V] →││     proof term / body of searchWithin_sound._f. Proof  │
+│  4. thm ReflTransGen.trans          end││     terms include what automation chose; this is not a │
+│shows connectivity only: not a reading …││     reading order.                                     │
+│▾ ◎ Demo.Graph.searchWithin_sound       ││                                                        │
+│  ▸ [T+V] struc Demo.Graph              ││Purpose ─────────────────────────────────────────────── │
+│  ▸ [T+V] def Graph.Reach               ││ not annotated                                          │
+│  ▸ [T+V] def Graph.searchWithin        ││                                                        │
+│  ▸ [T+V] induc Bool                 lib││Statement (elaborated) ──────────────────────────────── │
+│  ▸ [T+V] ctor Bool.true             lib││abbrev Demo.Graph.searchWithin_sound._f :               │
+│  ▸ [T+V] induc Eq                   lib││    ∀ {g : Demo.Graph} (x : Nat)                        │
+│  ▸ [T+V] induc Nat                  lib││      (f :                                              │
+│  hidden: 2 generated (H)               ││        Nat.below (motive := fun x =>                   │
+│                                        ││          ∀ (x_1 x_2 : Nat), g.searchWithin x x_1 x_2 = │
+│                                        ││              true → g.Reach x_1 x_2) x)                │
+│                                        ││      (x_1 x_2 : Nat), g.searchWithin x x_1 x_2 = true  │
+│                                        ││          → g.Reach x_1 x_2                             │
+│                                        ││                                                        │
+│                                        ││Prerequisites and dependents ────────────────────────── │
+│                                        ││ no curated relations (missing annotations are normal)  │
+╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 51% ─╯
+ Space unfold · ⏎ open · r relation kind · u direction · y T/V · L G H filters · c connect · * goal

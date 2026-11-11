@@ -1,0 +1,32 @@
+ slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ YM (/tmp/YM)
+Architecture map │ goal: none │ map: YM — October construction and independent review │ / search │ Esc declara
+╭ Architecture map ──────────────────────────╮╭ Detail ──────────────────────────────────────────────────────╮
+│▾ Main results                      3 chosen││theorem YangMills.constructed                                 │
+│  ◆ thm Combined review accep… ambiguous x2…││ module submissions.openai-20261028.submission.Construction · │
+│  ◆ thm Submitted joint contin… [suggestion]││     submissions/openai-20261028/submission/Construction.lean:│
+│  ◆ thm Common OPE with expli… ambiguous x2…││     15 · source candidate                                    │
+│▾ Mathematical components         88 curated││                                                              │
+│  ▸ October submission: publi… 35 landmarks…││Purpose ───────────────────────────────────────────────────── │
+│  ▸ Independent review: combi… 42 landmarks…││ A fixed Wilson family supports joint reconstruction, OPE,    │
+│  ▸ Commented examples: follo… 11 landmarks…││  trace and contact conclusions after refinement.             │
+│  ▸ Reference statements, aud… 0 landmarks …││ annotation: AI suggestion (not accepted)                     │
+│▾ External foundations              0 listed││                                                              │
+│  ▸ Imported review definitio… 0 landmarks …││Explanation ───────────────────────────────────────────────── │
+│▾ Unresolved references                    2││ This is the detailed submitted theorem. The public           │
+│  ? YMReview.Acceptance.combined_… ambiguous││  YangMills.jointExistence theorem in                         │
+│  ? YMReview.OPE.constructed       ambiguous││  submission/Solution.lean projects it to                     │
+│▸ Files and namespaces           [generated]││  YangMills.JointExistence. Use this uniquely named entry     │
+│                                            ││  point because the public theorem also has a same-name       │
+│                                            ││  reference placeholder.                                      │
+│                                            ││                                                              │
+│                                            ││ Fix the positive blocking-kernel penalty first. For each     │
+│                                            ││  requested extraction order, choose a refinement, table,     │
+│                                            ││  Final, all-phase reconstruction, OPE reader, contact        │
+│                                            ││  devices and comparison data together. Solution.lean         │
+│                                            ││  projects this to YangMills.jointExistence. The latter name  │
+│                                            ││  also occurs in the intentional Challenge.lean reference     │
+│                                            ││  placeholder, so this uniquely named theorem is the map      │
+│                                            ││  entry point.                                                │
+│                                            ││                                                              │
+╰────────────────────────────────────────────╯╰──────────────────────────────────────────────────────── 21% ─╯
+ ⏎ open · Space expand · * goal · a trail · m bookmark · Q question · r reload map · A goal · T trails · ? hel

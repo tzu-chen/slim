@@ -1,0 +1,30 @@
+ slim  SEMANTIC snapshot · Lean 4.33.1 │ ✓ sources match index │ demo: slim_demo (miniature library
+Architecture map │ goal: none │ map: slim_demo: relations, closures and reachability │ / search │ Es
+╭ Architecture map ──────────────────────╮╭ Detail ────────────────────────────────────────────────╮
+│▾ Main results                  2 chosen││theorem Demo.Rel.ReflTransGen.head                      │
+│  ◆ thm Soundness of the fuel-bounded s…││ module SlimDemo.Relation.Closure ·                     │
+│  ◆ thm The equivalence closure is an e…││     SlimDemo/Relation/Closure.lean:44 · local          │
+│▾ Mathematical components     43 curated││                                                        │
+│  ▾ Relations and their cl… 21 landmarks││Purpose ─────────────────────────────────────────────── │
+│    ▸ Basic vocabulary       7 landmarks││ From one step `a → b` and a chain from `b` to `c`, a   │
+│    ▾ Reflexive-transitive… 10 landmarks││  chain from `a` to `c`.                                │
+│        induc Rel.ReflTransGen          ││ annotation: authored                                   │
+│        thm ReflTransGen.single         ││ role in this group: prepend one step to a chain        │
+│        thm ReflTransGen.trans          ││                                                        │
+│        thm ReflTransGen.head           ││Statement (elaborated) ──────────────────────────────── │
+│        thm ReflTransGen.lift           ││theorem Demo.Rel.ReflTransGen.head                      │
+│        thm ReflTransGen.mono           ││    {α : Type u} {r : Demo.Rel α} {a b c : α}           │
+│        thm ReflTransGen.least          ││    (hab : r a b) (hbc : r.ReflTransGen b c) :          │
+│        thm ReflTransGen.idem           ││    r.ReflTransGen a c                                  │
+│        induc Rel.TransGen              ││                                                        │
+│        thm Rel.transGen_i… [suggestion]││In the map ──────────────────────────────────────────── │
+│    ▸ Equivalence closure    4 landmarks││ · Relations and their closures › Reflexive-transitive  │
+│  ▸ Finite graphs and reach… 7 landmarks││     closure — prepend one step to a chain              │
+│  ▸ Fuel-bounded search      7 landmarks││ · Fuel-bounded search — the last step of the soundness │
+│  ▸ Deliberate test fixture… 5 landmarks││     proof                                              │
+│▾ External foundations          4 listed││ one declaration, several placements: M cycles through  │
+│  ▸ Core Lean                4 landmarks││     them                                               │
+│▾ Unresolved references                1││                                                        │
+│  ? Demo.Graph.searchWithin_com… missing││Prerequisites and dependents ────────────────────────── │
+╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 46% ─╯
+ ⏎ open · Space expand · * goal · a trail · m bookmark · Q question · r reload map · A goal · T trai

@@ -1,0 +1,26 @@
+{
+  "budget_mib": 128,
+  "files_in_cache_at_end": 2348,
+  "local_files": 229089,
+  "measured_files": 6049,
+  "open_ms": {
+    "max": 77.235632,
+    "mean": 1.083687578387611,
+    "n": 18147,
+    "p50": 0.9254610000000001,
+    "p95": 1.864678,
+    "p99": 2.171428
+  },
+  "peak_rss_mib": 269.18359375,
+  "peak_worker_cache_mib": 127.99999523162842,
+  "project": "cfsg",
+  "rounds": 3,
+  "rss_after_each_round_mib": [
+    246.8125,
+    266.61328125,
+    269.18359375
+  ],
+  "rss_before_mib": 76.15234375,
+  "sampled": true,
+  "seconds": 31.668538455
+}

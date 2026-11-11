@@ -1,0 +1,30 @@
+ slim  SEMANTIC snapshot | Lean 4.33.1 | ok sources match index | demo: slim_demo (miniature library
+SlimDemo.Fixtures.Trust > Demo.Fixtures > oracle_axiom   | route: search "oracle_axiom" Fixtures.ora
++ Search [local+lib] ----++ Declaration -----------------------------++ [1 Uses] 2 3 4 5 ----------+
+|/ oracle_axiom          ||axiom Demo.Fixtures.oracle_axiom          ||[T] in its statement - 10   |
+|1 name match | 1 text |~||module SlimDemo.Fixtures.Trust |          ||> T struc Demo.Graph        |
+|-- project map (1)      ||    SlimDemo/Fixtures/Trust.lean:57 |     ||> T def   Demo.Graph.Reach  |
+| map   Demo.Fi~ landmark||    local                                 ||> T abbr  Demo.Graph.edges  |
+|-- declarations         ||                                          ||> T def   ~raph.searchWithin|
+| AXIOM ~racle_axiom name|| !! this declaration is an AXIOM          ||> T induc Bool           lib|
+|-- documentation / stat~||     (assumed, not proved)                ||> T ctor  Bool.true      lib|
+| thm   ~nded_search text||                                          ||> T induc Eq             lib|
+|                        ||Statement (elaborated) ------------------ ||> T def   List.length    lib|
+|                        ||axiom Demo.Fixtures.oracle_axiom          ||> T induc Nat            lib|
+|                        ||    (g : Demo.Graph) (s t : Nat)          ||> T struc Prod           lib|
+|                        ||    (a✝ : g.Reach s t) :                  ||                            |
+|                        ||    g.searchWithin g.edges.length s t =   ||                            |
+|                        ||        true                              ||                            |
+|                        ||                                          ||                            |
+|                        ||Documentation --------------------------- ||                            |
+|                        || TEST FIXTURE: a custom axiom. It asserts ||                            |
+|                        || without proof that a search with as many ||                            |
+|                        || units of fuel as the graph has edges     ||                            |
+|                        || finds every reachable target. (The       ||                            |
+|                        || statement is true, since a shortest path ||                            |
+|                        || never uses an edge twice, but here it is ||----------------------------|
+|                        || assumed rather than proved.)             ||Demo.Graph occurs in the    |
+|                        ||                                          ||elaborated statement (type) |
+|                        ||Status & evidence ----------------------- ||of Demo.Fixtures.oracle_axio|
++------------------------++------------------------------------ 39% -++----------------------------+
+ j/k scroll | s source | i implicit | m bookmark | a trail | * goal | M map | A goal view | [ ] back

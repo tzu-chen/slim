@@ -1,0 +1,30 @@
+ slim  SEMANTIC snapshot · Lean 4.33.1 │ ✓ sources match index │ demo: slim_demo (miniature library
+SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_correct   │ route: search “searchWithin_corre
+╭ Search [local+lib] ────╮╭ Declaration ─────────────────────────────╮╭ 1 2 [3 Ax] 4 5 ────────────╮
+│/ searchWithin_correct  ││theorem Demo.Fixtures.searchWithin_correct││⚠ sorryAx · placeholder     │
+│1 name match · 1 text ·…││module SlimDemo.Fixtures.Trust ·          ││  (sorryAx)                 │
+│── project map (1)      ││    SlimDemo/Fixtures/Trust.lean:32 ·     ││ · …res.searchWithin_correct│
+│ map   Demo.Fi… landmark││    local                                 ││  └V ….searchWithin_complete│
+│── declarations         ││                                          ││   └V sorryAx               │
+│ thm   …hin_correct name││ ⚠ depends on sorryAx: a placeholder      ││Lean's own report           │
+│── documentation / stat…││     proof is in its dependency closure   ││ ✓ collectAxioms at export: │
+│ thm   …earch_trans text││     (3 shows the path)                   ││  same set                  │
+│                        ││                                          ││                            │
+│                        ││Statement (elaborated) ────────────────── ││                            │
+│                        ││theorem Demo.Fixtures.searchWithin_correct││                            │
+│                        ││    {g : Demo.Graph} {s t : Nat} :        ││                            │
+│                        ││    (∃ fuel, g.searchWithin fuel s t =    ││                            │
+│                        ││        true) ↔ g.Reach s t               ││                            │
+│                        ││                                          ││                            │
+│                        ││Documentation ─────────────────────────── ││                            │
+│                        ││ TEST FIXTURE: a direct dependency on a   ││                            │
+│                        ││ missing proof. This "the decision        ││                            │
+│                        ││ procedure is correct" theorem contains   ││                            │
+│                        ││ no `sorry` token, yet it uses            ││                            │
+│                        ││ `searchWithin_complete`, which is proved ││                            │
+│                        ││ by `sorry`. The absence of the word      ││────────────────────────────│
+│                        ││ `sorry` in a proof proves nothing.       ││step 1: Demo.Fixtures.search│
+│                        ││                                          ││Within_complete — its proof │
+│                        ││Status & evidence ─────────────────────── ││term / body uses the next   │
+╰────────────────────────╯╰──────────────────────────────────── 39% ─╯╰────────────────────────────╯
+ ⏎ follow edge · →/← expand/collapse · 1-5 tabs · [ ] back/fwd · ? help · q quit

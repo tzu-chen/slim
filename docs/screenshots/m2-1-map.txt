@@ -1,0 +1,30 @@
+ slim  SEMANTIC snapshot · Lean 4.33.1 │ ✓ sources match index │ demo: slim_demo (miniature library
+Architecture map │ goal: none │ map: slim_demo: relations, closures and reachability │ / search │ Es
+╭ Architecture map ──────────────────────╮╭ Detail ────────────────────────────────────────────────╮
+│▾ Main results                  2 chosen││Main results                                            │
+│  ◆ thm Soundness of the fuel-bounded s…││ Objectives are chosen by the map's author or reader.   │
+│  ◆ thm The equivalence closure is an e…││     slim does not infer a main theorem from size,      │
+│▾ Mathematical components     43 curated││     position or name.                                  │
+│  ▸ Relations and their cl… 21 landmarks││                                                        │
+│  ▸ Finite graphs and reach… 7 landmarks││Project map ─────────────────────────────────────────── │
+│  ▸ Fuel-bounded search      7 landmarks││ file: /tmp/slim/cache/demo/1a6216b4356b1fa8/src/lean-vi│
+│  ▸ Deliberate test fixture… 5 landmarks││     ew.toml                                            │
+│▾ External foundations          4 listed││ A miniature original library used as slim's demo and   │
+│  ▸ Core Lean                4 landmarks││  test fixture. Its mathematical core is small on       │
+│▾ Unresolved references                1││  purpose; the `Fixtures` modules contain deliberate    │
+│  ? Demo.Graph.searchWithin_com… missing││  test fixtures.                                        │
+│▸ Files and namespaces       [generated]││ 2 chosen objectives · 8 groups · 43 curated landmarks  │
+│                                        ││     · 9 curated relations · 166 indexed local          │
+│                                        ││     declarations                                       │
+│                                        ││ Curated counts say how much was annotated, not how     │
+│                                        ││     much was proved.                                   │
+│                                        ││                                                        │
+│                                        ││                                                        │
+│                                        ││                                                        │
+│                                        ││                                                        │
+│                                        ││                                                        │
+│                                        ││                                                        │
+│                                        ││                                                        │
+│                                        ││                                                        │
+╰────────────────────────────────────────╯╰────────────────────────────────────────────────────────╯
+ ⏎ open · Space expand · * goal · a trail · m bookmark · Q question · r reload map · A goal · T trai

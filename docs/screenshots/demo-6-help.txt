@@ -1,0 +1,30 @@
+ slim  SEMANTIC snapshot · Lean 4.33.1 │ ✓ sources match index │ demo: slim_demo (miniature library
+SlimDe╭ Help ────────────────────────────────────────────────────────────────────────────────╮_corre
+╭ Sear│slim — reading large Lean 4 projects                                                  │─────╮
+│/ sea│                                                                                      │     │
+│1 nam│MOVING                                                                                │     │
+│── pr│  Tab / Shift-Tab   cycle panes: list · declaration · neighbours                      │trans│
+│ map │  j k ↑ ↓ PgUp PgDn Home End   move / scroll   (Space = page down)                    │     │
+│── de│  ⏎                 open the selected item (follow an edge)                           │     │
+│ thm │  → l / ← h         expand / collapse (outline, neighbour trees)                      │     │
+│── do│  [ or Backspace    back in history (restores panes, query, scroll)                   │     │
+│ thm │  ]                 forward                                                           │     │
+│     │  g                 go to a fully qualified name                                      │     │
+│     │                                                                                      │     │
+│     │VIEWS                                                                                 │     │
+│     │  M                 architecture map: main results, components, landmarks;            │     │
+│     │                    from a declaration it shows where the map places it               │     │
+│     │  A                 goal explorer: unfold what the pinned goal rests on               │     │
+│     │  T                 reading trails, stops and questions                               │     │
+│     │  I                 import layers: files by import depth, endpoints, hubs;            │     │
+│     │                    from a declaration it shows where its file sits                   │     │
+│     │  / O B             the declaration browser (search, outline, bookmarks)              │     │
+│     │  Esc               leave a view · Backspace or [ goes back through history           │     │
+│     │  *                 pin the selected declaration as the goal; on the goal: clear      │     │
+│     │  a  m  Q           add to the active trail · bookmark · ask a question               │     │
+│     │  c                 show a connection from the goal to a declaration                  │─────│
+│     │                                                                                      │ans  │
+│     │IN THE MAP, GOAL AND TRAIL VIEWS                                                      │chWit│
+│     │  j k ↑ ↓           move · Space or → expands · ← collapses or goes to the parent     │     │
+╰─────╰──────────────────────────────────────────────────────────────────────────────────────╯─────╯
+ ⏎ follow edge · →/← expand/collapse · 1-5 tabs · [ ] back/fwd · ? help · q quit

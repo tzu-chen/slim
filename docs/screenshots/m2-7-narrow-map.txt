@@ -1,0 +1,20 @@
+ slim  SEMANTIC snapshot | Lean 4.33.1 | ok sources match in
+Architecture map | goal: none
++ Architecture map ----------------------------------------+
+|v Main results                                    2 chosen|
+|  # thm Soundness of the fuel-bounded search              |
+|  # thm The equivalence closure is an equivalence relation|
+|v Mathematical components                       43 curated|
+|  > Relations and their closures              21 landmarks|
+|  > Finite graphs and reachability             7 landmarks|
+|  > Fuel-bounded search                        7 landmarks|
+|  > Deliberate test fixtures (not results)     5 landmarks|
+|v External foundations                            4 listed|
+|  > Core Lean                                  4 landmarks|
+|v Unresolved references                                  1|
+|  ? Demo.Graph.searchWithin_complete               missing|
+|> Files and namespaces                         [generated]|
+|                                                          |
+|                                                          |
++----------------------------------------------------------+
+ Enter open | Space expand | Tab detail | * goal | a trail |
