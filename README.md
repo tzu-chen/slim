@@ -5,6 +5,13 @@
   </picture>
 </h1>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/slim-dark.png">
+    <img src="assets/screenshots/slim-light.png" alt="slim on its demo library: the outline, a theorem with its documentation, evidence and source, and what its statement and proof use">
+  </picture>
+</p>
+
 A fast terminal navigator for **reading** large Lean 4 projects: find a theorem, read its
 statement, documentation and source, follow what it depends on and what depends on it, and get
 the big picture of a project through a curated map, statement-only skims and the import order.
