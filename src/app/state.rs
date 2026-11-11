@@ -624,6 +624,9 @@ pub struct App {
     pub preview_session: bool,
     pub pending_restore: Option<PendingRestore>,
     pub pending_goto: Option<String>,
+    /// The declaration being opened is shown in the outline when it arrives
+    /// (a restored session, a declaration opened from another view).
+    pub reveal_on_arrival: bool,
     pub building: bool,
     pub started: Instant,
     pub first_frame_ms: Option<u128>,
@@ -660,8 +663,8 @@ impl App {
             sym: Symbols::new(ascii),
             ascii,
             focus: Focus::Left,
-            left_mode: LeftMode::Search,
-            search: SearchPane { editing: true, ..Default::default() },
+            left_mode: LeftMode::Outline,
+            search: SearchPane::default(),
             outline: OutlinePane::default(),
             bookmarks: MarksPane::default(),
             v: ViewsState::default(),
@@ -689,6 +692,7 @@ impl App {
             preview_session: false,
             pending_restore: None,
             pending_goto: None,
+            reveal_on_arrival: false,
             building: false,
             started: crate::PROCESS_START.get().copied().unwrap_or_else(Instant::now),
             first_frame_ms: None,
@@ -798,7 +802,7 @@ impl App {
             (_, Some(h)) => Some(h),
             (Some(cur), None) => cur.widened(),
             (None, None) => {
-                self.msg("nothing to search within here: select a directory or file in the outline, or open a declaration first");
+                self.msg("nothing to search within: select a directory or file, or open a declaration");
                 return;
             }
         };
@@ -810,7 +814,7 @@ impl App {
         self.search.editing = true;
         self.search.cursor = self.search.query.chars().count();
         match &next {
-            Some(sc) => self.msg(format!("searching within {} — f again widens it, F (or Backspace in the empty box) searches everywhere", sc.label())),
+            Some(sc) => self.msg(format!("searching within {}", sc.label())),
             None => self.msg("search scope cleared: searching everywhere"),
         }
         self.search.scope = next;
@@ -822,7 +826,7 @@ impl App {
             self.msg("search scope cleared: searching everywhere");
             self.run_search();
         } else {
-            self.msg("the search is not restricted (f restricts it to the selected directory or the current namespace)");
+            self.msg("the search is not restricted");
         }
     }
 
@@ -877,7 +881,7 @@ impl App {
     pub fn cmd_skim(&mut self) {
         if self.v.view == View::Browse && self.center_mode == CenterMode::Skim && self.focus == Focus::Center {
             let Some(d) = self.center.skim.selected().cloned() else {
-                self.msg("select a declaration first: S then shows its namespace, or its file");
+                self.msg("select a declaration first");
                 return;
             };
             let next = match self.center.skim.scope {
@@ -887,7 +891,7 @@ impl App {
             match next {
                 Some(sc) => {
                     self.push_history();
-                    self.msg(format!("skimming {} — S switches between the file and the namespace", sc.label()));
+                    self.msg(format!("skimming {}", sc.label()));
                     self.request_skim(sc, None);
                 }
                 None => self.msg(format!("{} is not inside a namespace", d.row.display)),
@@ -895,11 +899,12 @@ impl App {
             return;
         }
         let Some(scope) = self.skim_scope_at_hand() else {
-            self.msg("nothing to skim here: open a declaration, or select a file, a directory or a map group");
+            self.msg("nothing to skim: select a declaration, file, directory or map group");
             return;
         };
         self.push_history();
         self.v.view = View::Browse;
+        self.show_outline();
         self.focus = Focus::Center;
         self.search.editing = false;
         self.preview_due = None;
@@ -957,7 +962,7 @@ impl App {
 
     pub fn cmd_outline_order(&mut self) {
         self.outline.order = self.outline.order.next(self.ctx.mode);
-        self.msg(format!("outline: {} (the column on the right shows it; o cycles)", self.outline.order.label(self.ctx.mode)));
+        self.msg(format!("outline: {}", self.outline.order.label(self.ctx.mode)));
         self.rebuild_outline_rows();
         if self.v.view == View::Map {
             self.rebuild_map_rows();
@@ -1077,18 +1082,8 @@ impl App {
             (RightTab::Uses, IndexMode::Source) => self.q(QueryReq::Mentions { gen, id }),
             (RightTab::UsedBy, IndexMode::Source) => {
                 self.begin_right_content();
-                self.right.rows.push(RRow::Header { text: "Used by — not available".into(), kind: None });
-                for t in [
-                    "This is a source-only index: no declaration has been elaborated,",
-                    "so slim cannot know what uses this declaration.",
-                    "Lexical search for its name would be a guess, not a dependency;",
-                    "use the search box (name or text) for that, knowingly.",
-                    "",
-                    "For checked dependency edges, build a semantic snapshot",
-                    "(palette: \"How to build a semantic index\").",
-                ] {
-                    self.right.rows.push(RRow::Text { text: t.into(), warn: false });
-                }
+                self.right.rows.push(RRow::Header { text: "Used by: not available".into(), kind: None });
+                self.right.rows.push(RRow::Text { text: "a source-only index has no dependency edges; a semantic snapshot has them".into(), warn: false });
             }
             (RightTab::Axioms, IndexMode::Source) => {
                 self.begin_right_content();
@@ -1221,6 +1216,7 @@ impl App {
         // Milestone 1 had a trail list in the left pane; it is a view now.
         self.left_mode = if loc.left_mode == LeftMode::Trail { LeftMode::Search } else { loc.left_mode };
         self.restore_view(loc.view, loc.vkey.clone());
+        self.show_outline();
         if self.search.query != loc.query || self.search.scope != loc.scope {
             self.search.query = loc.query.clone();
             self.search.scope = loc.scope.clone();
@@ -1546,6 +1542,13 @@ impl App {
                         if let Some(sc) = self.pending_center_scroll.take() {
                             self.center.scroll = sc;
                         }
+                        if std::mem::take(&mut self.reveal_on_arrival) && self.v.view == View::Browse && self.left_mode == LeftMode::Outline {
+                            let row = self.detail.as_ref().map(|d| &d.d.row).filter(|r| self.ctx.mode == IndexMode::Source || r.origin == Origin::Local);
+                            if let Some((module, id)) = row.and_then(|r| r.module.clone().map(|m| (m, r.id))) {
+                                self.outline.reveal = Some(Reveal { module, decl: Some(id) });
+                                self.apply_reveal();
+                            }
+                        }
                         if self.right_tab == RightTab::Module || self.right_tab == RightTab::Info {
                             self.load_right();
                         }
@@ -1581,13 +1584,10 @@ impl App {
                 self.begin_right_content();
                 match res {
                     Ok(ms) => {
-                        self.right.rows.push(RRow::Header { text: "Lexical mentions".into(), kind: None });
-                        self.right.rows.push(RRow::Text {
-                            text: "Identifiers in this declaration's text that match indexed names (as written or under an enclosing namespace). NOT resolved by Lean: open namespaces, local variables, notation and macros are ignored.".into(),
-                            warn: true,
-                        });
+                        // What a mention is and is not is in the help and the docs.
+                        self.right.rows.push(RRow::Header { text: "Mentions (lexical, not resolved by Lean)".into(), kind: None });
                         if ms.is_empty() {
-                            self.right.rows.push(RRow::Text { text: "No identifier matched an indexed name.".into(), warn: false });
+                            self.right.rows.push(RRow::Text { text: "no identifier equals an indexed name".into(), warn: false });
                         }
                         for m in ms {
                             let occ = Arc::new(m.occurrences);
@@ -1639,7 +1639,6 @@ impl App {
                                     line.push_str(&format!(", {} of them in proofs", st.proof_lines));
                                 }
                                 self.right.rows.push(RRow::Text { text: line, warn: false });
-                                self.right.rows.push(RRow::Text { text: "S skims this file: statements only".into(), warn: false });
                             }
                             if let Some(d) = &m.status_detail {
                                 if let Ok(v) = serde_json::from_str::<Vec<serde_json::Value>>(d) {
@@ -1871,10 +1870,10 @@ impl App {
                     let cov = self.detail.as_ref().map(|d| (d.d.type_cov, d.d.value_cov));
                     let txt = match (dir, cov) {
                         (Direction::Uses, Some((t, v))) if t.is_incomplete() || v.is_incomplete() => {
-                            "No references recorded — but coverage is incomplete, so this is NOT evidence of no dependencies.".to_string()
+                            "none recorded; coverage is incomplete, so this is not evidence of none".to_string()
                         }
-                        (Direction::Uses, _) => "No constants occur in its elaborated type or value (complete coverage).".into(),
-                        (Direction::UsedBy, _) => "Nothing in this snapshot refers to it.".into(),
+                        (Direction::Uses, _) => "no constants in its type or value (coverage complete)".into(),
+                        (Direction::UsedBy, _) => "nothing in this snapshot refers to it".into(),
                     };
                     self.right.rows.push(RRow::Text { text: txt, warn: false });
                 }
@@ -1975,10 +1974,7 @@ impl App {
         self.right.rows.clear();
         if ev.is_empty() {
             self.right.rows.push(RRow::Header { text: "No axioms reachable".into(), kind: None });
-            self.right.rows.push(RRow::Text {
-                text: "Nothing axiomatic (and no coverage gap) is reachable through statement, proof/body and constructor edges.".into(),
-                warn: false,
-            });
+            self.right.rows.push(RRow::Text { text: "through T, V and C edges; no coverage gap".into(), warn: false });
         }
         for e in ev {
             let mark = if e.axiom.category == C::Standard { self.sym.bullet } else { self.sym.warn };
@@ -2037,15 +2033,14 @@ impl App {
             ));
         } else {
             lines.push((
-                "No `sorry` token in its text. This proves nothing: placeholders can come from macros, tactics, imported lemmas or elaboration errors.".into(),
+"no `sorry` token in its text (proves nothing)".into(),
                 false,
             ));
         }
         if d.row.flags & flags::LEX_NATIVE != 0 {
             lines.push((format!("{} uses `native_decide` (trusts the compiler)", self.sym.warn), true));
         }
-        lines.push(("Dependencies and axioms are unknown in source-only mode.".into(), false));
-        lines.push(("A semantic snapshot (`slim export`, explicit and sandboxed) gives checked edges and axiom paths.".into(), false));
+        lines.push(("dependencies and axioms: unknown without a semantic snapshot".into(), false));
         for (t, w) in lines {
             self.right.rows.push(RRow::Text { text: t, warn: w });
         }
@@ -2106,7 +2101,7 @@ impl App {
         } else {
             t.push(format!("scanner v{} · lexer profile {}", g("scanner_version").unwrap_or_default(), g("lex_profile").unwrap_or_default()));
             t.push(format!("project toolchain: {}", g("project_lean_toolchain").unwrap_or_else(|| "(none)".into())));
-            t.push("Candidates come from a conservative lexical scan: no elaboration, no macros, no Lake.".into());
+            t.push("candidates: lexical scan (no elaboration, macros or Lake)".into());
         }
         if let Some(r) = g("source_root") {
             t.push(format!("source root: {r}"));
@@ -2114,7 +2109,7 @@ impl App {
         t.push(match &self.fresh {
             Fresh::Unknown => "freshness: not checked yet".into(),
             Fresh::Checking => "freshness: checking…".into(),
-            Fresh::Fresh { checked, ms } => format!("freshness: {checked} files match the index (checked in {ms} ms; size+mtime hint, SHA-256 when they differ)"),
+            Fresh::Fresh { checked, ms } => format!("freshness: {checked} files match the index ({ms} ms; size+mtime, SHA-256 on mismatch)"),
             Fresh::Stale(fr) => format!(
                 "freshness: STALE — {} changed, {} deleted, {} added{}",
                 fr.changed.len(),
@@ -2139,6 +2134,13 @@ impl App {
     // ------------------------------------------------------------------
     // Outline
     // ------------------------------------------------------------------
+
+    /// Loads the outline when the left pane is showing it.
+    pub fn show_outline(&mut self) {
+        if self.v.view == View::Browse && self.left_mode == LeftMode::Outline {
+            self.request_outline();
+        }
+    }
 
     pub fn request_outline(&mut self) {
         if self.outline.requested {
@@ -2845,7 +2847,7 @@ impl App {
                             text: existing,
                         };
                     }
-                    _ => self.msg("n edits a bookmark's note here (m bookmarks). Notes of trail stops are edited in the trails view (T)."),
+                    _ => self.msg("no bookmark here (notes of trail stops are edited in the trails view)"),
                 },
             },
             Cmd::ExportTrail => self.cmd_export_trail(),
@@ -2959,7 +2961,7 @@ impl App {
             Cmd::ExportHelp => {
                 let root = self.ctx.project_root.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "<PROJECT>".into());
                 self.msg(format!(
-                    "Semantic index: build the project yourself (lake build), then run `slim export {root}` — it prints exactly what runs (sandboxed) and asks for confirmation."
+                    "semantic index: `slim export {root}` after `lake build` (sandboxed; prints what runs and asks to confirm)"
                 ));
             }
             Cmd::SemanticExport => {
@@ -3525,7 +3527,6 @@ impl App {
         if let Some(q) = v.get("query").and_then(|x| x.as_str()) {
             self.search.query = q.to_string();
             self.search.cursor = q.chars().count();
-            self.search.editing = q.is_empty();
         }
         if let Some(sc) = v.get("scope").and_then(|x| serde_json::from_value::<Option<ScopeSpec>>(x.clone()).ok()) {
             self.search.scope = sc;
@@ -3551,6 +3552,7 @@ impl App {
             self.q(QueryReq::ResolveName { gen, name: cur.to_string() });
             self.focus = Focus::Center;
             self.search.editing = false;
+            self.reveal_on_arrival = true;
         }
         if !self.search.query.is_empty() || self.search.scope.is_some() {
             self.run_search();
@@ -4057,6 +4059,7 @@ mod tests {
         a.search.items = (1..=5)
             .map(|i| LeftItem::Result { row: outline_item(i, &format!("N.n{i}"), 1).row, tier: Some(MatchTier::Prefix) })
             .collect();
+        a.left_mode = LeftMode::Search;
         a.search.editing = false;
         a.focus = Focus::Left;
         for _ in 0..4 {

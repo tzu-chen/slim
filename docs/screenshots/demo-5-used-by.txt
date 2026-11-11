@@ -6,10 +6,9 @@ SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_correct   │ route: 
 │── project map (1)      ││    SlimDemo/Fixtures/Trust.lean:32 ·     ││▸ V thm   …ures.search_trans│
 │ map   Demo.Fi… landmark││    local                                 ││                            │
 │── declarations         ││                                          ││                            │
-│ thm   …hin_correct name││ ⚠ depends on sorryAx: a placeholder      ││                            │
-│── documentation / stat…││     proof is in its dependency closure   ││                            │
-│ thm   …earch_trans text││     (3 shows the path)                   ││                            │
-│                        ││                                          ││                            │
+│ thm   …hin_correct name││ ⚠ depends on sorryAx (a placeholder      ││                            │
+│── documentation / stat…││     proof in its dependency closure)     ││                            │
+│ thm   …earch_trans text││                                          ││                            │
 │                        ││Statement (elaborated) ────────────────── ││                            │
 │                        ││theorem Demo.Fixtures.searchWithin_correct││                            │
 │                        ││    {g : Demo.Graph} {s t : Nat} :        ││                            │
@@ -22,9 +21,10 @@ SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_correct   │ route: 
 │                        ││ procedure is correct" theorem contains   ││                            │
 │                        ││ no `sorry` token, yet it uses            ││                            │
 │                        ││ `searchWithin_complete`, which is proved ││                            │
-│                        ││ by `sorry`. The absence of the word      ││────────────────────────────│
-│                        ││ `sorry` in a proof proves nothing.       ││Demo.Fixtures.search_trans  │
-│                        ││                                          ││uses Demo.Fixtures.searchWit│
-│                        ││Status & evidence ─────────────────────── ││hin_correct in its          │
-╰────────────────────────╯╰──────────────────────────────────── 39% ─╯╰────────────────────────────╯
+│                        ││ by `sorry`. The absence of the word      ││                            │
+│                        ││ `sorry` in a proof proves nothing.       ││────────────────────────────│
+│                        ││                                          ││the proof term or body of   │
+│                        ││Status & evidence ─────────────────────── ││Fixtures.search_trans uses  │
+│                        ││ ✓ Lean 4.33.1 snapshot of                ││Fixtures.searchWithin_correc│
+╰────────────────────────╯╰──────────────────────────────────── 42% ─╯╰────────────────────────────╯
  ⏎ follow edge · →/← expand/collapse · 1-5 tabs · [ ] back/fwd · ? help · q quit

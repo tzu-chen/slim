@@ -7,24 +7,24 @@ Goal explorer │ ◎ goal: Demo.Graph.searchWithin_sound │ Lean deps │ uses
 │Connection found: 3 step(s) — Demo.Grap…││                                                        │
 │  1. thm Graph.searchWithin_sound  [V] →││Step 2 of 4 on the connection ───────────────────────── │
 │  2. abbr searchWithin_sound._f    [V] →││ · [V] Lean-derived: ReflTransGen.head occurs in the    │
-│  3. thm ReflTransGen.head         [V] →││     proof term / body of searchWithin_sound._f. Proof  │
-│  4. thm ReflTransGen.trans          end││     terms include what automation chose; this is not a │
-│shows connectivity only: not a reading …││     reading order.                                     │
-│▾ ◎ Demo.Graph.searchWithin_sound       ││                                                        │
-│  ▸ [T+V] struc Demo.Graph              ││Purpose ─────────────────────────────────────────────── │
-│  ▸ [T+V] def Graph.Reach               ││ not annotated                                          │
-│  ▸ [T+V] def Graph.searchWithin        ││                                                        │
-│  ▸ [T+V] induc Bool                 lib││Statement (elaborated) ──────────────────────────────── │
-│  ▸ [T+V] ctor Bool.true             lib││abbrev Demo.Graph.searchWithin_sound._f :               │
-│  ▸ [T+V] induc Eq                   lib││    ∀ {g : Demo.Graph} (x : Nat)                        │
-│  ▸ [T+V] induc Nat                  lib││      (f :                                              │
-│  hidden: 2 generated (H)               ││        Nat.below (motive := fun x =>                   │
-│                                        ││          ∀ (x_1 x_2 : Nat), g.searchWithin x x_1 x_2 = │
-│                                        ││              true → g.Reach x_1 x_2) x)                │
+│  3. thm ReflTransGen.head         [V] →││     proof term / body of searchWithin_sound._f         │
+│  4. thm ReflTransGen.trans          end││                                                        │
+│shows connectivity only: not a reading …││Purpose ─────────────────────────────────────────────── │
+│▾ ◎ Demo.Graph.searchWithin_sound       ││ not annotated                                          │
+│  ▸ [T+V] struc Demo.Graph              ││                                                        │
+│  ▸ [T+V] def Graph.Reach               ││Statement (elaborated) ──────────────────────────────── │
+│  ▸ [T+V] def Graph.searchWithin        ││abbrev Demo.Graph.searchWithin_sound._f :               │
+│  ▸ [T+V] induc Bool                 lib││    ∀ {g : Demo.Graph} (x : Nat)                        │
+│  ▸ [T+V] ctor Bool.true             lib││      (f :                                              │
+│  ▸ [T+V] induc Eq                   lib││        Nat.below (motive := fun x =>                   │
+│  ▸ [T+V] induc Nat                  lib││          ∀ (x_1 x_2 : Nat), g.searchWithin x x_1 x_2 = │
+│  hidden: 2 generated (H)               ││              true → g.Reach x_1 x_2) x)                │
 │                                        ││      (x_1 x_2 : Nat), g.searchWithin x x_1 x_2 = true  │
 │                                        ││          → g.Reach x_1 x_2                             │
 │                                        ││                                                        │
 │                                        ││Prerequisites and dependents ────────────────────────── │
-│                                        ││ no curated relations (missing annotations are normal)  │
-╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 51% ─╯
+│                                        ││ no curated relations                                   │
+│                                        ││ Lean-derived: 8 constants in its statement, 44 in its  │
+│                                        ││     proof/body; used by 1                              │
+╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 73% ─╯
  Space unfold · ⏎ open · r relation kind · u direction · y T/V · L G H filters · c connect · * goal

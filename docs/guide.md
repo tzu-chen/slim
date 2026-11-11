@@ -197,7 +197,8 @@ The map is a plain TOML file that slim reads and never rewrites; `docs/map.md` d
 
 No map, no snapshot, no Lean: these work from the source-only index alone (`docs/overview.md`).
 
-1. `O` opens the outline. `o` cycles its right-hand column and order: declarations, theorems,
+1. A project without a map opens on the **outline** in the left pane (`O` returns to it from
+   anywhere, `/` searches). `o` cycles its right-hand column and order: declarations, theorems,
    proof lines, `sorry` tokens, last modified. A directory shows the sum over its files.
 2. `S` on a directory or file **skims** it: each declaration's statement and the lead of its
    documentation, proofs left out, with how many lines were folded. `j`/`k` move by statement,
@@ -259,6 +260,32 @@ hash, SHA-256 of every local source file, extraction scope, sandbox and limits.
 
 Snapshots can be imported elsewhere: `slim import SNAPSHOT.jsonl --source-root DIR` (the
 directory you approve for showing source; snapshot paths can never leave it).
+
+## Reading the labels
+
+The screens say where a fact comes from in a few words and leave the explanation to this
+section and to the help overlay (`?`).
+
+* **lexical** (`[lex]`, the Mentions tab, source-only statements, `sorry` tokens, import lines):
+  read from the text of the files without running Lean. A mention is an identifier that equals
+  an indexed name; open namespaces, local variables, notation and macros are ignored, so Lean
+  may resolve it to something else, or to nothing. Mentions run outward only: there is no
+  "mentioned by" (text search with `/` is the way to look for one). A source-only index has no
+  dependency edges at all; the Used by, Axioms and Lean-dependency views need a semantic
+  snapshot (`slim export`, see above).
+* **curated** (`[cur]`, the map): written by a person in `lean-view.toml` and not checked by
+  Lean. Missing annotations are normal. Objectives are never inferred, and a name the index
+  cannot resolve is never re-attached to a similar one: edit the file and press `r` in the map.
+  `slim map init <PROJECT_DIR>` prints a starting file derived from the directories.
+* **Lean-derived** (`[T]` statement, `[V]` proof term or body, `[C]` constructor): constants in
+  the elaborated terms of a semantic snapshot. Proof terms include what automation chose, so
+  these edges are not a reading order, and "coverage incomplete" means missing edges are not
+  evidence of no dependency.
+* **import layers**: build order, not mathematics. Module names are paths from the project
+  root, so in a source-only index the files of a Lake `srcDir` show as external unless slim is
+  opened on that directory.
+* **skim**: statements without proofs. In a source-only index a statement is its header text
+  as written.
 
 ## Syntax and semantic colours
 

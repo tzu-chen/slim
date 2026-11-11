@@ -352,6 +352,7 @@ fn attach(app: &mut App, workers: &mut Workers, ctx: &IndexCtx, tx: &Sender<Even
             app.restore_session(&s);
         }
     }
+    app.show_outline();
     if ctx.source_root.is_some() {
         app.job_queue.push(JobReq::Freshness { force_hash: false, discover_new: ctx.mode == IndexMode::Source });
         app.run_next_job();

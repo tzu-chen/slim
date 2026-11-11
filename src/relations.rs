@@ -63,10 +63,10 @@ impl RelMode {
     }
     pub fn explain(self) -> &'static str {
         match self {
-            RelMode::Curated => "Curated: steps and relations written in the project map. An author's explanation, not checked by Lean.",
-            RelMode::Mentions => "Lexical: identifiers in the source text that equal an indexed name. Approximate; Lean may resolve them differently.",
-            RelMode::Lean => "Lean-derived: constants in the elaborated statement (T), proof term or body (V), or constructor list (C), from the semantic snapshot.",
-            RelMode::Mixed => "Mixed view: [cur] curated, [lex] lexical mention, [T]/[V]/[C] Lean-derived. The kinds are not interchangeable.",
+            RelMode::Curated => "curated in the project map: an author's explanation, not checked by Lean",
+            RelMode::Mentions => "lexical: identifiers in the source text that equal an indexed name; not resolved by Lean",
+            RelMode::Lean => "Lean-derived: constants in the elaborated statement (T), proof term or body (V) or constructor list (C)",
+            RelMode::Mixed => "all kinds, each labelled: [cur] curated · [lex] lexical · [T] [V] [C] Lean-derived",
         }
     }
 }
@@ -141,10 +141,10 @@ impl EdgeLabel {
         match self {
             EdgeLabel::Curated { kind, origin, step } => {
                 let s = step.map(|n| format!("step {n} of a curated argument")).unwrap_or_else(|| format!("curated relation \"{kind}\""));
-                format!("{s}: the map says {a} uses {b} ({}). An explanation, not a Lean-derived dependency.", origin.label())
+                format!("{s}: the map says {a} uses {b} ({}); not Lean-derived", origin.label())
             }
             EdgeLabel::Lexical { ident } => {
-                format!("lexical mention: the source text of {a} contains `{ident}`, and {b} is an indexed declaration of that name. Lean may resolve it differently.")
+                format!("lexical: the text of {a} contains `{ident}`, the name of {b}; not resolved by Lean")
             }
             EdgeLabel::Lean { type_, body, ctor } => {
                 let mut v = Vec::new();
@@ -157,7 +157,7 @@ impl EdgeLabel {
                 if *ctor {
                     v.push("the constructor list");
                 }
-                format!("Lean-derived: {b} occurs in {} of {a}. Proof terms include what automation chose; this is not a reading order.", v.join(" and "))
+                format!("Lean-derived: {b} occurs in {} of {a}", v.join(" and "))
             }
         }
     }
@@ -506,15 +506,12 @@ pub fn children(env: &mut Env, q: &ChildQuery) -> Result<ChildPage> {
     };
     if curated && q.offset == 0 {
         match env.map {
-            None => page.notes.push(("No project map (lean-view.toml) is loaded, so there are no curated relations.".into(), false)),
+            None => page.notes.push(("no project map: nothing curated".into(), false)),
             Some(m) => {
                 let rels = m.curated(&q.name, uses);
                 if rels.is_empty() && q.mode == RelMode::Curated {
                     page.notes.push((
-                        format!(
-                            "The map records no curated {} for this declaration. Missing annotations are normal; other relation kinds: r.",
-                            if uses { "prerequisites" } else { "dependents" }
-                        ),
+                        format!("no curated {} in the map", if uses { "prerequisites" } else { "dependents" }),
                         false,
                     ));
                 }
@@ -537,12 +534,12 @@ pub fn children(env: &mut Env, q: &ChildQuery) -> Result<ChildPage> {
     if lean {
         match (&me, env.mode) {
             (_, IndexMode::Source) => page.notes.push((
-                "Lean dependencies are unavailable: this is a source-only index, nothing was elaborated. A semantic snapshot (slim export, explicit) provides them.".into(),
+                "Lean dependencies are unavailable in a source-only index".into(),
                 true,
             )),
-            (None, _) => page.notes.push((format!("{} is not in this index, so it has no Lean edges here.", q.name), true)),
+            (None, _) => page.notes.push((format!("{} is not in this index", q.name), true)),
             (Some(r), _) if r.origin == Origin::Unresolved => page.notes.push((
-                "The snapshot only refers to this name and does not describe it: its dependencies were not extracted (coverage gap).".into(),
+                "named by the snapshot but not described in it: no dependencies extracted (coverage gap)".into(),
                 true,
             )),
             (Some(r), IndexMode::Semantic) => {
@@ -553,7 +550,7 @@ pub fn children(env: &mut Env, q: &ChildQuery) -> Result<ChildPage> {
                     if let Some((t, v)) = cov {
                         use crate::model::Coverage;
                         if Coverage::from_u8(t).is_incomplete() || (r.kind.has_value() && Coverage::from_u8(v).is_incomplete()) {
-                            page.notes.push(("Coverage of this declaration is incomplete: missing edges are not evidence of no dependency.".into(), true));
+                            page.notes.push(("coverage incomplete: missing edges are not evidence of no dependency".into(), true));
                         }
                     }
                 }
@@ -563,14 +560,14 @@ pub fn children(env: &mut Env, q: &ChildQuery) -> Result<ChildPage> {
     if lexical && q.offset == 0 {
         match (&me, uses) {
             (_, false) => page.notes.push((
-                "Source mentions run outward only (what this text mentions). \"Mentioned by\" would need a scan of every file: use text search (/), knowingly.".into(),
+                "source mentions run outward only: there is no \"mentioned by\"".into(),
                 q.mode == RelMode::Mentions,
             )),
-            (None, _) => page.notes.push((format!("{} is not in this index.", q.name), true)),
+            (None, _) => page.notes.push((format!("{} is not in this index", q.name), true)),
             (Some(r), true) => {
                 let ms = lexical_mentions(env.conn, env.source_root, env.cache, r.id)?;
                 if env.source_root.is_none() {
-                    page.notes.push(("No approved source root for this index: source mentions cannot be computed.".into(), true));
+                    page.notes.push(("no source root for this index: source mentions cannot be computed".into(), true));
                 }
                 let mut hidden = 0u64;
                 let mut n = 0usize;
@@ -590,9 +587,6 @@ pub fn children(env: &mut Env, q: &ChildQuery) -> Result<ChildPage> {
                 page.hidden_external += hidden;
                 if n > 200 {
                     page.notes.push((format!("{} further lexical candidates are not listed.", n - 200), false));
-                }
-                if q.mode == RelMode::Mentions {
-                    page.notes.push(("Lexical matches only: not resolved by Lean (open namespaces, local variables, notation and macros are ignored).".into(), true));
                 }
             }
         }
@@ -743,12 +737,12 @@ fn connection_inner(env: &mut Env, q: &ConnQuery, lim: &Limits, cancel: &dyn Fn(
     let uses = q.dir == Direction::Uses;
     match q.mode {
         RelMode::Mixed => Ok((
-            ConnOutcome::Unavailable("A connection query follows one relation kind. Choose curated, source mentions or Lean dependencies (r) and ask again.".into()),
+            ConnOutcome::Unavailable("a connection query follows one relation kind (curated, source mentions or Lean dependencies)".into()),
             0,
         )),
         RelMode::Curated => {
             let Some(map) = env.map else {
-                return Ok((ConnOutcome::Unavailable("No project map is loaded, so there are no curated relations to follow.".into()), 0));
+                return Ok((ConnOutcome::Unavailable("no project map, so no curated relations to follow".into()), 0));
             };
             let (b, n) = bfs(
                 q.from.clone(),
@@ -781,12 +775,12 @@ fn connection_inner(env: &mut Env, q: &ConnQuery, lim: &Limits, cancel: &dyn Fn(
         RelMode::Lean | RelMode::Mentions => {
             if q.mode == RelMode::Lean && env.mode == IndexMode::Source {
                 return Ok((
-                    ConnOutcome::Unavailable("Semantic information unavailable: this is a source-only index, so there are no Lean dependencies to search.".into()),
+                    ConnOutcome::Unavailable("a source-only index has no Lean dependencies to search".into()),
                     0,
                 ));
             }
             if q.mode == RelMode::Mentions && !uses {
-                return Ok((ConnOutcome::Unavailable("Source mentions can only be followed outward (\"uses\"); change the direction (u).".into()), 0));
+                return Ok((ConnOutcome::Unavailable("source mentions run outward only (\"uses\")".into()), 0));
             }
             let (Some(a), Some(b)) = (row_by_name(env.conn, &q.from)?, row_by_name(env.conn, &q.to)?) else {
                 let missing = if row_by_name(env.conn, &q.from)?.is_none() { &q.from } else { &q.to };
@@ -901,8 +895,8 @@ mod tests {
         let lex = EdgeLabel::Lexical { ident: "foo".into() };
         let lean = EdgeLabel::Lean { type_: true, body: true, ctor: false };
         assert_eq!((cur.tag(), lex.tag(), lean.tag()), ("cur 2".to_string(), "lex".to_string(), "T+V".to_string()));
-        assert!(cur.explain("A", "B").contains("not a Lean-derived dependency"));
-        assert!(lex.explain("A", "B").contains("Lean may resolve it differently"));
+        assert!(cur.explain("A", "B").contains("not Lean-derived"));
+        assert!(lex.explain("A", "B").contains("not resolved by Lean"));
         assert!(lean.explain("A", "B").starts_with("Lean-derived"));
         // Only the Lean mode is called "Lean dependencies".
         for m in [RelMode::Curated, RelMode::Mentions, RelMode::Mixed] {

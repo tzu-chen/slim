@@ -1,12 +1,12 @@
  slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ slim_demo (/tmp/slim/fixtures/demo)
 SlimDemo.Fixtures.Tr╭ Semantic highlighting: explicit trust decision ────────────────────────────────────────────────────────────╮
 ╭ Search [local+lib]│Semantic highlighting index for `slim_demo` at /tmp/slim/fixtures/demo                                      │Mod 5 Idx ─────────╮
-│/ searchWithin_succ│  toolchain:   leanprover/lean4:v4.33.1 (/home/someone/.elan/toolchains/leanprover--lean4---v4.33.1)        │                   │
-│1 name match · 0 in│  runs:        `lake serve` of that toolchain (the Lean language server), which elaborates each file:       │laration's text    │
-│ thm   …xtures.sear│               this EXECUTES the project's macros, tactics and elaborators; lakefile.toml is read by Lake   │es (as written or  │
-│                   │                              as data                                                                       │espace). NOT       │
-│                   │  input:       9 Lean files (8 with existing build artifacts first), one document at a time                 │ namespaces, local │
-│                   │  never:       no build, no `lake update`, no downloads, no toolchain install; imports must already be built│d macros are       │
+│/ searchWithin_succ│  toolchain:   leanprover/lean4:v4.33.1 (/home/someone/.elan/toolchains/leanprover--lean4---v4.33.1)        │esolved by Lean)   │
+│1 name match · 0 in│  runs:        `lake serve` of that toolchain (the Lean language server), which elaborates each file:       │                   │
+│ thm   …xtures.sear│               this EXECUTES the project's macros, tactics and elaborators; lakefile.toml is read by Lake   │                   │
+│                   │                              as data                                                                       │                   │
+│                   │  input:       9 Lean files (8 with existing build artifacts first), one document at a time                 │                   │
+│                   │  never:       no build, no `lake update`, no downloads, no toolchain install; imports must already be built│                   │
 │                   │               (documents are opened with dependencyBuildMode "never"; a file with stale imports is         │                   │
 │                   │                              recorded as failed)                                                           │                   │
 │                   │  sandbox:     bubblewrap 0.12.0: no network, read-only toolchain and project, private /tmp, cleared        │                   │
@@ -33,8 +33,8 @@ SlimDemo.Fixtures.Tr╭ Semantic highlighting: explicit trust decision ───
 │                   │                                                                                                            │                   │
 │                   │                                                                                                            │                   │
 │                   │                                                                                                            │───────────────────│
-│                   │                                                                                                            │ (j/k highlights   │
-│                   │                                                                                                            │uals the indexed   │
-│                   │                                                                                                            │y resolve it       │
+│                   │                                                                                                            │cal match with     │
+│                   │                                                                                                            │                   │
+│                   │                                                                                                            │                   │
 ╰───────────────────╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯───────────────────╯
  planning semantic indexing (nothing runs yet)…

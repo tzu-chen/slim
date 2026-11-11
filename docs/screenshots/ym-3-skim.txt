@@ -1,10 +1,8 @@
  slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ YM (/tmp/YM)
-◎ goal: YangMills.constructed │ type to search · Tab moves between panes · ? for help
-╭ Search [local+lib] ────╮╭ Skim …ance (A7) │ 42 declarations │ proofs left out╮╭ [1 Ment] 2 3 4 5 ──────────╮
-│/                       ││ Statements are the header text as written, found   ││No declaration selected.    │
-│125396 names ready (6 m…││     by a lexical scan: not elaborated.             ││                            │
-│                        ││                                                    ││                            │
-│                        ││Independent review: combined acceptance (A7) ────── ││                            │
+◎ goal: YangMills.constructed │
+╭ Outline [declarations] ╮╭ Skim …eptance (A7) │ 42 statements │ source text ──╮╭ [1 Ment] 2 3 4 5 ──────────╮
+│▾ submissions     125.4k││                                                    ││No declaration selected.    │
+│ ▸ openai-202610… 125.4k││Independent review: combined acceptance (A7) ────── ││                            │
 │                        ││ map group · 5 landmarks listed here                ││                            │
 │                        ││ Read the quantifiers, the clause record, then the  ││                            │
 │                        ││     proof and individual adapters.                 ││                            │
@@ -24,9 +22,11 @@
 │                        ││      (YangMills.wilsonFamily C)) (ho :             ││                            │
 │                        ││      (Extraction.Order.mk Extraction.Sequence.full ││                            │
 │                        ││      o.per).Ordered C S) (hu :                     ││                            │
-│                        ││      FullVolume.PositionsUV C                      ││────────────────────────────│
-│                        ││      Extraction.Sequence.full) (hs :               ││T = in statement · V = in   │
-│                        ││      SourceConclusions hg F) : Accepted hg F       ││proof/body · C =            │
-│                        ││      Assemble the reviewed consequ… 11 lines folded││constructor. Coverage notes │
+│                        ││      FullVolume.PositionsUV C                      ││                            │
+│                        ││      Extraction.Sequence.full) (hs :               ││                            │
+│                        ││      SourceConclusions hg F) : Accepted hg F       ││────────────────────────────│
+│                        ││      Assemble the reviewed consequ… 11 lines folded││                            │
+│                        ││  def SourceConclusions (hg : g.IsSimple) (F :      ││                            │
+│                        ││      Spec.Final C o S) : Prop                      ││                            │
 ╰────────────────────────╯╰───────────────────────────────────────────── 1/42 ─╯╰────────────────────────────╯
  j/k next/previous statement · ⏎ open · S file/namespace · f search within · Esc close · [ back · ? help

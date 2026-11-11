@@ -10,11 +10,11 @@ declaration identities (fully qualified Lean names) and never blur where a fact 
 | `T` | Reading trails | your ordered stops, notes, questions and reading states |
 | `/` `O` `B` | Declaration browser | search, outline and bookmarks, as in milestone 1 |
 
-A project that ships a map opens on it. `Esc` leaves a view, `Backspace` or `[` goes back through
-history (views are history steps), and `?` lists every key. An action that cannot work in the
-current session (for example Lean dependencies in a source-only index) says so when it is asked
-for. While the cursor is in the search box, letters are text: press `Esc` first, or use the
-command palette (`:`).
+A project that ships a map opens on it; one without opens on the outline. `Esc` leaves a view,
+`Backspace` or `[` goes back through history (views are history steps), and `?` lists every key.
+An action that cannot work in the current session (for example Lean dependencies in a
+source-only index) says so when it is asked for. While the cursor is in the search box, letters
+are text: press `Esc` first, or use the command palette (`:`).
 
 Try it on the bundled demo (`slim demo`); nothing needs Lean, a build or a network:
 

@@ -6,25 +6,25 @@ SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_correct   │ route: 
 │── project map (1)      ││    SlimDemo/Fixtures/Trust.lean:32 ·     ││▸ T def   Demo.Graph.Reach  │
 │ map   Demo.Fi… landmark││    local                                 ││▸ T def   …raph.searchWithin│
 │── declarations         ││                                          ││▸ T induc Bool           lib│
-│ thm   …hin_correct name││ ⚠ depends on sorryAx: a placeholder      ││▸ T ctor  Bool.true      lib│
-│── documentation / stat…││     proof is in its dependency closure   ││▸ T induc Eq             lib│
-│ thm   …earch_trans text││     (3 shows the path)                   ││▸ T induc Exists         lib│
-│                        ││                                          ││▸ T struc Iff            lib│
-│                        ││Statement (elaborated) ────────────────── ││▸ T induc Nat            lib│
-│                        ││theorem Demo.Fixtures.searchWithin_correct││[V] in its proof / body —   │
-│                        ││    {g : Demo.Graph} {s t : Nat} :        ││  11 of 12 after filters    │
-│                        ││    (∃ fuel, g.searchWithin fuel s t =    ││▸ V thm   …chWithin_complete│
-│                        ││        true) ↔ g.Reach s t               ││▸ V struc Demo.Graph        │
-│                        ││                                          ││▸ V def   Demo.Graph.Reach  │
-│                        ││Documentation ─────────────────────────── ││▸ V def   …raph.searchWithin│
-│                        ││ TEST FIXTURE: a direct dependency on a   ││▸ V thm   …earchWithin_sound│
-│                        ││ missing proof. This "the decision        ││▸ V induc Bool           lib│
-│                        ││ procedure is correct" theorem contains   ││▸ V ctor  Bool.true      lib│
-│                        ││ no `sorry` token, yet it uses            ││▸ V induc Eq             lib│
-│                        ││ `searchWithin_complete`, which is proved ││▸ V induc Exists         lib│
-│                        ││ by `sorry`. The absence of the word      ││────────────────────────────│
-│                        ││ `sorry` in a proof proves nothing.       ││Demo.Graph occurs in the    │
-│                        ││                                          ││elaborated statement (type) │
-│                        ││Status & evidence ─────────────────────── ││of Demo.Fixtures.searchWithi│
-╰────────────────────────╯╰──────────────────────────────────── 39% ─╯╰────────────────────────────╯
+│ thm   …hin_correct name││ ⚠ depends on sorryAx (a placeholder      ││▸ T ctor  Bool.true      lib│
+│── documentation / stat…││     proof in its dependency closure)     ││▸ T induc Eq             lib│
+│ thm   …earch_trans text││                                          ││▸ T induc Exists         lib│
+│                        ││Statement (elaborated) ────────────────── ││▸ T struc Iff            lib│
+│                        ││theorem Demo.Fixtures.searchWithin_correct││▸ T induc Nat            lib│
+│                        ││    {g : Demo.Graph} {s t : Nat} :        ││[V] in its proof / body —   │
+│                        ││    (∃ fuel, g.searchWithin fuel s t =    ││  11 of 12 after filters    │
+│                        ││        true) ↔ g.Reach s t               ││▸ V thm   …chWithin_complete│
+│                        ││                                          ││▸ V struc Demo.Graph        │
+│                        ││Documentation ─────────────────────────── ││▸ V def   Demo.Graph.Reach  │
+│                        ││ TEST FIXTURE: a direct dependency on a   ││▸ V def   …raph.searchWithin│
+│                        ││ missing proof. This "the decision        ││▸ V thm   …earchWithin_sound│
+│                        ││ procedure is correct" theorem contains   ││▸ V induc Bool           lib│
+│                        ││ no `sorry` token, yet it uses            ││▸ V ctor  Bool.true      lib│
+│                        ││ `searchWithin_complete`, which is proved ││▸ V induc Eq             lib│
+│                        ││ by `sorry`. The absence of the word      ││▸ V induc Exists         lib│
+│                        ││ `sorry` in a proof proves nothing.       ││────────────────────────────│
+│                        ││                                          ││Demo.Graph occurs in the    │
+│                        ││Status & evidence ─────────────────────── ││statement of                │
+│                        ││ ✓ Lean 4.33.1 snapshot of                ││Fixtures.searchWithin_correc│
+╰────────────────────────╯╰──────────────────────────────────── 42% ─╯╰────────────────────────────╯
  j/k scroll · s source · i implicit · m bookmark · a trail · * goal · M map · A goal view · [ ] back

@@ -28,5 +28,5 @@ Architecture map │ goal: none │ map: YM — October construction and indepen
 │                                            ││  placeholder, so this uniquely named theorem is the map      │
 │                                            ││  entry point.                                                │
 │                                            ││                                                              │
-╰────────────────────────────────────────────╯╰──────────────────────────────────────────────────────── 21% ─╯
+╰────────────────────────────────────────────╯╰──────────────────────────────────────────────────────── 22% ─╯
  ⏎ open · Space expand · * goal · a trail · m bookmark · Q question · r reload map · A goal · T trails · ? hel

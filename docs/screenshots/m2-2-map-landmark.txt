@@ -22,9 +22,9 @@ Architecture map │ goal: none │ map: slim_demo: relations, closures and reac
 │  ▸ Finite graphs and reach… 7 landmarks││     closure — prepend one step to a chain              │
 │  ▸ Fuel-bounded search      7 landmarks││ · Fuel-bounded search — the last step of the soundness │
 │  ▸ Deliberate test fixture… 5 landmarks││     proof                                              │
-│▾ External foundations          4 listed││ one declaration, several placements: M cycles through  │
-│  ▸ Core Lean                4 landmarks││     them                                               │
-│▾ Unresolved references                1││                                                        │
-│  ? Demo.Graph.searchWithin_com… missing││Prerequisites and dependents ────────────────────────── │
-╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 46% ─╯
+│▾ External foundations          4 listed││                                                        │
+│  ▸ Core Lean                4 landmarks││Prerequisites and dependents ────────────────────────── │
+│▾ Unresolved references                1││ → [cur] uses Demo.Rel.ReflTransGen.single — one step   │
+│  ? Demo.Graph.searchWithin_com… missing││     is a chain                                         │
+╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 59% ─╯
  ⏎ open · Space expand · * goal · a trail · m bookmark · Q question · r reload map · A goal · T trai

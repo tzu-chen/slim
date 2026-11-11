@@ -6,15 +6,13 @@ Reading trails │ ◎ goal: Demo.Graph.searchWithin_sound │ active trail: The
 │    1. [      ] thm ReflTransGen.single…││     SlimDemo/Fixtures/Trust.lean:24 · local            │
 │▾ The soundness of bounded sea… 2/8 read││                                                        │
 │    1. [read  ] group Finite graphs and…││Stop 8 of 8 in "The soundness of bounded search in ten m│
-│    2. [unders] def Graph.Reach — reach…││ state: unread (your annotation, not Lean verification) │
+│    2. [unders] def Graph.Reach — reach…││ state: unread (your annotation)                        │
 │    3. [      ] induc Rel.ReflTransGen …││ why it is on the route:                                │
 │    4. [      ] def Graph.searchWithin …││ the converse is only a test fixture                    │
 │    5. [      ] thm Graph.anyOf_eq_true…││ ? question: What would a proof of completeness need as │
 │    6. [      ] thm ReflTransGen.head —…││     its fuel bound?                                    │
-│    7. [      ] thm Graph.searchWithin_…││ s state · n explanation · Q question · - + move · d    │
-│    8. [      ] thm Fixtures.searchWith…││     remove                                             │
-│                                        ││                                                        │
-│                                        ││Purpose ─────────────────────────────────────────────── │
+│    7. [      ] thm Graph.searchWithin_…││                                                        │
+│    8. [      ] thm Fixtures.searchWith…││Purpose ─────────────────────────────────────────────── │
 │                                        ││ TEST FIXTURE: completeness of the search, stated with  │
 │                                        ││  a deliberately missing proof.                         │
 │                                        ││ annotation: authored                                   │
@@ -26,5 +24,7 @@ Reading trails │ ◎ goal: Demo.Graph.searchWithin_sound │ active trail: The
 │                                        ││                                                        │
 │                                        ││In the map ──────────────────────────────────────────── │
 │                                        ││ · Deliberate test fixtures (not results)               │
-╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 40% ─╯
+│                                        ││                                                        │
+│                                        ││Prerequisites and dependents ────────────────────────── │
+╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 54% ─╯
  ⏎ open · s state · n note · Q question · - + move · d remove · N new · t active · r resume · E expo

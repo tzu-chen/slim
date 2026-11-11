@@ -17,8 +17,8 @@ SlimDemo.Graph.Basic › Demo.Graph.Reach › trans   │ route: search “reach
 │                        ││ from `u` to `w`.                                   │
 │                        ││                                                    │
 │                        ││Status & evidence ───────────────────────────────── │
-│                        ││ ✓ semantic declaration extracted from Lean 4.33.1  │
-│                        ││     build artifacts (project module, snapshot      │
-│                        ││     2026-11-11T05:11:54Z)                          │
-╰────────────────────────╯╰────────────────────────────────────────────── 44% ─╯
+│                        ││ ✓ Lean 4.33.1 snapshot of 2026-11-11T05:11:54Z     │
+│                        ││     (project module)                               │
+│                        ││ · build: artifacts present at export; not run or   │
+╰────────────────────────╯╰────────────────────────────────────────────── 47% ─╯
  j/k scroll · s source · i implicit · m bookmark · a trail · * goal · M map · A

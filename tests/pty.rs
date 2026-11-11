@@ -331,9 +331,9 @@ fn quitting_during_semantic_export_kills_and_reaps_the_process_tree() {
         &[],
     );
     assert!(p.wait_for("SOURCE-ONLY", Duration::from_secs(20)), "{}", p.text());
-    assert!(p.wait_for("type to search", Duration::from_secs(20)));
+    assert!(p.wait_for("Outline", Duration::from_secs(20)));
     std::thread::sleep(Duration::from_millis(800));
-    p.send("\x1b"); // stop editing the search box
+    p.send("\x1b");
     p.send(":");
     p.send("semantic export");
     p.send("\r");
@@ -402,7 +402,7 @@ fn map_goal_and_trail_session_survives_a_restart() {
     assert!(p.wait_screen("Path from the goal", sz), "the detail keeps the path the reader came by");
     assert!(p.wait_screen("Why this edge is shown", sz));
     p.send("a");
-    assert!(p.wait_screen("why it is on the route", sz));
+    assert!(p.wait_screen("why is it on the route", sz));
     p.send("the witness step");
     p.send("\r");
     assert!(p.wait_screen("added Demo.Graph.anyOf_eq_true to the trail", sz));
@@ -453,8 +453,10 @@ fn narrow_terminal_and_malformed_map_stay_usable() {
     let sz = (60, 24);
     let mut p = spawn_in_pty_sized(&[proj.to_str().unwrap(), "--ascii"], &env, &[], 60, 24);
     assert!(p.wait_screen("SOURCE-ONLY", sz));
-    assert!(p.wait_screen("names ready", sz));
+    assert!(p.wait_screen("Outline [", sz), "the outline is the first thing on the left");
     // The source browser works although the map file is broken.
+    p.send("/");
+    assert!(p.wait_screen("names ready", sz));
     p.send("main");
     assert!(p.wait_screen("thm   P.main", sz));
     p.send("\r");
@@ -524,10 +526,7 @@ fn overview_session_on_a_source_only_project() {
     let sz = (120, 34);
     let mut p = spawn_in_pty_sized(&[proj.to_str().unwrap(), "--ascii"], &env, &[], 120, 34);
     assert!(p.wait_screen("SOURCE-ONLY", sz));
-    assert!(p.wait_screen("names ready", sz));
-    p.send("\x1b"); // leave the search box: letters are commands
-    // Outline: the right column is the quantity the outline is ordered by.
-    p.send("O");
+    // It opens on the outline; the right column is the quantity it is ordered by.
     assert!(p.wait_screen("Outline [declarations]", sz));
     assert!(p.wait_screen("> SlimDemo", sz));
     p.send("o");
@@ -549,16 +548,15 @@ fn overview_session_on_a_source_only_project() {
         p.send("j");
     }
     p.send("S");
-    assert!(p.wait_screen("73 declarations | proofs left out", sz), "skim of the selected directory");
-    assert!(p.wait_screen("header text as written", sz), "a source-only skim says what its statements are");
+    assert!(p.wait_screen("73 statements | source text", sz), "skim of the selected directory");
     assert!(p.wait_screen("8 files | 38 thm", sz));
     assert!(p.wait_screen("> theorem", sz) || p.wait_screen("> def", sz), "a statement is selected");
     // Open the selected statement and come back to the skim.
     p.send("\r");
     assert!(p.wait_screen(" Declaration ", sz));
-    assert!(p.wait_screen("Statement (source)", sz));
+    assert!(p.wait_screen("Statement (source text", sz));
     p.send("\x7f");
-    assert!(p.wait_screen("73 declarations | proofs left out", sz), "Backspace returns to the skim");
+    assert!(p.wait_screen("73 statements | source text", sz), "Backspace returns to the skim");
     p.send("\x1b");
     assert!(p.wait_screen(" Declaration ", sz), "Esc closes the skim");
     // Search within the directory selected in the outline.
@@ -572,11 +570,11 @@ fn overview_session_on_a_source_only_project() {
     assert!(p.wait_screen("theorem searchWithin_sound", sz));
     // Mentions: moving in the list says where the identifier is written.
     p.send("1");
-    assert!(p.wait_screen("Lexical mentions", sz));
+    assert!(p.wait_screen("Mentions (lexical", sz));
     p.send("j");
     p.send("j");
     // (That the cells of the identifier are painted is a render test.)
-    assert!(p.wait_screen("(highlighted)", sz), "the selected mention says where it is written");
+    assert!(p.wait_screen("lexical match with", sz), "the selected mention says where it is written");
     // Import layers, from the open declaration: its file is selected.
     p.send("I");
     assert!(p.wait_screen("Layers by import depth", sz));
@@ -662,7 +660,7 @@ fn indexes_of_another_format_are_rebuilt_or_explained() {
     assert!(cli(&["info", dir]).contains("index format 1"), "the old index is refused, not misread");
     let mut p = spawn_in_pty_sized(&[dir, "--ascii"], &env, &[], 120, 30);
     assert!(p.wait_screen("SOURCE-ONLY", sz));
-    assert!(p.wait_screen("names ready", sz), "the source index was rebuilt on opening");
+    assert!(p.wait_screen("> SlimDemo", sz), "the source index was rebuilt on opening");
     p.send("\x1bq");
     assert!(p.wait_exit(Duration::from_secs(5)).expect("did not exit").success());
     drop(p);
@@ -783,7 +781,7 @@ fn semantic_indexing_from_the_browser_cancels_and_quits_cleanly() {
             size.0 as u16,
             size.1 as u16,
         );
-        assert!(p.wait_for("type to search", Duration::from_secs(20)), "{}", p.text());
+        assert!(p.wait_for("Outline", Duration::from_secs(20)), "{}", p.text());
         std::thread::sleep(Duration::from_millis(600));
         assert!(children_of(p.child.id()).is_empty(), "opening the project started a process");
         p.send("\x1b");

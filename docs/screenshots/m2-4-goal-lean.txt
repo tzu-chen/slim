@@ -4,19 +4,15 @@ Goal explorer │ ◎ goal: Demo.Graph.searchWithin_sound │ Lean deps │ uses
 │relation: Lean dependencies             ││theorem Demo.Graph.searchWithin_sound                   │
 │direction: uses (A lists what A needs)  ││ module SlimDemo.Graph.Search ·                         │
 │show: local+ext │ generated off │ T+V+C ││     SlimDemo/Graph/Search.lean:69 · local              │
-│▾ ◎ Demo.Graph.searchWithin_sound       ││ ◎ this is the pinned goal (* clears it)                │
+│▾ ◎ Demo.Graph.searchWithin_sound       ││ ◎ the pinned goal                                      │
 │  ▸ [T+V] struc Demo.Graph              ││                                                        │
 │  ▸ [T+V] def Graph.Reach               ││Its relations in this outline ───────────────────────── │
-│  ▸ [T+V] def Graph.searchWithin        ││ Lean edges before filters: 7 in the statement (T), 9   │
-│  ▸ [T+V] induc Bool                 lib││     in the proof/body (V), 0 constructors (C)          │
-│  ▸ [T+V] ctor Bool.true             lib││ · 2 Lean-generated declarations hidden — G or H shows  │
-│  ▸ [T+V] induc Eq                   lib││     them                                               │
-│  ▸ [T+V] induc Nat                  lib││ Hiding is a display choice, not a claim that the       │
-│  hidden: 2 generated (H)               ││     hidden declarations are mathematically irrelevant. │
-│                                        ││                                                        │
-│                                        ││Purpose ─────────────────────────────────────────────── │
-│                                        ││ If the Boolean search answers true, the target really  │
-│                                        ││  is reachable from the source.                         │
+│  ▸ [T+V] def Graph.searchWithin        ││ Lean edges before filters: T 7 · V 9 · C 0             │
+│  ▸ [T+V] induc Bool                 lib││ · hidden: 2 Lean-generated (G, H)                      │
+│  ▸ [T+V] ctor Bool.true             lib││                                                        │
+│  ▸ [T+V] induc Eq                   lib││Purpose ─────────────────────────────────────────────── │
+│  ▸ [T+V] induc Nat                  lib││ If the Boolean search answers true, the target really  │
+│  hidden: 2 generated (H)               ││  is reachable from the source.                         │
 │                                        ││ annotation: authored                                   │
 │                                        ││                                                        │
 │                                        ││Explanation ─────────────────────────────────────────── │
@@ -26,5 +22,9 @@ Goal explorer │ ◎ goal: Demo.Graph.searchWithin_sound │ Lean deps │ uses
 │                                        ││  accepts `s = t`; otherwise a successful search found  │
 │                                        ││  a successor `w` of `s` from which the smaller search  │
 │                                        ││  succeeds, and the edge `s → w` is put in front of the │
-╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 29% ─╯
+│                                        ││  path obtained recursively.                            │
+│                                        ││                                                        │
+│                                        ││Statement (elaborated) ──────────────────────────────── │
+│                                        ││theorem Demo.Graph.searchWithin_sound                   │
+╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 34% ─╯
  Space unfold · ⏎ open · r relation kind · u direction · y T/V · L G H filters · c connect · * goal

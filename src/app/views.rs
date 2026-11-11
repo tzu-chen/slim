@@ -385,7 +385,7 @@ impl App {
         self.preview_due = None;
         self.preview_target = None;
         match v {
-            View::Browse => {}
+            View::Browse => self.show_outline(),
             View::Map => self.rebuild_map_rows(),
             View::Goal => {
                 if self.v.goal.goal.is_some() && self.v.goal.nodes.is_empty() {
@@ -448,6 +448,8 @@ impl App {
         self.history.back.push(loc);
         self.history.fwd.clear();
         self.v.view = View::Browse;
+        self.show_outline();
+        self.reveal_on_arrival = true;
         self.focus = Focus::Center;
         self.search.editing = false;
         self.preview_session = false;
@@ -471,7 +473,7 @@ impl App {
                 }
             }
             MapLoad::Malformed { path, issues } => self.warn(format!(
-                "{} could not be used ({}); it was left unchanged and the browser works without it — M shows the details",
+                "{} could not be used ({}); left unchanged",
                 path.display(),
                 issues.first().map(|i| i.line()).unwrap_or_default()
             )),
@@ -522,11 +524,7 @@ impl App {
             Some(MapLoad::Absent { looked_at }) => {
                 sec(&mut rows, "sec:nomap", "No project map", String::new(), true);
                 let at = looked_at.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "the source root (none is known for this index)".into());
-                for (i, t) in [
-                    format!("No lean-view.toml at {at}."),
-                    "Everything else works without one. A map adds main results, mathematical components and landmarks chosen by a person.".to_string(),
-                    "`slim map init <PROJECT_DIR>` prints a starting file derived from directories (labelled generated).".to_string(),
-                ]
+                for (i, t) in [format!("no lean-view.toml at {at}"), "`slim map init <PROJECT_DIR>` prints a starting file".to_string()]
                 .iter()
                 .enumerate()
                 {
@@ -535,7 +533,7 @@ impl App {
             }
             Some(MapLoad::Malformed { path, issues }) => {
                 sec(&mut rows, "sec:issues", "Map file could not be used", format!("{} problem(s)", issues.len()), true);
-                note(&mut rows, "note:malformed".into(), &format!("{} was left unchanged. Fix it and press r to reload; the declaration browser works meanwhile.", path.display()));
+                note(&mut rows, "note:malformed".into(), &format!("{} was left unchanged", path.display()));
                 for (i, is) in issues.iter().enumerate() {
                     rows.push(MapRow { key: format!("issue:{i}"), depth: 1, kind: MapRowKind::Issue { text: is.line(), error: true } });
                 }
@@ -549,7 +547,7 @@ impl App {
                         rows.push(MapRow { key: format!("obj:{}", o.decl), depth: 1, kind: MapRowKind::Objective { decl: o.decl.clone(), title: o.title.clone() } });
                     }
                     if m.objectives.is_empty() {
-                        note(&mut rows, "note:noobj".into(), "none chosen. Objectives are never inferred: add [[objective]] entries to the map.");
+                        note(&mut rows, "note:noobj".into(), "none chosen ([[objective]] entries)");
                     }
                 }
                 fn walk(app: &App, m: &ProjectMap, k: usize, depth: u16, rows: &mut Vec<MapRow>) {
@@ -576,7 +574,7 @@ impl App {
                         walk(self, m, k, 1, &mut rows);
                     }
                     if comps.is_empty() {
-                        note(&mut rows, "note:nogroups".into(), "no groups yet: add [[group]] entries to the map.");
+                        note(&mut rows, "note:nogroups".into(), "no groups ([[group]] entries)");
                     }
                 }
                 let e = self.map_expanded("sec:foundations");
@@ -587,7 +585,7 @@ impl App {
                         walk(self, m, k, 1, &mut rows);
                     }
                     if founds.is_empty() {
-                        note(&mut rows, "note:nofound".into(), "no foundation group (kind = \"foundation\"). Library dependencies are not shown here unless listed; the goal explorer shows them per declaration.");
+                        note(&mut rows, "note:nofound".into(), "no foundation group (kind = \"foundation\")");
                     }
                 }
                 let un = res.unresolved(m);
@@ -798,10 +796,10 @@ impl App {
             }
             MapRowKind::Unresolved(u) => {
                 if u.suggestions.is_empty() {
-                    self.warn(format!("{}: {}. Edit lean-view.toml and press r.", u.name, u.why));
+                    self.warn(format!("{}: {}", u.name, u.why));
                 } else {
                     self.warn(format!(
-                        "{}: {}. Similar names: {}. Nothing is re-attached automatically: edit lean-view.toml, then r.",
+                        "{}: {}. Similar names: {} (nothing is re-attached automatically)",
                         u.name,
                         u.why,
                         u.suggestions.join(", ")
@@ -987,7 +985,7 @@ impl App {
         self.v.goal.conn = None;
         match &goal {
             Some(g) => {
-                self.msg(format!("goal pinned: {} — A opens the goal explorer, * on it again clears", g.display));
+                self.msg(format!("goal pinned: {}", g.display));
                 self.q2(QueryReq::SetPref { key: "goal".into(), value: Some(g.name.clone()) });
                 self.q2(QueryReq::SetPref { key: "goal_display".into(), value: Some(g.display.clone()) });
             }
@@ -1020,7 +1018,7 @@ impl App {
         match target {
             Some(t) if self.v.goal.goal.as_ref().is_some_and(|g| g.name == t.name) => self.set_goal(None),
             Some(t) => self.set_goal(Some(t)),
-            None if self.v.goal.goal.is_some() => self.msg("select a declaration to pin as the goal (the current goal is unchanged; * on the goal itself clears it)"),
+            None if self.v.goal.goal.is_some() => self.msg("select a declaration to pin as the goal (the current goal is unchanged)"),
             None => self.msg("select a declaration first: * pins it as the goal"),
         }
     }
@@ -1066,7 +1064,7 @@ impl App {
     fn goal_expand(&mut self, node: usize) {
         let n = &self.v.goal.nodes[node];
         if n.backref {
-            self.msg("already on the path from the goal to here (a cycle): shown as a back-reference, not unfolded again. Enter opens it.");
+            self.msg("already on the path from the goal to here (a cycle): not unfolded again");
             return;
         }
         if n.depth >= 40 {
@@ -1187,10 +1185,10 @@ impl App {
             }
         }
         if self.v.goal.goal.is_none() {
-            rows.push(GRow::Info("No goal pinned: * pins a declaration.".into()));
+            rows.push(GRow::Info("no goal pinned".into()));
             let n = self.map().map(|m| m.objectives.len()).unwrap_or(0);
             if n > 0 {
-                rows.push(GRow::Info("Objectives in the map (Enter pins):".into()));
+                rows.push(GRow::Info("Objectives in the map:".into()));
                 for i in 0..n {
                     rows.push(GRow::Pick(i));
                 }
@@ -1327,7 +1325,7 @@ impl App {
     /// Starts a bounded connection search from the goal to `to`.
     pub fn start_connection(&mut self, to: String) {
         let Some(goal) = self.v.goal.goal.clone() else {
-            self.msg("pin a goal first (*): a connection query runs from the goal to another declaration");
+            self.msg("pin a goal first: a connection query runs from the goal");
             return;
         };
         if to.trim().is_empty() {
@@ -1582,10 +1580,10 @@ impl App {
                     Some(t) => format!("“{}”", t.title),
                     None => "your reading trail".into(),
                 };
-                let prompt = format!("Add {} to {to} — why it is on the route (optional; Enter adds, Esc cancels):", stop.display);
+                let prompt = format!("Add {} to {to}: why is it on the route? (optional)", stop.display);
                 self.overlay = Overlay::Input { purpose: InputPurpose::StopAdd { stop: Box::new(stop) }, prompt, text: String::new() };
             }
-            None => self.msg("nothing to add here: select a declaration or a map group (if it is still loading, try again)"),
+            None => self.msg("nothing to add here: select a declaration or a map group"),
         }
     }
 
@@ -1605,7 +1603,7 @@ impl App {
             Some(s) => {
                 self.overlay = Overlay::Input {
                     purpose: InputPurpose::AskQuestion { ref_kind: s.ref_kind, name: s.name, display: s.display.clone() },
-                    prompt: format!("Your question about {} (kept in your data; T lists open questions):", s.display),
+                    prompt: format!("Your question about {}:", s.display),
                     text: String::new(),
                 };
             }
@@ -1622,7 +1620,7 @@ impl App {
         .or_else(|| self.v.trails.active().and_then(|id| rd.trails.iter().find(|t| t.id == id)))
         .or(rd.trails.first());
         let Some(t) = t else {
-            self.msg("no trail to export yet: press a on a declaration to start one");
+            self.msg("no trail to export yet");
             return;
         };
         let slug: String = t.title.chars().map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' }).collect();
@@ -1645,7 +1643,7 @@ impl App {
             KeyCode::Char('s') => match (&stop, &question) {
                 (Some(s), _) => self.q2(QueryReq::StopSetState { id: s.id, state: s.state.next() }),
                 (_, Some(q)) => self.q2(QueryReq::QuestionToggle { id: q.id }),
-                _ => self.msg("s cycles the reading state of a stop (unread, read, understood, revisit) or resolves a question"),
+                _ => self.msg("select a stop or a question first"),
             },
             KeyCode::Char('n') => match &stop {
                 Some(s) => {
@@ -1671,7 +1669,7 @@ impl App {
             },
             KeyCode::Char('+') | KeyCode::Char('=') | KeyCode::Char('-') => match &stop {
                 Some(s) => self.q2(QueryReq::StopMove { id: s.id, delta: if k.code == KeyCode::Char('-') { -1 } else { 1 } }),
-                None => self.msg("- and + move a stop up and down within its trail: select a stop"),
+                None => self.msg("select a stop first"),
             },
             KeyCode::Char('N') => {
                 self.overlay = Overlay::Input { purpose: InputPurpose::NewTrail, prompt: "Title of the new trail:".into(), text: String::new() };
@@ -2029,7 +2027,7 @@ impl App {
             _ => self.subject_bundle().and_then(|d| d.d.row.module.clone()),
         };
         let Some(from) = from else {
-            self.msg("select a file first: an import path runs from a file to a module it imports, directly or through others");
+            self.msg("select a file first: an import path runs from a file to a module");
             return;
         };
         self.overlay = Overlay::Input {
@@ -2278,7 +2276,7 @@ impl App {
                 }
                 // Keys of the declaration browser do nothing useful here: say so.
                 if matches!(k.code, KeyCode::Char('1'..='5') | KeyCode::Char('x') | KeyCode::Char('i') | KeyCode::Char('s') | KeyCode::Char('e') | KeyCode::Char('t') | KeyCode::Char('K') | KeyCode::Char('n')) {
-                    self.msg("that key belongs to the declaration browser: Enter opens the selected declaration there (? lists this view's keys)");
+                    self.msg("that key belongs to the declaration browser");
                     return true;
                 }
                 return false;
@@ -2307,16 +2305,16 @@ impl App {
                 let m = self.v.goal.mode;
                 let mut s = format!("relation kind: {} — {}", m.label(), m.explain());
                 if m == RelMode::Lean && self.ctx.mode == IndexMode::Source {
-                    s = "relation kind: Lean dependencies — UNAVAILABLE in a source-only index (nothing was elaborated). r moves on; a semantic snapshot provides them.".into();
+                    s = "relation kind: Lean dependencies — UNAVAILABLE in a source-only index".into();
                 }
                 self.goal_refilter(s);
             }
             KeyCode::Char('u') => {
                 self.v.goal.dir = if self.v.goal.dir == Direction::Uses { Direction::UsedBy } else { Direction::Uses };
                 let s = if self.v.goal.dir == Direction::Uses {
-                    "direction: uses — from a statement to its prerequisites (A uses B: unfolding A lists B)"
+                    "direction: uses (from a statement to its prerequisites)"
                 } else {
-                    "direction: used by — from a statement to what depends on it (the reverse of uses)"
+                    "direction: used by (from a statement to what depends on it)"
                 };
                 self.goal_refilter(s.into());
             }
@@ -2329,15 +2327,15 @@ impl App {
             KeyCode::Char('H') => {
                 self.v.goal.reveal_hidden = !self.v.goal.reveal_hidden;
                 let s = if self.v.goal.reveal_hidden {
-                    "showing everything: external, Lean-generated and all edge kinds (H hides again)"
+                    "showing everything: external, Lean-generated and all edge kinds"
                 } else {
-                    "display filters applied again (hidden counts are shown under each node)"
+                    "display filters applied again"
                 };
                 self.goal_refilter(s.into());
             }
             KeyCode::Char('L') => {
                 self.filters.local_only = !self.filters.local_only;
-                let s = if self.filters.local_only { "filter: local declarations only (hidden externals are counted)" } else { "filter: local and library declarations" };
+                let s = if self.filters.local_only { "filter: local declarations only" } else { "filter: local and library declarations" };
                 self.goal_refilter(s.into());
             }
             KeyCode::Char('G') => {
@@ -2354,7 +2352,7 @@ impl App {
     /// `c`: ask for the other end of a connection query.
     pub fn cmd_connect(&mut self) {
         let Some(goal) = self.v.goal.goal.clone() else {
-            self.msg("pin a goal first (*): a connection query runs from the goal to another declaration");
+            self.msg("pin a goal first: a connection query runs from the goal");
             return;
         };
         let default = match self.v.view {
@@ -2505,7 +2503,7 @@ stops = [{ decl = "D.main" }]
         let gen = a.gens.idir;
         a.handle(Event::Query(QueryResp::ImportsDir(gen, Ok(g.dir_summary(g.dir("P.Found").unwrap(), 12)))));
         let d = detail_text(&a);
-        for n in ["directory / namespace prefix P.Found", "depth 0-1", "Imported by (5 import lines)", "P.Alg  (2)", "Lib  (2)", "1 import line between files inside it", "A build dependency, not a"] {
+        for n in ["directory / namespace prefix P.Found", "depth 0-1", "Imported by (5 import lines)", "P.Alg  (2)", "Lib  (2)", "1 import line inside it"] {
             assert!(d.contains(n), "detail lacks {n:?}:\n{d}");
         }
         a.sync_view_detail();
@@ -2660,7 +2658,7 @@ stops = [{ decl = "D.main" }]
         a.v.map.list.selected = i;
         key(&mut a, KeyCode::Enter);
         let (msg, warn) = a.status.clone().unwrap();
-        assert!(warn && msg.contains("D.here") && msg.contains("Nothing is re-attached automatically"));
+        assert!(warn && msg.contains("D.here") && msg.contains("nothing is re-attached automatically"));
         assert_eq!(a.v.view, View::Map);
     }
 
@@ -2843,7 +2841,7 @@ stops = [{ decl = "D.main" }]
         a.v.goal.list.selected = 0;
         press(&mut a, '*');
         assert!(a.v.goal.goal.is_none());
-        assert!(matches!(&a.v.goal.rows[0], GRow::Info(t) if t.contains("No goal pinned")));
+        assert!(matches!(&a.v.goal.rows[0], GRow::Info(t) if t.contains("no goal pinned")));
     }
 
     #[test]

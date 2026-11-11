@@ -13,8 +13,7 @@ Goal explorer │ ◎ goal: YangMills.constructed │ curated │ uses │ / sea
 │  ▸ [cur 11] thm YangMills.publicTrace      ││Why this edge is shown ────────────────────────────────────── │
 │  ▸ [cur 12] thm YangMills.contactDistribut…││ · [cur 1] step 1 of a curated argument: the map says         │
 │  ▸ [cur] struc Spec.Final                  ││     YangMills.constructed uses Nonperturbative.existence (AI │
-│                                            ││     suggestion (not accepted)). An explanation, not a        │
-│                                            ││     Lean-derived dependency.                                 │
+│                                            ││     suggestion (not accepted)); not Lean-derived             │
 │                                            ││ the map's author says:                                       │
 │                                            ││ Obtain the internal headline existence package.              │
 │                                            ││                                                              │
@@ -28,5 +27,6 @@ Goal explorer │ ◎ goal: YangMills.constructed │ curated │ uses │ / sea
 │                                            ││  tive/Headlines.lean:19.                                     │
 │                                            ││                                                              │
 │                                            ││Statement (source text, not elaborated) ───────────────────── │
-╰────────────────────────────────────────────╯╰──────────────────────────────────────────────────────── 39% ─╯
+│                                            ││  theorem existence (G : Gauge) (hG : G.Simple) (b : ℝ) (hb : │
+╰────────────────────────────────────────────╯╰──────────────────────────────────────────────────────── 45% ─╯
  Space unfold · ⏎ open · r relation kind · u direction · y T/V · L G H filters · c connect · * goal · ? help

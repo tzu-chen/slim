@@ -122,7 +122,7 @@ fn draw_outline(f: &mut Frame, area: Rect, app: &mut App) {
         let l2 = if g.dir == Direction::Uses { "direction: uses (A lists what A needs)" } else { "direction: used by (what needs A)" };
         let mut fl = Vec::new();
         if g.reveal_hidden {
-            fl.push("everything (H hides again)".to_string());
+            fl.push("everything".to_string());
         } else {
             fl.push(if app.filters.local_only { "local only".into() } else { "local+ext".to_string() });
             fl.push(if app.filters.show_generated { "+generated".into() } else { "generated off".to_string() });
@@ -347,33 +347,32 @@ fn rollup_lines(o: &mut Out, st: &ModStats, decls: u64) {
     let source = app.ctx.mode == IndexMode::Source;
     o.head("Counts");
     o.text(&format!("{} · {} indexed declarations{}", count(st.files as u64, "file", "files"), decls, if source { " (lexical candidates)" } else { "" }), t.text);
-    o.text(&format!("theorems {} · definitions {} · types {} (structure, class, inductive) · instances {} · axioms {}", st.thm, st.def, st.typ, st.inst, st.axiom), t.text);
+    o.text(&format!("theorems {} · definitions {} · types {} · instances {} · axioms {}", st.thm, st.def, st.typ, st.inst, st.axiom), t.text);
     let named = st.named();
     if named > 0 {
-        o.text(&format!("{} of these {named} have a doc comment ({}%)", st.doc, st.doc as u64 * 100 / named as u64), t.text);
+        o.text(&format!("documented: {} of {named} ({}%)", st.doc, st.doc as u64 * 100 / named as u64), t.text);
     }
     if st.lines > 0 {
-        let share = if st.proof_lines > 0 { format!(", {} of them from the end of a theorem's statement to the end of its proof ({}%)", compact(st.proof_lines as u64), st.proof_lines as u64 * 100 / st.lines.max(1) as u64) } else { String::new() };
+        let share = if st.proof_lines > 0 { format!(" · {} in theorem proofs ({}%)", compact(st.proof_lines as u64), st.proof_lines as u64 * 100 / st.lines.max(1) as u64) } else { String::new() };
         o.text(&format!("{} lines{share}", compact(st.lines as u64)), t.text);
     }
     if source {
         if st.sorry > 0 {
-            o.text(&format!("{} declaration{} with a `sorry`/`admit` token in the text (lexical; other placeholders are not seen)", st.sorry, if st.sorry == 1 { "" } else { "s" }), t.warn);
+            o.text(&format!("`sorry`/`admit` token in {} declaration{} (lexical)", st.sorry, if st.sorry == 1 { "" } else { "s" }), t.warn);
         } else {
-            o.text("no `sorry` token in these files — which proves nothing (macros, imported lemmas, errors)", t.dim);
+            o.text("no `sorry` token (proves nothing)", t.dim);
         }
     } else if st.sorry > 0 {
-        o.text(&format!("{} declaration{} depend on sorryAx (3 on a declaration shows the path)", st.sorry, if st.sorry == 1 { "" } else { "s" }), t.warn);
+        o.text(&format!("{} declaration{} depend on sorryAx", st.sorry, if st.sorry == 1 { "" } else { "s" }), t.warn);
     } else {
-        o.text("no user-written declaration here depends on sorryAx in this snapshot", t.dim);
+        o.text("no declaration here depends on sorryAx", t.dim);
     }
     if st.partial > 0 {
-        o.text(&format!("{} file{} not read or parsed cleanly", st.partial, if st.partial == 1 { "" } else { "s" }), t.warn);
+        o.text(&format!("{} file{} partially parsed", st.partial, if st.partial == 1 { "" } else { "s" }), t.warn);
     }
     if st.mtime_ns > 0 {
-        o.text(&format!("last modified {} ago ({})", age(now_ns(), st.mtime_ns), if source { "when it was indexed" } else { "when the snapshot was made" }), t.dim);
+        o.text(&format!("last modified {} ago (as of the {})", age(now_ns(), st.mtime_ns), if source { "index" } else { "snapshot" }), t.dim);
     }
-    o.text("Counts are sizes, not progress: there is no percent proved.", t.dim);
 }
 
 /// One file of the import graph: its depth with a witness chain, what it
@@ -387,12 +386,12 @@ fn import_module_lines(o: &mut Out, g: &ImportGraph, v: u32) {
         let d = g.depth[v as usize];
         o.head(&format!("Depth {d}"));
         if g.cyclic[v as usize] {
-            o.text("on or above an import cycle: the depth is a lower bound", t.warn);
+            o.text("on or above an import cycle: a lower bound", t.warn);
         }
         if d == 0 {
             o.text("imports no file of this project", t.text);
         } else {
-            o.text("the longest chain of local imports below it, for example:", t.dim);
+            o.text("a longest chain of local imports below it:", t.dim);
             let chain = g.chain_below(v);
             o.text(&chain.iter().map(|&i| name(i)).collect::<Vec<_>>().join(&format!(" {} ", app.sym.arrow)), t.text);
         }
@@ -657,7 +656,7 @@ pub fn detail_lines(app: &App, w: usize) -> Vec<Line<'static>> {
         Subject::Issue(text) => {
             o.head("Map file");
             o.text(&text, t.warn);
-            o.text("slim never rewrites lean-view.toml. Edit the file and press r in the map to reload it; the declaration browser does not depend on it.", t.dim);
+            o.text("lean-view.toml is read, never rewritten", t.dim);
         }
         Subject::Group(k) => group_lines(&mut o, k),
         Subject::Unresolved(u) => {
@@ -672,38 +671,28 @@ pub fn detail_lines(app: &App, w: usize) -> Vec<Line<'static>> {
                 for x in &u.suggestions {
                     o.item(app.sym.bullet, x.clone(), t.text);
                 }
-                o.text("These are hints only. An annotation is never moved to a similar-looking declaration automatically: edit lean-view.toml if one of them is the renamed declaration, then press r.", t.dim);
+                o.text("hints only: nothing is re-attached automatically", t.dim);
             }
-            o.text("Annotations of an unresolved name are kept in the file and shown here until it resolves again.", t.dim);
         }
         Subject::Module(i) => {
             let Some(n) = app.outline.nodes.get(i) else { return o.lines };
             o.lines.push(Line::from(vec![Span::styled(if n.module.is_some() { "module " } else { "directory / namespace prefix " }, t.kind), Span::styled(clean(app, &n.full), t.decl_name)]));
-            o.text("Generated organization: this outline mirrors files, not mathematics. A directory or namespace is not automatically a mathematical chapter.", t.warn);
+            o.text("generated from the file tree, not curated", t.dim);
             if let Some(m) = &n.module {
                 if let Some(p) = &m.path {
                     o.text(&format!("file: {p}"), t.dim);
                 }
             }
             rollup_lines(&mut o, &n.roll, n.decls_total);
-            o.text(
-                &format!(
-                    "{}S skims the statements here · f searches within it · I shows where it sits in the import order · o changes the column (now: {}).",
-                    if n.module.is_some() { "Enter shows this module in the declaration browser's outline · " } else { "" },
-                    outline_column(app)
-                ),
-                t.dim,
-            );
         }
         Subject::ImportDir(d) => {
             let Some(g) = app.v.imports.graph.clone() else { return o.lines };
             let Some(n) = g.dirs.get(d as usize) else { return o.lines };
             let is_dir = !n.children.is_empty();
             o.lines.push(Line::from(vec![Span::styled(if is_dir { "directory / namespace prefix " } else { "file " }, t.kind), Span::styled(clean(app, &n.full), t.decl_name)]));
-            o.text("From import lines: which files a file needs before it compiles. A build dependency, not a statement that the mathematics depends on it.", t.warn);
             if is_dir {
                 o.text(&format!("{} · {} indexed declarations below", count(n.files as u64, "file", "files"), n.decls), t.text);
-                o.text(&format!("{}: the range of the files below that declare something (depth = longest chain of local imports below a file)", depth_range(n.dmin, n.dmax)), t.text);
+                o.text(&format!("{} over its declaring files", depth_range(n.dmin, n.dmax)), t.text);
                 match app.v.imports.dir.as_ref().filter(|s| s.full == n.full) {
                     None => o.text("reading its imports…", t.dim),
                     Some(s) => {
@@ -720,7 +709,7 @@ pub fn detail_lines(app: &App, w: usize) -> Vec<Line<'static>> {
                         part(&mut o, format!("Imports from the rest of the project ({})", lines(s.out_total)), &s.imports_from, "nothing outside itself");
                         part(&mut o, format!("Imported by ({})", lines(s.in_total)), &s.imported_by, "no file outside it imports a file below it");
                         part(&mut o, "External modules imported, by first name component".into(), &s.external, "none");
-                        o.text(&format!("{} between files inside it. Groups are directories at the same level; the most used are listed.", lines(s.inside)), t.dim);
+                        o.text(&format!("{} inside it · grouped by sibling directory, most used first", lines(s.inside)), t.dim);
                     }
                 }
             }
@@ -730,7 +719,6 @@ pub fn detail_lines(app: &App, w: usize) -> Vec<Line<'static>> {
                 }
                 import_module_lines(&mut o, &g, m);
             }
-            o.text("Enter shows a file in the outline · Space opens a directory · S skims · f searches within · p asks why a file imports another module", t.dim);
         }
         Subject::ImportModule(v) => {
             let Some(g) = app.v.imports.graph.clone() else { return o.lines };
@@ -740,13 +728,12 @@ pub fn detail_lines(app: &App, w: usize) -> Vec<Line<'static>> {
                 o.text(&format!("{} indexed declarations", n.decls), t.text);
             }
             import_module_lines(&mut o, &g, v);
-            o.text("Enter shows it in the outline · S skims it · p asks why it imports another module", t.dim);
         }
         Subject::Trail(k) => trail_lines(&mut o, k),
         Subject::Shared(k) => {
             if let Some(sh) = app.map().and_then(|m| m.trails.get(k)) {
                 o.lines.push(Line::from(vec![Span::styled("shared trail ", t.kind), Span::styled(clean(app, &sh.title), t.decl_name)]));
-                o.text("Shipped with the project map. Enter starts it: the stops are copied into your own data, where states, notes and order are yours.", t.dim);
+                o.text("shipped with the project map; starting it makes your own copy", t.dim);
                 if let Some(d) = &sh.description {
                     o.head("Description (authored)");
                     o.para(d, t.text);
@@ -765,7 +752,6 @@ pub fn detail_lines(app: &App, w: usize) -> Vec<Line<'static>> {
             if let Some(q) = app.v.trails.reading.questions.get(k) {
                 o.lines.push(Line::from(vec![Span::styled(if q.resolved { "resolved question " } else { "open question " }, t.kind), Span::styled(clean(app, &q.display), t.decl_name)]));
                 o.para(&q.text, t.text);
-                o.text("s marks it resolved or open again · d deletes it · Enter opens the declaration.", t.dim);
             }
         }
         Subject::GroupStop { trail, stop } => {
@@ -775,7 +761,7 @@ pub fn detail_lines(app: &App, w: usize) -> Vec<Line<'static>> {
                     Some(k) => group_lines(&mut o, k),
                     None => {
                         o.lines.push(Line::from(vec![Span::styled("map group ", t.kind), Span::styled(clean(app, &st.display), t.decl_name)]));
-                        o.text("UNRESOLVED: this group is not in the project map that is loaded now. The stop and its notes are kept.", t.warn);
+                        o.text("UNRESOLVED: not in the loaded project map (the stop and its notes are kept)", t.warn);
                     }
                 }
                 stop_lines(&mut o, trail, stop);
@@ -790,33 +776,34 @@ fn section_lines(o: &mut Out, title: &str) {
     let app = o.app;
     let t = &app.theme;
     o.lines.push(Line::from(Span::styled(chrome(app, &clean(app, title)), t.heading)));
+    // One line on what the section is; the longer account is in the docs.
     match app.v.view {
         View::Map => {
             let explain = if title.starts_with("Main results") {
-                "Objectives are chosen by the map's author or reader. slim does not infer a main theorem from size, position or name."
+                "chosen in the map, never inferred"
             } else if title.starts_with("Mathematical components") {
-                "Named groups with a purpose, ordered by the author. One declaration can be placed in several groups; it stays one declaration. A count of landmarks is a count of curated entries, not of verified results."
+                "curated groups; landmark counts are curated entries, not verified results"
             } else if title.starts_with("External foundations") {
-                "Library declarations the project builds on, listed deliberately. Declarations that are merely not listed here are not thereby irrelevant."
+                "library declarations listed in the map"
             } else if title.starts_with("Unresolved") {
-                "Names in the map that this index cannot resolve: renamed, removed, not indexed, or ambiguous. Their annotations are kept; nothing is re-attached automatically."
+                "names this index cannot resolve (renamed, removed, not indexed or ambiguous); annotations kept"
             } else if title.starts_with("Files and namespaces") {
-                "The directory and namespace tree of the indexed files. It is generated organization, not reviewed by anyone: a directory or namespace is not automatically a mathematical chapter."
+                "generated from the file tree, not curated"
             } else {
-                "slim reads lean-view.toml and never rewrites it. r reloads it."
+                "lean-view.toml is read, never rewritten"
             };
-            o.text(explain, t.text);
+            o.text(explain, t.dim);
             if title.starts_with("Files and namespaces") {
-                o.text(&format!("The column on the right shows {} (o changes the column and the order). Selecting a directory shows its counts; S skims its statements; I shows the import order.", outline_column(app)), t.dim);
                 if let Some(i) = &app.ctx.info {
                     o.text(
                         &match app.ctx.mode {
-                            IndexMode::Semantic => format!("{} local modules · {} indexed local declarations (from the semantic snapshot)", i.local_modules, i.local),
-                            IndexMode::Source => format!("{} files · {} declaration candidates (lexical scan, not elaborated)", i.local_modules, i.local),
+                            IndexMode::Semantic => format!("{} local modules · {} local declarations (semantic snapshot)", i.local_modules, i.local),
+                            IndexMode::Source => format!("{} files · {} declaration candidates (lexical scan)", i.local_modules, i.local),
                         },
                         t.text,
                     );
                 }
+                o.text(&format!("right column: {}", outline_column(app)), t.dim);
             }
             if let Some(MapLoad::Loaded(m)) = app.v.map.bundle.as_ref().map(|b| &b.load) {
                 o.head("Project map");
@@ -825,38 +812,37 @@ fn section_lines(o: &mut Out, title: &str) {
                     o.para(d, t.text);
                 }
                 if let Some(r) = &m.revision {
-                    o.text(&format!("written against revision: {r} (as stated in the file; not checked)"), t.dim);
+                    o.text(&format!("written against revision {r} (as stated; not checked)"), t.dim);
                 }
                 let indexed = app.ctx.info.as_ref().map(|i| format!("{} indexed local declarations", i.local)).unwrap_or_default();
                 o.text(&format!("{} chosen objectives · {} groups · {} curated landmarks · {} curated relations · {indexed}", m.objectives.len(), m.groups.len(), m.curated_landmark_count(), m.relations.len()), t.text);
-                o.text("Curated counts say how much was annotated, not how much was proved.", t.dim);
             }
         }
         View::Goal => {
-            o.text(app.v.goal.mode.explain(), t.text);
-            o.text("Direction: \"A uses B\" runs from a statement A to its prerequisite B; \"used by\" is the reverse.", t.dim);
+            o.text(app.v.goal.mode.explain(), t.dim);
+            o.text("A uses B: from a statement A to its prerequisite B", t.dim);
         }
         View::Imports => {
             let explain = if title.starts_with("Layers") {
-                "The depth of a file is the longest chain of local imports below it: a file that imports nothing from this project has depth 0. A directory shows the range of the files below it that declare something, and directories are listed from the bottom of the import order to the top. This is the order in which files can compile; it often follows the order of the mathematics, but nothing here says so."
+                "depth of a file: the longest chain of local imports below it; a directory shows the range over its declaring files"
             } else if title.starts_with("Endpoints") {
-                "Files with declarations that no other declaring file imports. Nothing in the project builds on them: final results tend to be here, and so does unused code. Files that only import (umbrella files) do not count as importers, otherwise one file importing everything would hide every endpoint. Listed from the top of the import order down."
+                "files with declarations that no declaring file imports (import-only files do not count as importers)"
             } else if title.starts_with("Hubs") {
-                "The files most often imported directly by other files of this project. A number of import lines is a navigation aid, not importance."
+                "the most imported files, by direct local importers"
             } else if title.starts_with("Import-only") {
-                "Files that declare nothing and only import other files: umbrella files."
+                "files that declare nothing and only import"
             } else if title.starts_with("Import path") {
-                "A shortest chain of import lines from one module to another. The whole graph is in memory and every reachable module is visited, so \"no path\" is an answer, not a time-out. p asks again."
+                "a shortest chain of import lines; the search is exhaustive"
             } else {
                 ""
             };
             if !explain.is_empty() {
-                o.text(explain, t.text);
+                o.text(explain, t.dim);
             }
             o.text(
                 match app.ctx.mode {
-                    IndexMode::Source => "Read from the `import` lines of file headers by a lexical scan. Module names are paths relative to the project root, so a Lake srcDir or another package's modules show as external.",
-                    IndexMode::Semantic => "Read from the module records of the semantic snapshot (the imports recorded in .olean headers).",
+                    IndexMode::Source => "from `import` lines (lexical): build order, not mathematics. Module names are paths from the project root, so a Lake srcDir shows as external",
+                    IndexMode::Semantic => "from the snapshot's module records (.olean headers): build order, not mathematics",
                 },
                 t.dim,
             );
@@ -874,7 +860,7 @@ fn section_lines(o: &mut Out, title: &str) {
                 );
                 o.text(
                     &format!(
-                        "{} · {} · read in {:.0} ms, held in memory (about {:.1} MiB) until the index changes",
+                        "{} · {} · read in {:.0} ms · about {:.1} MiB in memory",
                         count(g.endpoints.len() as u64, "endpoint", "endpoints"),
                         count(g.import_only.len() as u64, "import-only file", "import-only files"),
                         g.load_ms,
@@ -884,7 +870,7 @@ fn section_lines(o: &mut Out, title: &str) {
                 );
             }
         }
-        _ => o.text("Trails are ordered by you, not by dependency. States (unread, read, understood, revisit) are your annotations, not Lean verification.", t.dim),
+        _ => o.text("ordered by you, not by dependency; states are your annotations", t.dim),
     }
 }
 
@@ -952,7 +938,6 @@ fn group_lines(o: &mut Out, k: usize) {
             o.item(app.sym.bullet, l.clone(), t.text);
         }
     }
-    o.text("Space expands · a adds this group to a trail · Q asks a question about it", t.dim);
 }
 
 fn trail_lines(o: &mut Out, k: usize) {
@@ -972,15 +957,13 @@ fn trail_lines(o: &mut Out, k: usize) {
     let stale = tr.stops.iter().filter(|x| matches!(rd.statuses.get(&x.id), Some(StopStatus::Stale(_)))).count();
     let unres = tr.stops.iter().filter(|x| matches!(rd.statuses.get(&x.id), Some(StopStatus::Unresolved(_)))).count();
     if stale + unres > 0 {
-        o.item(app.sym.warn, format!("{stale} stale and {unres} unresolved stop(s) against the open index; they are kept and marked"), t.warn);
+        o.item(app.sym.warn, format!("{stale} stale and {unres} unresolved stop(s) against the open index"), t.warn);
     }
     match tr.resume_at() {
-        Some(i) => o.text(&format!("r resumes at stop {}: {}", i + 1, tr.stops[i].display), t.text),
-        None if tr.stops.is_empty() => o.text("No stops yet: press a on a declaration or a map group.", t.text),
-        None => o.text("Every stop is marked read or understood.", t.text),
+        Some(i) => o.text(&format!("next unread: stop {}, {}", i + 1, tr.stops[i].display), t.text),
+        None if tr.stops.is_empty() => o.text("no stops yet", t.dim),
+        None => o.text("every stop is read or understood", t.text),
     }
-    o.text("The order is yours: it is not a dependency order. \"Understood\" is your own annotation, not Lean verification.", t.dim);
-    o.text("Enter expands · t makes it the active trail · N new · e rename · E export Markdown · d delete", t.dim);
 }
 
 fn stop_lines(o: &mut Out, trail: usize, stop: usize) {
@@ -990,7 +973,7 @@ fn stop_lines(o: &mut Out, trail: usize, stop: usize) {
     let Some(tr) = rd.trails.get(trail) else { return };
     let Some(st) = tr.stops.get(stop) else { return };
     o.head(&format!("Stop {} of {} in \"{}\"", stop + 1, tr.stops.len(), tr.title));
-    o.text(&format!("state: {} (your annotation, not Lean verification)", st.state.as_str()), t.text);
+    o.text(&format!("state: {} (your annotation)", st.state.as_str()), t.text);
     match rd.statuses.get(&st.id) {
         Some(StopStatus::Stale(why)) => o.item(app.sym.warn, format!("STALE: {why}"), t.warn),
         Some(StopStatus::Unresolved(why)) => o.item(app.sym.warn, format!("UNRESOLVED: {why}"), t.warn),
@@ -1001,16 +984,15 @@ fn stop_lines(o: &mut Out, trail: usize, stop: usize) {
             o.text("why it is on the route:", t.dim);
             o.para(n, t.text);
         }
-        None => o.text("no explanation yet (n adds one)", t.dim),
+        None => o.text("no explanation", t.dim),
     }
     match &st.question {
         Some(q) => o.item(app.sym.question, format!("question: {q}"), t.accent),
-        None => o.text("no question (Q adds one)", t.dim),
+        None => o.text("no question", t.dim),
     }
     if st.name.starts_with("_private.") {
-        o.text("Private declaration: its name embeds the module path, so it is stable only while the file is not moved.", t.dim);
+        o.text("private: its name embeds the module path, so it breaks when the file moves", t.dim);
     }
-    o.text("s state · n explanation · Q question · - + move · d remove", t.dim);
 }
 
 fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, usize)>, gnode: Option<usize>, conn_step: Option<usize>) {
@@ -1043,7 +1025,7 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
         None => {
             o.lines.push(Line::from(Span::styled(clean(app, name), t.decl_name)));
             if app.v.detail.missing {
-                o.item(s.warn, "not in this index: renamed, removed or not indexed. Annotations and stops that name it are kept.".into(), t.warn);
+                o.item(s.warn, "not in this index (renamed, removed or not indexed); its annotations and stops are kept".into(), t.warn);
             } else {
                 o.text("loading…", t.dim);
             }
@@ -1052,7 +1034,7 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
     let goal = app.v.goal.goal.clone();
     let is_goal = goal.as_ref().is_some_and(|g| g.name == name);
     if is_goal {
-        o.item(s.goal, "this is the pinned goal (* clears it)".into(), t.accent);
+        o.item(s.goal, "the pinned goal".into(), t.accent);
     }
 
     // On a trail, the reader's own stop comes first.
@@ -1090,9 +1072,9 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
                 o.para(note, t.text);
             }
             if n.backref {
-                o.item(s.warn, "already on this path (a cycle in this relation): shown as a back-reference and not unfolded again".into(), t.warn);
+                o.item(s.warn, "already on this path (cycle): not unfolded again".into(), t.warn);
             } else if n.repeat {
-                o.item(s.bullet, "also appears elsewhere in this outline; it can be unfolded here as well".into(), t.dim);
+                o.item(s.bullet, "also appears elsewhere in this outline".into(), t.dim);
             }
         }
     }
@@ -1101,20 +1083,17 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
         if p.hidden_external + p.hidden_generated + p.hidden_kind > 0 || p.lean_counts.is_some() {
             o.head("Its relations in this outline");
             if let Some(c) = p.lean_counts {
-                o.text(&format!("Lean edges before filters: {} in the statement (T), {} in the proof/body (V), {} constructors (C)", c[0], c[1], c[2]), t.text);
+                o.text(&format!("Lean edges before filters: T {} · V {} · C {}", c[0], c[1], c[2]), t.text);
             }
             let cap = |x: u64| if x >= crate::relations::COUNT_CAP { format!("at least {x}") } else { x.to_string() };
             if p.hidden_external > 0 {
-                o.item(s.bullet, format!("{} external (library) declarations hidden — L or H shows them", cap(p.hidden_external)), t.text);
+                o.item(s.bullet, format!("hidden: {} external (L, H)", cap(p.hidden_external)), t.text);
             }
             if p.hidden_generated > 0 {
-                o.item(s.bullet, format!("{} Lean-generated declarations hidden — G or H shows them", cap(p.hidden_generated)), t.text);
+                o.item(s.bullet, format!("hidden: {} Lean-generated (G, H)", cap(p.hidden_generated)), t.text);
             }
             if p.hidden_kind > 0 {
-                o.item(s.bullet, format!("{} edges of a kind excluded by the statement/proof filter — y or H shows them", p.hidden_kind), t.text);
-            }
-            if p.hidden_external + p.hidden_generated + p.hidden_kind > 0 {
-                o.text("Hiding is a display choice, not a claim that the hidden declarations are mathematically irrelevant.", t.dim);
+                o.item(s.bullet, format!("hidden: {} edges of the other kind (y, H)", p.hidden_kind), t.text);
             }
         }
     }
@@ -1137,7 +1116,7 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
             o.para(&p, t.text);
             if let Some(l) = &lm {
                 let stale = res.is_some_and(|r| r.is_stale(l));
-                o.text(&format!("annotation: {}{}", l.origin.label(), if stale { " — STALE: its source file changed since the annotation recorded a fingerprint" } else { "" }), if stale || l.origin != Provenance::Authored { t.warn } else { t.dim });
+                o.text(&format!("annotation: {}{}", l.origin.label(), if stale { " — STALE: its source file changed since the annotation" } else { "" }), if stale || l.origin != Provenance::Authored { t.warn } else { t.dim });
             }
         }
         None => o.text("not annotated", t.dim),
@@ -1153,9 +1132,6 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
     if let Some(b) = bundle {
         o.head(if app.ctx.mode == IndexMode::Semantic { "Statement (elaborated)" } else { "Statement (source text, not elaborated)" });
         o.lines.extend(statement_lines(app, b, o.w, None));
-        if !app.v.detail.wrap {
-            o.text("(w wraps again)", t.dim);
-        }
     }
 
     if let Some(m) = &map {
@@ -1169,9 +1145,6 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
                 let role = m.groups[*k].landmarks.iter().find(|p| p.decl == name).and_then(|p| p.role.clone()).map(|r| format!(" — {r}")).unwrap_or_default();
                 o.item(s.bullet, format!("{}{role}", m.group_path(*k).join(&format!(" {} ", s.crumb))), t.text);
             }
-            if places.len() > 1 {
-                o.text("one declaration, several placements: M cycles through them", t.dim);
-            }
         }
         let uses = m.curated(name, true);
         let used = m.curated(name, false);
@@ -1183,7 +1156,7 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
             o.item(s.larrow, format!("[cur] used by {}{}", r.from, r.note.as_ref().map(|n| format!(" — {n}")).unwrap_or_default()), t.text);
         }
         if uses.is_empty() && used.is_empty() {
-            o.text("no curated relations (missing annotations are normal)", t.dim);
+            o.text("no curated relations", t.dim);
         }
     } else {
         o.head("Prerequisites and dependents");
@@ -1192,9 +1165,9 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
     if let Some(b) = bundle {
         if app.ctx.mode == IndexMode::Semantic && b.d.row.origin != Origin::Unresolved {
             let d = &b.d.degrees;
-            o.text(&format!("Lean-derived: {} constants in its statement, {} in its proof/body; used by {} declarations (A unfolds them; Enter then 1 or 2 lists them)", d[0], d[1], d[3] + d[4]), t.text);
+            o.text(&format!("Lean-derived: {} constants in its statement, {} in its proof/body; used by {}", d[0], d[1], d[3] + d[4]), t.text);
         } else if app.ctx.mode == IndexMode::Source {
-            o.text("Lean-derived: unavailable (source-only index). Source mentions are a lexical approximation (goal explorer, r).", t.dim);
+            o.text("Lean-derived: unavailable in a source-only index", t.dim);
         }
     }
 
@@ -1207,9 +1180,9 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
                     let why = rel.as_ref().and_then(|r| r.note.clone()).map(|n| format!(" — {n}")).unwrap_or_default();
                     o.text(&format!("{}{}{}{why}", "  ".repeat(i), if i == 0 { "" } else { "uses " }, short(n)), t.text);
                 }
-                o.text("An explanation written in the map, not a Lean-derived dependency.", t.dim);
+                o.text("curated in the map, not Lean-derived", t.dim);
             }
-            None => o.text(&format!("No curated route from {} to this declaration. c runs a bounded connection query along the relation kind chosen in the goal explorer.", short(&g.display)), t.dim),
+            None => o.text(&format!("no curated route from {}", short(&g.display)), t.dim),
         }
     }
 
@@ -1230,7 +1203,7 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
         o.head("Paper");
         o.papers(&authored);
         if !cands.is_empty() {
-            o.text("candidates found in its documentation or comments (literal text; which paper they mean is not recorded):", t.dim);
+            o.text("candidates from its documentation or comments (literal text, no identified source):", t.dim);
             for c in cands {
                 o.item(s.bullet, format!("\"{c}\""), t.text);
             }
@@ -1248,21 +1221,21 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
         o.head("Evidence and freshness");
         match (app.ctx.mode, d.row.origin) {
             (IndexMode::Source, _) | (_, Origin::SourceCandidate) => {
-                o.item(s.bullet, "source candidate from a lexical scan: not elaborated; name, kind and extent are best effort".into(), t.text);
+                o.item(s.bullet, "source candidate (lexical scan, not elaborated)".into(), t.text);
                 if d.row.flags & flags::LEX_SORRY != 0 {
-                    o.item(s.warn, "a `sorry`/`admit` token occurs in its own text (lexical). Whether its dependencies use sorryAx is unknown here.".into(), t.danger);
+                    o.item(s.warn, "`sorry`/`admit` token in its text (lexical)".into(), t.danger);
                 } else {
-                    o.item(s.bullet, "no `sorry` token in its own text — this says nothing about what it depends on".into(), t.dim);
+                    o.item(s.bullet, "no `sorry` token in its text (proves nothing)".into(), t.dim);
                 }
                 o.item(s.bullet, "axioms and proof status: unknown without a semantic snapshot".into(), t.dim);
             }
-            (IndexMode::Semantic, Origin::Unresolved) => o.item(s.warn, "referenced by the snapshot but not described in it (coverage gap)".into(), t.warn),
+            (IndexMode::Semantic, Origin::Unresolved) => o.item(s.warn, "referenced by the snapshot, not described in it (coverage gap)".into(), t.warn),
             (IndexMode::Semantic, _) => {
                 let info = app.ctx.info.as_ref();
                 o.item(
                     s.ok,
                     format!(
-                        "Lean snapshot: Lean {}, created {}. Build artifacts were present at export; slim did not run or verify the build.",
+                        "Lean {} snapshot of {}; build not run or verified by slim",
                         info.and_then(|i| i.get("lean_version")).unwrap_or("?"),
                         info.and_then(|i| i.get("created_at")).unwrap_or("?")
                     ),
@@ -1272,7 +1245,7 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
                 let mut any = false;
                 for a in &d.axioms {
                     match a.category {
-                        AxiomCategory::Sorry => o.item(s.warn, "sorryAx is reachable through Lean edges (transitive): a placeholder proof is in its dependency closure".into(), t.danger),
+                        AxiomCategory::Sorry => o.item(s.warn, "depends on sorryAx (a placeholder proof in its dependency closure)".into(), t.danger),
                         AxiomCategory::Custom => o.item(s.warn, format!("depends on the custom axiom {}", a.name), t.warn),
                         AxiomCategory::CompilerTrust => o.item(s.warn, format!("trusts compiler evaluation: {}", a.name), t.warn),
                         _ => continue,
@@ -1288,15 +1261,14 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
                 } else if !any && std.is_empty() {
                     o.item(s.ok, "no axioms in its dependency closure".into(), t.ok);
                 }
-                o.item(s.bullet, "Hypotheses are the binders of the statement; axioms are listed here; neither says the informal description is faithful.".into(), t.dim);
             }
         }
         match &b.source_status {
             SourceStatus::Changed if app.ctx.mode == IndexMode::Semantic => {
-                o.item(s.warn, "SOURCE CHANGED since the snapshot: the semantic data describes the old source, not the current file".into(), t.warn)
+                o.item(s.warn, "SOURCE CHANGED since the snapshot: the semantic data describes the old source".into(), t.warn)
             }
-            SourceStatus::Changed => o.item(s.warn, "source changed since indexing (a background rescan updates the index)".into(), t.warn),
-            SourceStatus::Ok if d.module_path.is_some() => o.item(s.ok, "source file matches the fingerprint in the index (SHA-256)".into(), t.ok),
+            SourceStatus::Changed => o.item(s.warn, "source changed since indexing".into(), t.warn),
+            SourceStatus::Ok if d.module_path.is_some() => o.item(s.ok, "source file matches the index (SHA-256)".into(), t.ok),
             SourceStatus::Missing(e) => o.item(s.warn, format!("source unavailable: {e}"), t.warn),
             _ => {}
         }
@@ -1323,6 +1295,4 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
         o.head("Documentation (from the source)");
         o.para(doc, t.text);
     }
-    o.lines.push(Line::from(""));
-    o.text("Enter opens the declaration browser here (source, neighbours, axiom paths) · * goal · a trail · m bookmark · Q question", t.dim);
 }

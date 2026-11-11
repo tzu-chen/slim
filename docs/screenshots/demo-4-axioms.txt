@@ -6,10 +6,9 @@ SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_correct   │ route: 
 │── project map (1)      ││    SlimDemo/Fixtures/Trust.lean:32 ·     ││ · …res.searchWithin_correct│
 │ map   Demo.Fi… landmark││    local                                 ││  └V ….searchWithin_complete│
 │── declarations         ││                                          ││   └V sorryAx               │
-│ thm   …hin_correct name││ ⚠ depends on sorryAx: a placeholder      ││Lean's own report           │
-│── documentation / stat…││     proof is in its dependency closure   ││ ✓ collectAxioms at export: │
-│ thm   …earch_trans text││     (3 shows the path)                   ││  same set                  │
-│                        ││                                          ││                            │
+│ thm   …hin_correct name││ ⚠ depends on sorryAx (a placeholder      ││Lean's own report           │
+│── documentation / stat…││     proof in its dependency closure)     ││ ✓ collectAxioms at export: │
+│ thm   …earch_trans text││                                          ││  same set                  │
 │                        ││Statement (elaborated) ────────────────── ││                            │
 │                        ││theorem Demo.Fixtures.searchWithin_correct││                            │
 │                        ││    {g : Demo.Graph} {s t : Nat} :        ││                            │
@@ -22,9 +21,10 @@ SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_correct   │ route: 
 │                        ││ procedure is correct" theorem contains   ││                            │
 │                        ││ no `sorry` token, yet it uses            ││                            │
 │                        ││ `searchWithin_complete`, which is proved ││                            │
-│                        ││ by `sorry`. The absence of the word      ││────────────────────────────│
-│                        ││ `sorry` in a proof proves nothing.       ││step 1: Demo.Fixtures.search│
-│                        ││                                          ││Within_complete — its proof │
-│                        ││Status & evidence ─────────────────────── ││term / body uses the next   │
-╰────────────────────────╯╰──────────────────────────────────── 39% ─╯╰────────────────────────────╯
+│                        ││ by `sorry`. The absence of the word      ││                            │
+│                        ││ `sorry` in a proof proves nothing.       ││────────────────────────────│
+│                        ││                                          ││step 1: Fixtures.searchWithi│
+│                        ││Status & evidence ─────────────────────── ││n_complete: its proof term  │
+│                        ││ ✓ Lean 4.33.1 snapshot of                ││or body uses the next step  │
+╰────────────────────────╯╰──────────────────────────────────── 42% ─╯╰────────────────────────────╯
  ⏎ follow edge · →/← expand/collapse · 1-5 tabs · [ ] back/fwd · ? help · q quit

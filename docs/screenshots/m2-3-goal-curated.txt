@@ -13,8 +13,7 @@ Goal explorer │ ◎ goal: Demo.Graph.searchWithin_sound │ curated │ uses �
 │    ▸ [cur 6] thm ReflTransGen.trans    ││Why this edge is shown ──────────────────────────────── │
 │  ▸ [cur] def Graph.Reach               ││ · [cur 5] step 5 of a curated argument: the map says   │
 │                                        ││     ReflTransGen.head uses ReflTransGen.single         │
-│                                        ││     (authored). An explanation, not a Lean-derived     │
-│                                        ││     dependency.                                        │
+│                                        ││     (authored); not Lean-derived                       │
 │                                        ││ the map's author says:                                 │
 │                                        ││ one step is a chain                                    │
 │                                        ││                                                        │
@@ -26,5 +25,6 @@ Goal explorer │ ◎ goal: Demo.Graph.searchWithin_sound │ curated │ uses �
 │                                        ││    {α : Type u} {r : Demo.Rel α} {a b : α} (h : r a b) │
 │                                        ││        :                                               │
 │                                        ││    r.ReflTransGen a b                                  │
-╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 39% ─╯
+│                                        ││                                                        │
+╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 48% ─╯
  Space unfold · ⏎ open · r relation kind · u direction · y T/V · L G H filters · c connect · * goal

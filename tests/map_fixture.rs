@@ -132,13 +132,13 @@ fn source_only_index_explains_unresolvable_library_names() {
     let lex = rel::children(&mut env, &q(SOUND, RelMode::Mentions, Direction::Uses)).unwrap();
     assert!(names(&lex).contains(&"Demo.Graph.anyOf_eq_true") && names(&lex).contains(&HEAD));
     assert!(lex.children.iter().all(|c| c.labels.iter().all(|l| matches!(l, EdgeLabel::Lexical { .. }))));
-    assert!(lex.notes.iter().any(|(t, warn)| *warn && t.contains("not resolved by Lean")));
+    assert!(RelMode::Mentions.explain().contains("not resolved by Lean"));
     let lean = rel::children(&mut env, &q(SOUND, RelMode::Lean, Direction::Uses)).unwrap();
     assert!(lean.children.is_empty() && lean.lean_counts.is_none());
     assert!(lean.notes.iter().any(|(t, _)| t.contains("unavailable") && t.contains("source-only")));
     let lim = Limits::default();
     let c = rel::connection(&mut env, &ConnQuery { from: SOUND.into(), to: HEAD.into(), mode: RelMode::Lean, dir: Direction::Uses, tb: TypeBody::All }, &lim, &|| false);
-    assert!(matches!(&c.outcome, ConnOutcome::Unavailable(w) if w.starts_with("Semantic information unavailable")), "{:?}", c.outcome);
+    assert!(matches!(&c.outcome, ConnOutcome::Unavailable(w) if w.contains("source-only index")), "{:?}", c.outcome);
     // A lexical connection is found and labelled lexical end to end.
     let c = rel::connection(&mut env, &ConnQuery { from: SOUND.into(), to: "Demo.Rel.ReflTransGen.trans".into(), mode: RelMode::Mentions, dir: Direction::Uses, tb: TypeBody::All }, &lim, &|| false);
     match &c.outcome {

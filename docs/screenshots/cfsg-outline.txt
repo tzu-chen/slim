@@ -1,32 +1,32 @@
  slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ cfsg (/tmp/CFSG)
 CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.FinalTheorem › CFSG › odd_order_theorem   │ route: search “odd_order_theorem” C
-╭ Outline [local+lib] ───────╮╭ Declaration ───────────────────────────────────────╮╭ [1 Ment] 2 By 3 Evid 4 Mod 5 Idx ╮
-│      thm pfSection13… :1980││theorem CFSG.odd_order_theorem                      ││Lexical mentions                  │
-│      thm pfSection13… :1998││module CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.Fina││ Identifiers in this              │
-│      thm pfSection13… :2014││    lTheorem · CFSG/ThirdParty/QiuzhenCFSG/FeitThomp││  declaration's text that match   │
-│      thm pfSection14… :2029││    son/FinalTheorem.lean:2083 · source candidate   ││  indexed names (as written or    │
-│      thm pfSection14… :2042││                                                    ││  under an enclosing namespace).  │
-│      thm pfSection14… :2052││Statement (source) ──────────────────────────────── ││  NOT resolved by Lean: open      │
-│      thm odd_order_t… :2062││source text of the header (not elaborated):         ││  namespaces, local variables,    │
-│      thm odd_order_t… :2074││  theorem CFSG.odd_order_theorem : ∀ (G : Type u)   ││  notation and macros are ignored.│
-│      thm odd_order_t… :2084││      [Group G] [Finite G], Odd (Nat.card G) →      ││odd_order_theorem_of_pfSection14F…│
-│    ▸ Fitting             25││      Group.IsSolvable G                            ││pfSection14FinalDataBridge_theore…│
-│    ▸ Frattini            18││                                                    ││                                  │
-│    ▸ GeneratorRank       13││Documentation ───────────────────────────────────── ││                                  │
-│    ▸ Gorenstein          62││ The Feit-Thompson odd order theorem.               ││                                  │
-│    ▸ GroupAction         98││                                                    ││                                  │
-│    ▸ HallSubgroups       55││Status & evidence ───────────────────────────────── ││                                  │
-│    ▸ LinearAlgebra       62││ · source candidate from a lexical scan: not        ││                                  │
-│    ▸ Linter               9││     elaborated; name, kind and extent are best     ││                                  │
-│    ▸ MinCE                8││     effort                                         ││                                  │
-│    ▸ PCore               47││ · no `sorry` token in its text — this proves       ││                                  │
-│    ▸ PFsection1         604││     nothing (macros, imported lemmas, errors)      ││                                  │
-│    ▸ PFsection10        883││ · proof status and axioms unknown: no semantic     ││                                  │
-│    ▸ PFsection11        467││     snapshot                                       ││                                  │
-│    ▸ PFsection12        424││                                                    ││                                  │
-│    ▸ PFsection13       1294││                                                    ││──────────────────────────────────│
-│    ▸ PFsection14        722││Source CFSG/ThirdParty/QiuzhenCFSG/FeitThompson/Fina││Lexical: the text contains        │
-│    ▸ PFsection2         290││2081 │       pfSection14FinalData_of_isMinCE_of_brid││`odd_order_theorem_of_pfSection14F│
-│    ▸ PFsection3         542││     │         ge (hbridge (G := G)) hmin)          ││inalDataBridge`, and an indexed   │
-╰────────────────────────────╯╰────────────────────────────────────────────── 71% ─╯╰──────────────────────────────────╯
- ⏎/→ expand · ← collapse · ⏎ on a declaration opens · / search · ? help · q quit
+╭ Outline [declarations] ────╮╭ Declaration ───────────────────────────────────────╮╭ [1 Ment] 2 By 3 Evid 4 Mod 5 Idx ╮
+│      thm pfSection13… :1980││theorem CFSG.odd_order_theorem                      ││Mentions (lexical, not resolved   │
+│      thm pfSection13… :1998││module CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.Fina││  by Lean)                        │
+│      thm pfSection13… :2014││    lTheorem · CFSG/ThirdParty/QiuzhenCFSG/FeitThomp││odd_order_theorem_of_pfSection14F…│
+│      thm pfSection14… :2029││    son/FinalTheorem.lean:2083 · source candidate   ││pfSection14FinalDataBridge_theore…│
+│      thm pfSection14… :2042││                                                    ││                                  │
+│      thm pfSection14… :2052││Statement (source text, not elaborated) ─────────── ││                                  │
+│      thm odd_order_t… :2062││  theorem CFSG.odd_order_theorem : ∀ (G : Type u)   ││                                  │
+│      thm odd_order_t… :2074││      [Group G] [Finite G], Odd (Nat.card G) →      ││                                  │
+│      thm odd_order_t… :2084││      Group.IsSolvable G                            ││                                  │
+│    ▸ Fitting             25││                                                    ││                                  │
+│    ▸ Frattini            18││Documentation ───────────────────────────────────── ││                                  │
+│    ▸ GeneratorRank       13││ The Feit-Thompson odd order theorem.               ││                                  │
+│    ▸ Gorenstein          62││                                                    ││                                  │
+│    ▸ GroupAction         98││Status & evidence ───────────────────────────────── ││                                  │
+│    ▸ HallSubgroups       55││ · source candidate (lexical scan, not elaborated)  ││                                  │
+│    ▸ LinearAlgebra       62││ · no `sorry` token in its text (proves nothing)    ││                                  │
+│    ▸ Linter               9││ · axioms and proof status: unknown without a       ││                                  │
+│    ▸ MinCE                8││     semantic snapshot                              ││                                  │
+│    ▸ PCore               47││                                                    ││                                  │
+│    ▸ PFsection1         604││                                                    ││                                  │
+│    ▸ PFsection10        883││Source CFSG/ThirdParty/QiuzhenCFSG/FeitThompson/Fina││                                  │
+│    ▸ PFsection11        467││2081 │       pfSection14FinalData_of_isMinCE_of_brid││                                  │
+│    ▸ PFsection12        424││     │         ge (hbridge (G := G)) hmin)          ││                                  │
+│    ▸ PFsection13       1294││2082 │                                              ││──────────────────────────────────│
+│    ▸ PFsection14        722││2083 │ /-- The Feit-Thompson odd order theorem. -/  ││`odd_order_theorem_of_pfSection14F│
+│    ▸ PFsection2         290││2084 │ public theorem CFSG.odd_order_theorem : ∀ (G ││inalDataBridge` on line 2085;     │
+│    ▸ PFsection3         542││     │   : Type u) [Group G] [Finite G], Odd        ││lexical match with                │
+╰────────────────────────────╯╰────────────────────────────────────────────── 79% ─╯╰──────────────────────────────────╯
+ ⏎/→ expand · ← collapse · o order/column · S skim · f search within · / search · ? help

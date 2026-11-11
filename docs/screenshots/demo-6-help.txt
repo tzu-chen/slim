@@ -23,8 +23,8 @@ SlimDe╭ Help ─────────────────────�
 │     │  *                 pin the selected declaration as the goal; on the goal: clear      │     │
 │     │  a  m  Q           add to the active trail · bookmark · ask a question               │     │
 │     │  c                 show a connection from the goal to a declaration                  │─────│
-│     │                                                                                      │ans  │
-│     │IN THE MAP, GOAL AND TRAIL VIEWS                                                      │chWit│
-│     │  j k ↑ ↓           move · Space or → expands · ← collapses or goes to the parent     │     │
+│     │                                                                                      │of   │
+│     │IN THE MAP, GOAL AND TRAIL VIEWS                                                      │ses  │
+│     │  j k ↑ ↓           move · Space or → expands · ← collapses or goes to the parent     │orrec│
 ╰─────╰──────────────────────────────────────────────────────────────────────────────────────╯─────╯
  ⏎ follow edge · →/← expand/collapse · 1-5 tabs · [ ] back/fwd · ? help · q quit

@@ -201,8 +201,6 @@ fn draw_crumbs(f: &mut Frame, area: Rect, app: &App) {
                 spans.push(Span::styled(clean(app, name), if i + 1 == route.len() { t.text } else { t.dim }));
             }
         }
-    } else {
-        spans.push(Span::styled(chrome(app, "type to search · Tab moves between panes · ? for help"), t.dim));
     }
     f.render_widget(Paragraph::new(Line::from(spans)), area);
 }
@@ -361,7 +359,7 @@ fn draw_left(f: &mut Frame, area: Rect, app: &mut App) {
             let sum = if app.search.query.trim().is_empty() && app.search.scope.is_none() {
                 match &app.search_ready {
                     None => "loading name index…".to_string(),
-                    Some(Ok((n, ms, _))) => format!("{n} names ready ({ms} ms) · type to search"),
+                    Some(Ok((n, ms, _))) => format!("{n} names ready ({ms} ms)"),
                     Some(Err(e)) => format!("search unavailable: {e}"),
                 }
             } else if app.search.pending && app.search.items.is_empty() {
@@ -445,7 +443,7 @@ fn draw_left(f: &mut Frame, area: Rect, app: &mut App) {
             let mut lines = Vec::new();
             if marks.is_empty() {
                 lines.push(Line::from(Span::styled(
-                    if is_b { "No bookmarks yet: press m on a declaration." } else { "Reading trails have their own view: press T." },
+                    if is_b { "no bookmarks" } else { "reading trails have their own view (T)" },
                     t.dim,
                 )));
                 lines.push(Line::from(Span::styled("Stored in your data directory, not in the project.", t.dim)));
@@ -691,7 +689,7 @@ pub(super) fn statement_lines(app: &App, b: &super::worker::DetailBundle, w: usi
                 out.extend(wrapped(app, &l, w, t.code, 0));
             }
             if hidden {
-                out.push(Line::from(Span::styled("    (implicit and instance arguments hidden — press i)", t.dim)));
+                out.push(Line::from(Span::styled("    (implicit and instance arguments hidden)", t.dim)));
             }
         }
         (None, Some(ty), _) => {
@@ -699,7 +697,6 @@ pub(super) fn statement_lines(app: &App, b: &super::worker::DetailBundle, w: usi
             out.extend(wrapped(app, ty, w, t.code, 4));
         }
         (None, None, Some(src)) => {
-            out.push(Line::from(Span::styled("source text of the header (not elaborated):", t.dim)));
             for (i, l) in src.lines().enumerate() {
                 // The header starts mid-line at `statement_at`; later lines are whole.
                 let marks = match b.statement_at {
@@ -735,23 +732,7 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
         if let Some(e) = &app.detail_error {
             out.extend(wrapped(app, &format!("error: {e}"), w, t.danger, 0));
         } else {
-            out.push(Line::from(Span::styled("Search for a declaration (/) or browse the outline (O).", t.dim)));
-            out.push(Line::from(""));
-            out.push(Line::from(Span::styled("Reading flow:", t.heading)));
-            for l in [
-                "  /       search names (exact, prefix, word, substring, fuzzy) and documentation",
-                "  ⏎       open; the centre shows statement, documentation, evidence and source",
-                "  1 2 3   what it uses · what uses it · axioms with witness paths",
-                "  ⏎ on a neighbour follows the edge; [ and ] go back and forward",
-                "  m a     bookmark · add to the reading trail with a note",
-                "  M A T   architecture map · goal explorer · reading trails (Esc first while typing)",
-                "  S I o   skim statements · import layers · outline order and column",
-                "  f       search within the selected directory or the current namespace",
-                "  *       pin this declaration as the goal",
-                "  ?       all keys and what every edge and badge means",
-            ] {
-                out.push(Line::from(Span::styled(chrome(app, l), t.text)));
-            }
+            out.push(Line::from(Span::styled("Open a declaration from the outline or search (/); ? lists every key.", t.dim)));
         }
         return (out, excerpt_rows);
     };
@@ -790,12 +771,12 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
         }
         for a in &d.axioms {
             match a.category {
-                AxiomCategory::Sorry => alerts.push(("depends on sorryAx: a placeholder proof is in its dependency closure (3 shows the path)".into(), t.danger)),
+                AxiomCategory::Sorry => alerts.push(("depends on sorryAx (a placeholder proof in its dependency closure)".into(), t.danger)),
                 AxiomCategory::Custom if d.row.kind != crate::model::DeclKind::Axiom || a.name != d.row.name => {
-                    alerts.push((format!("depends on custom axiom {} (3 shows the path)", a.name), t.warn))
+                    alerts.push((format!("depends on custom axiom {}", a.name), t.warn))
                 }
-                AxiomCategory::CompilerTrust => alerts.push((format!("trusts the compiler: {} (3)", a.name), t.warn)),
-                AxiomCategory::Incomplete => alerts.push(("dependency data incomplete: axiom list is a lower bound".into(), t.warn)),
+                AxiomCategory::CompilerTrust => alerts.push((format!("trusts the compiler: {}", a.name), t.warn)),
+                AxiomCategory::Incomplete => alerts.push(("dependency data incomplete: the axiom list is a lower bound".into(), t.warn)),
                 _ => {}
             }
         }
@@ -826,29 +807,26 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
                 ev.extend(evidence(
                     app,
                     s.ok,
-                    format!(
-                        "semantic declaration extracted from Lean {lean} build artifacts ({}, snapshot {when})",
-                        if d.row.origin == Origin::Local { "project module" } else { "imported library module" }
-                    ),
+                    format!("Lean {lean} snapshot of {when} ({})", if d.row.origin == Origin::Local { "project module" } else { "library module" }),
                     t.ok,
                     w,
                 ));
                 ev.extend(evidence(
                     app,
                     s.bullet,
-                    "build: artifacts were present at export; slim did not run or verify the build, and a build is not an independent kernel replay".into(),
+                    "build: artifacts present at export; not run or verified by slim; not a kernel replay".into(),
                     t.dim,
                     w,
                 ));
             }
         }
         (IndexMode::Semantic, Origin::Unresolved) => {
-            ev.extend(evidence(app, s.warn, "referenced by the snapshot but not described in it: no type, no dependencies (coverage gap)".into(), t.warn, w));
+            ev.extend(evidence(app, s.warn, "referenced by the snapshot, not described in it (coverage gap)".into(), t.warn, w));
         }
         (IndexMode::Source, _) | (_, Origin::SourceCandidate) => {
-            ev.extend(evidence(app, s.bullet, "source candidate from a lexical scan: not elaborated; name, kind and extent are best effort".into(), t.text, w));
+            ev.extend(evidence(app, s.bullet, "source candidate (lexical scan, not elaborated)".into(), t.text, w));
             if d.row.flags & flags::ANONYMOUS != 0 {
-                ev.extend(evidence(app, s.warn, "anonymous declaration: Lean generates its real name; shown by its type".into(), t.warn, w));
+                ev.extend(evidence(app, s.warn, "anonymous: Lean generates its name; shown by its type".into(), t.warn, w));
             }
             if d.same_name > 0 || d.row.flags & flags::AMBIGUOUS != 0 {
                 ev.extend(evidence(app, s.warn, format!("ambiguous: {} other candidate(s) share this name", d.same_name), t.warn, w));
@@ -857,21 +835,21 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
                 ev.extend(evidence(
                     app,
                     s.warn,
-                    format!("`sorry`/`admit` token in its text (line {}) — lexical observation", d.sorry_line.map(|x| x.to_string()).unwrap_or_default()),
+                    format!("`sorry`/`admit` token in its text, line {} (lexical)", d.sorry_line.map(|x| x.to_string()).unwrap_or_default()),
                     t.danger,
                     w,
                 ));
             } else {
-                ev.extend(evidence(app, s.bullet, "no `sorry` token in its text — this proves nothing (macros, imported lemmas, errors)".into(), t.dim, w));
+                ev.extend(evidence(app, s.bullet, "no `sorry` token in its text (proves nothing)".into(), t.dim, w));
             }
             if d.row.flags & flags::LEX_NATIVE != 0 {
                 ev.extend(evidence(app, s.warn, "uses native_decide (trusts the compiler)".into(), t.warn, w));
             }
-            ev.extend(evidence(app, s.bullet, "proof status and axioms unknown: no semantic snapshot".into(), t.dim, w));
+            ev.extend(evidence(app, s.bullet, "axioms and proof status: unknown without a semantic snapshot".into(), t.dim, w));
         }
     }
     if d.row.kind == crate::model::DeclKind::Axiom {
-        ev.extend(evidence(app, s.warn, "this declaration IS an axiom: it is assumed, not proved".into(), t.danger, w));
+        ev.extend(evidence(app, s.warn, "an axiom: assumed, not proved".into(), t.danger, w));
     }
     if let Some(g) = &d.generated {
         ev.extend(evidence(app, s.bullet, format!("generated by Lean: {g}"), t.dim, w));
@@ -905,7 +883,7 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
                 _ => (s.bullet, t.text),
             };
             if a.category != AxiomCategory::Standard {
-                ev.extend(evidence(app, sym, format!("depends on {} — {} (path: 3)", a.name, a.category.label()), style, w));
+                ev.extend(evidence(app, sym, format!("depends on {} ({})", a.name, a.category.label()), style, w));
             }
         }
         let std: Vec<String> = real.iter().filter(|a| a.category == AxiomCategory::Standard).map(|a| a.name.clone()).collect();
@@ -916,7 +894,7 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
             ev.extend(evidence(app, s.ok, "no axioms in its dependency closure".into(), t.ok, w));
         }
         if gap {
-            ev.extend(evidence(app, s.warn, "dependency closure incomplete: the axiom list is a lower bound (see 3)".into(), t.warn, w));
+            ev.extend(evidence(app, s.warn, "dependency closure incomplete: the axiom list is a lower bound".into(), t.warn, w));
         }
         if let Some(la) = &d.lean_axioms {
             let mut a: Vec<String> = real.iter().map(|x| x.name.clone()).collect();
@@ -924,7 +902,7 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
             let mut l = la.clone();
             l.sort();
             if a == l {
-                ev.extend(evidence(app, s.ok, "matches Lean's own collectAxioms report recorded at export".into(), t.ok, w));
+                ev.extend(evidence(app, s.ok, "matches Lean's collectAxioms at export".into(), t.ok, w));
             } else {
                 ev.extend(evidence(app, s.warn, format!("Lean's collectAxioms at export reported [{}]", la.join(", ")), t.warn, w));
             }
@@ -941,9 +919,9 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
             app,
             s.warn,
             if mode == IndexMode::Semantic {
-                "SOURCE CHANGED since the snapshot: the semantic data describes the old source; current verification unknown".into()
+                "SOURCE CHANGED since the snapshot: the semantic data describes the old source".into()
             } else {
-                "source changed since indexing; a background rescan updates the index".into()
+                "source changed since indexing".into()
             },
             t.warn,
             w,
@@ -954,12 +932,12 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
         SourceStatus::NoPath => {}
     }
     if d.module_status.as_deref() == Some("artifact-older-than-source") {
-        ev.extend(evidence(app, s.warn, ".olean was older than the source when exported: snapshot may not match the source".into(), t.warn, w));
+        ev.extend(evidence(app, s.warn, ".olean older than the source at export: the snapshot may not match the source".into(), t.warn, w));
     }
     ev.push(Line::from(""));
 
     // Statement.
-    out.push(heading(app, if mode == IndexMode::Semantic { "Statement (elaborated)" } else { "Statement (source)" }, w));
+    out.push(heading(app, if mode == IndexMode::Semantic { "Statement (elaborated)" } else { "Statement (source text, not elaborated)" }, w));
     out.extend(statement_lines(app, b, w, occ));
     out.push(Line::from(""));
 
@@ -985,12 +963,12 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
     // Source excerpt.
     if !b.excerpt.is_empty() {
         let rng = b.decl_lines.map(|(a, z)| format!(":{a}–{z}")).unwrap_or_default();
-        out.push(heading(app, &format!("Source {}{rng} (s: whole file)", d.module_path.clone().unwrap_or_default()), w));
+        out.push(heading(app, &format!("Source {}{rng}", d.module_path.clone().unwrap_or_default()), w));
         if b.source_status == SourceStatus::Changed {
             out.extend(evidence(
                 app,
                 s.warn,
-                "current file, changed since the index was built: these lines may not correspond to the indexed declaration".into(),
+                "file changed since indexing: these lines may not be the indexed declaration".into(),
                 t.warn,
                 w,
             ));
@@ -1020,7 +998,7 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
             }
         }
         if b.excerpt_truncated {
-            out.push(Line::from(Span::styled("… excerpt truncated (press s for the whole file)", t.dim)));
+            out.push(Line::from(Span::styled("… excerpt truncated", t.dim)));
         }
     }
     (out, excerpt_rows)
@@ -1033,7 +1011,9 @@ fn draw_skim(f: &mut Frame, area: Rect, app: &mut App, focused: bool) {
     let room = (area.width as usize).saturating_sub(4);
     let title = match (&app.center.skim.data, &app.center.skim.scope) {
         (Some(s), _) => {
-            let tail = format!(" {} {} declarations {} proofs left out ", app.sym.sep, s.decls, app.sym.sep);
+            // Statements only; whether they are source text or elaborated is said here.
+            let what = if app.ctx.mode == IndexMode::Source { "source text" } else { "elaborated" };
+            let tail = format!(" {} {} statements {} {what} ", app.sym.sep, s.decls, app.sym.sep);
             let head = truncate_left(&clean(app, &s.title), room.saturating_sub(6 + text_width(&tail)).max(10), app.ascii);
             vec![Span::styled(format!(" Skim {head}"), t.title), Span::styled(chrome(app, &tail), t.dim)]
         }
@@ -1146,10 +1126,7 @@ fn skim_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, usize)>)
         out.extend(wrapped(app, &chrome(app, &line), w, t.dim, 1));
     }
     if let Some(why) = &sk.truncated {
-        out.extend(evidence(app, app.sym.warn, format!("not the whole scope: {why}. Skim a smaller part, or search within it (f)."), t.warn, w));
-    }
-    if app.ctx.mode == IndexMode::Source {
-        out.extend(wrapped(app, "Statements are the header text as written, found by a lexical scan: not elaborated.", w, t.dim, 1));
+        out.extend(evidence(app, app.sym.warn, format!("not the whole scope: {why}"), t.warn, w));
     }
     let body_w = w.saturating_sub(2).max(8);
     for item in &sk.items {
@@ -1199,7 +1176,7 @@ fn skim_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, usize)>)
                     }
                 }
                 if d.sig_cut {
-                    out.push(Line::from(vec![Span::styled("  ", t.code), Span::styled(chrome(app, "    … the statement goes on (⏎ shows all of it)"), t.dim)]));
+                    out.push(Line::from(vec![Span::styled("  ", t.code), Span::styled(chrome(app, "    … statement cut"), t.dim)]));
                 }
                 // One more row for what was left out: the first line of the
                 // documentation, and how much text is folded away.
@@ -1512,7 +1489,7 @@ fn right_row_lines(app: &App, r: &RRow, w: usize, sel_focused: bool, sel: bool) 
 
 /// "What does this arrow mean?" for the selected right-pane row.
 fn explain_selected(app: &App) -> String {
-    let cur = app.detail.as_ref().map(|d| d.d.row.display.clone()).unwrap_or_default();
+    let cur = app.detail.as_ref().map(|d| short_name(&d.d.row.display)).unwrap_or_default();
     let parent_name = |pid: i64| -> String {
         if Some(pid) == app.current {
             return cur.clone();
@@ -1520,7 +1497,7 @@ fn explain_selected(app: &App) -> String {
         for r in &app.right.rows {
             if let RRow::Item { row, .. } = r {
                 if row.id == pid {
-                    return row.display.clone();
+                    return short_name(&row.display);
                 }
             }
         }
@@ -1528,57 +1505,47 @@ fn explain_selected(app: &App) -> String {
     };
     match app.right.rows.get(app.right.list.selected) {
         Some(RRow::Item { row, kind, dir, parent_id, cycle, .. }) => {
-            let p = parent_name(*parent_id);
+            let (p, x) = (parent_name(*parent_id), short_name(&row.display));
             let mut s = match (dir, kind) {
-                (Direction::Uses, EdgeKind::Type) => format!("{} occurs in the elaborated statement (type) of {p}.", row.display),
-                (Direction::Uses, EdgeKind::Value) => format!(
-                    "{} occurs in the elaborated proof term / body of {p}. Proof terms include what automation chose; this is not a reading order.",
-                    row.display
-                ),
-                (Direction::Uses, EdgeKind::Ctor) => format!("{} is a constructor of the inductive type {p}.", row.display),
-                (Direction::UsedBy, EdgeKind::Type) => format!("{} mentions {p} in its elaborated statement.", row.display),
-                (Direction::UsedBy, EdgeKind::Value) => format!("{} uses {p} in its elaborated proof term / body.", row.display),
-                (Direction::UsedBy, EdgeKind::Ctor) => format!("{} is the inductive type of constructor {p}.", row.display),
+                (Direction::Uses, EdgeKind::Type) => format!("{x} occurs in the statement of {p}"),
+                (Direction::Uses, EdgeKind::Value) => format!("{x} occurs in the proof term or body of {p}"),
+                (Direction::Uses, EdgeKind::Ctor) => format!("{x} is a constructor of {p}"),
+                (Direction::UsedBy, EdgeKind::Type) => format!("the statement of {x} mentions {p}"),
+                (Direction::UsedBy, EdgeKind::Value) => format!("the proof term or body of {x} uses {p}"),
+                (Direction::UsedBy, EdgeKind::Ctor) => format!("{x} is the inductive type of constructor {p}"),
             };
             if *cycle {
-                s.push_str(" Already on this branch (cycle); not expanded again.");
+                s.push_str(" (cycle: already on this branch)");
             }
-            s.push_str("  ⏎ open · → expand");
             s
         }
         Some(RRow::Evidence { row, kind_next, step, axiom, category, .. }) => {
             let next = match kind_next {
                 Some(EdgeKind::Type) => "its statement mentions the next step".to_string(),
-                Some(EdgeKind::Value) => "its proof term / body uses the next step".to_string(),
-                Some(EdgeKind::Ctor) => "it has the next step as a constructor".to_string(),
-                None if *category == AxiomCategory::Incomplete => "its own term data is unavailable (coverage gap)".to_string(),
-                None => format!("this is the axiom: {}", category.explanation(axiom)),
+                Some(EdgeKind::Value) => "its proof term or body uses the next step".to_string(),
+                Some(EdgeKind::Ctor) => "the next step is one of its constructors".to_string(),
+                None if *category == AxiomCategory::Incomplete => "its term data is unavailable (coverage gap)".to_string(),
+                None => format!("the axiom: {}", category.explanation(axiom)),
             };
-            format!("step {step}: {} — {next}. ⏎ opens it.", row.display)
+            format!("step {step}: {}: {next}", short_name(&row.display))
         }
-        Some(RRow::More { .. }) => "More neighbours exist than were loaded; lists are bounded so that huge hubs stay fast.".into(),
+        Some(RRow::More { .. }) => "neighbour lists load in pages".into(),
         Some(RRow::Mention { row, ident, occ }) => {
-            // Where it is written, so the highlight in the centre can be found.
+            // Where it is written: the same places the centre pane marks.
             let mut lines: Vec<u32> = occ.iter().map(|o| o.line).collect();
             lines.dedup();
-            let times = if occ.len() == 1 { "once".to_string() } else { format!("{} times", occ.len()) };
-            // The highlight appears once the reader moves in the list.
-            let mark = if app.right.marks_on { " (highlighted)" } else { " (j/k highlights it)" };
             let at = match lines.len() {
                 0 => String::new(),
-                1 => format!("Written {times}, on line {}{mark}. ", lines[0]),
-                n => format!(
-                    "Written {times}, on lines {}{}{mark}. ",
-                    lines.iter().take(6).map(|l| l.to_string()).collect::<Vec<_>>().join(", "),
-                    if n > 6 { ", …" } else { "" }
-                ),
+                1 if occ.len() == 1 => format!(" on line {}", lines[0]),
+                1 => format!(" {}× on line {}", occ.len(), lines[0]),
+                n => format!(" {}× on lines {}{}", occ.len(), lines.iter().take(6).map(|l| l.to_string()).collect::<Vec<_>>().join(", "), if n > 6 { ", …" } else { "" }),
             };
-            format!("{at}Lexical: `{ident}` equals the indexed name {}; Lean may resolve it differently.", row.display)
+            format!("`{ident}`{at}; lexical match with {}", row.display)
         }
         _ => match app.right_tab {
-            RightTab::Uses => "T = in statement · V = in proof/body · C = constructor. Coverage notes appear when data is incomplete.".into(),
-            RightTab::UsedBy => "Reverse edges: who mentions this declaration in a statement or proof. Counts are navigation aids, not importance.".into(),
-            RightTab::Axioms => "Every reported axiom has a witness path of exported edges. Standard axioms are not errors; sorryAx and custom axioms are flagged.".into(),
+            RightTab::Uses if app.ctx.mode == IndexMode::Semantic => "T statement · V proof term or body · C constructor".into(),
+            RightTab::UsedBy if app.ctx.mode == IndexMode::Semantic => "declarations whose statement or proof term mentions this one".into(),
+            RightTab::Axioms if app.ctx.mode == IndexMode::Semantic => "each axiom with a path of recorded edges".into(),
             _ => String::new(),
         },
     }
@@ -1985,7 +1952,11 @@ mod render_tests {
             search_latest: Arc::new(AtomicU64::new(0)),
             job_cancel: Arc::new(AtomicBool::new(false)),
         };
-        App::new(ctx, theme, ascii, ch)
+        // These screens are drawn with the search pane on the left.
+        let mut a = App::new(ctx, theme, ascii, ch);
+        a.left_mode = LeftMode::Search;
+        a.search.editing = true;
+        a
     }
 
     fn screen(t: &Terminal<TestBackend>) -> String {
@@ -2380,7 +2351,7 @@ stops = [{ decl = "Demo.x" }]
         let mut t = Terminal::new(TestBackend::new(150, 44)).unwrap();
         t.draw(|f| super::draw(f, &mut a)).unwrap();
         let s = screen(&t);
-        for n in ["Import layers", "Layers by import depth", "6 files, depth 0–4", "Endpoints", "Hubs", "Import-only files", "imported by 3", "build order, not mathematics", "longest chain of local imports", "lexical scan"] {
+        for n in ["Import layers", "Layers by import depth", "6 files, depth 0–4", "Endpoints", "Hubs", "Import-only files", "imported by 3", "build order, not mathematics", "longest chain of local imports"] {
             assert!(s.contains(n), "import view lacks {n:?}:\n{s}");
         }
         // The single root is open: directories from the bottom of the import order up.
@@ -2399,14 +2370,13 @@ stops = [{ decl = "Demo.x" }]
         let s = screen(&t);
         for n in [
             "Skim files under P.Found",
-            "3 declarations",
-            "proofs left out",
+            "3 statements",
+            "source text",
             "not the whole scope: stopped after 1500 declarations",
-            "header text as written",
             "12.3k lines,",
             "900 of them in theorem proofs",
             "theorem long {α : Type} (h₁ : a_very_long_hypothesis_name α)",
-            "the statement goes on",
+            "statement cut",
             "sorry token │ 12 lines folded",
             "1 line folded",
             "| refl (a : Nat) : Star r a a -- comment",

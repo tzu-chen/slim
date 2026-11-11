@@ -16,5 +16,5 @@ Architecture map | goal: none
 |  on the fuel: with no fuel the search only accepts `s =  |
 |  t`; otherwise a successful search found a successor `w` |
 |  of `s` from which the smaller search succeeds, and the  |
-+---------------------------------------------------- 20% -+
++---------------------------------------------------- 23% -+
  Tab back to the outline | j/k scroll | w wrap | Enter open

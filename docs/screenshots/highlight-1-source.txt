@@ -1,14 +1,14 @@
  slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ slim_demo (/tmp/slim/fixtures/demo)
 SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_succ   │ route: search “searchWithin_succ” Fixtures.searchWithin_succ
 ╭ Search [local+lib] ─────────────────╮╭ Source …o/Fixtures/Trust.lean │ syntax + semantic (complete) ──╮╭ [1 Ment] 2 By 3 Evid 4 Mod 5 Idx ─────────╮
-│/ searchWithin_succ                  ││ 47 │ `sorry` token in its source text but still depends on     ││Lexical mentions                           │
-│1 name match · 0 in map · 0 ms       ││    │   `sorryAx`. -/                                           ││ Identifiers in this declaration's text    │
-│ thm   …xtures.searchWithin_succ name││ 48 │ macro "fixture_trust_me" : tactic => `(tactic| sorry)     ││  that match indexed names (as written or  │
-│                                     ││ 49 │                                                           ││  under an enclosing namespace). NOT       │
-│                                     ││ 50 │ /-- TEST FIXTURE: proved only by the `fixture_trust_me`   ││  resolved by Lean: open namespaces, local │
-│                                     ││    │   macro, that is, by a hidden `sorry`.                    ││  variables, notation and macros are       │
-│                                     ││ 51 │ The statement says that the search is monotone in its     ││  ignored.                                 │
-│                                     ││    │   fuel: one more unit of fuel never turns a               ││Graph → struc Demo.Graph                   │
+│/ searchWithin_succ                  ││ 47 │ `sorry` token in its source text but still depends on     ││Mentions (lexical, not resolved by Lean)   │
+│1 name match · 0 in map · 0 ms       ││    │   `sorryAx`. -/                                           ││Graph → struc Demo.Graph                   │
+│ thm   …xtures.searchWithin_succ name││ 48 │ macro "fixture_trust_me" : tactic => `(tactic| sorry)     ││                                           │
+│                                     ││ 49 │                                                           ││                                           │
+│                                     ││ 50 │ /-- TEST FIXTURE: proved only by the `fixture_trust_me`   ││                                           │
+│                                     ││    │   macro, that is, by a hidden `sorry`.                    ││                                           │
+│                                     ││ 51 │ The statement says that the search is monotone in its     ││                                           │
+│                                     ││    │   fuel: one more unit of fuel never turns a               ││                                           │
 │                                     ││ 52 │ successful search into a failure. -/                      ││                                           │
 │                                     ││ 53 │ theorem searchWithin_succ {g : Graph} {n s t : Nat} :     ││                                           │
 │                                     ││ 54 │     g.searchWithin n s t = true → g.searchWithin (n + 1)  ││                                           │
@@ -33,8 +33,8 @@ SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_succ   │ route: sea
 │                                     ││    │       true :=                                             ││                                           │
 │                                     ││ 67 │   ⟨oracle_axiom g s t, searchWithin_sound⟩                ││                                           │
 │                                     ││ 68 │                                                           ││───────────────────────────────────────────│
-│                                     ││ 69 │ /-- TEST FIXTURE: a small sample graph with the cycle `1  ││Written once, on line 53 (j/k highlights   │
-│                                     ││    │   → 2 → 3 → 1` and an entry path                          ││it). Lexical: `Graph` equals the indexed   │
-│                                     ││ 70 │ `4 → 0 → 1`. -/                                           ││name Demo.Graph; Lean may resolve it       │
+│                                     ││ 69 │ /-- TEST FIXTURE: a small sample graph with the cycle `1  ││`Graph` on line 53; lexical match with     │
+│                                     ││    │   → 2 → 3 → 1` and an entry path                          ││Demo.Graph                                 │
+│                                     ││ 70 │ `4 → 0 → 1`. -/                                           ││                                           │
 ╰─────────────────────────────────────╯╰────────────────────────────────────────────────────────────────╯╰───────────────────────────────────────────╯
  j/k scroll · s source · i implicit · m bookmark · a trail · * goal · M map · A goal view · [ ] back/fwd · ? help

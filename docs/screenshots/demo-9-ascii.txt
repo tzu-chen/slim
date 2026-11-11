@@ -24,7 +24,7 @@ SlimDemo.Fixtures.Trust > Demo.Fixtures > oracle_axiom   | route: search "oracle
 |                        || statement is true, since a shortest path ||                            |
 |                        || never uses an edge twice, but here it is ||----------------------------|
 |                        || assumed rather than proved.)             ||Demo.Graph occurs in the    |
-|                        ||                                          ||elaborated statement (type) |
-|                        ||Status & evidence ----------------------- ||of Demo.Fixtures.oracle_axio|
-+------------------------++------------------------------------ 39% -++----------------------------+
+|                        ||                                          ||statement of                |
+|                        ||Status & evidence ----------------------- ||Fixtures.oracle_axiom       |
++------------------------++------------------------------------ 43% -++----------------------------+
  j/k scroll | s source | i implicit | m bookmark | a trail | * goal | M map | A goal view | [ ] back

@@ -2,11 +2,11 @@
 SlimDemo.Graph.Basic › Demo.Graph.Reach › trans   │ route: search “reach_trans”
 ╭ Search [local+lib] ────╮╭ 1 Uses 2 Used by [3 Axioms] 4 Module 5 Index ──────╮
 │/ reach_trans           ││No axioms reachable                                 │
-│1 name match · 1 text ·…││ Nothing axiomatic (and no coverage gap) is         │
-│ thm   …each.trans fuzzy││  reachable through statement, proof/body and       │
-│── documentation / stat…││  constructor edges.                                │
-│ thm   …transitive» text││Lean's own report                                   │
-│                        ││ ✓ collectAxioms at export: same set                │
+│1 name match · 1 text ·…││ through T, V and C edges; no coverage gap          │
+│ thm   …each.trans fuzzy││Lean's own report                                   │
+│── documentation / stat…││ ✓ collectAxioms at export: same set                │
+│ thm   …transitive» text││                                                    │
+│                        ││                                                    │
 │                        ││                                                    │
 │                        ││                                                    │
 │                        ││                                                    │
@@ -17,8 +17,8 @@ SlimDemo.Graph.Basic › Demo.Graph.Reach › trans   │ route: search “reach
 │                        ││                                                    │
 │                        ││                                                    │
 │                        ││────────────────────────────────────────────────────│
-│                        ││Every reported axiom has a witness path of exported │
-│                        ││edges. Standard axioms are not errors; sorryAx and  │
-│                        ││custom axioms are flagged.                          │
+│                        ││each axiom with a path of recorded edges            │
+│                        ││                                                    │
+│                        ││                                                    │
 ╰────────────────────────╯╰────────────────────────────────────────────────────╯
  ⏎ follow edge · →/← expand/collapse · 1-5 tabs · [ ] back/fwd · ? help · q quit
