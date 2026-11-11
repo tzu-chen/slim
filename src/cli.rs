@@ -111,7 +111,7 @@ USAGE
                                         EXPLICIT semantic extraction: builds the version-pinned
                                         exporter for the project's toolchain and runs it on the
                                         project's existing build artifacts. Prints exactly what will
-                                        run and asks for confirmation. See README "Trust".
+                                        run and asks for confirmation. See docs/guide.md, "Trust".
   slim info [<PROJECT_DIR> | --index FILE]       Provenance, coverage and freshness
   slim search <PROJECT_DIR|--index FILE> <QUERY...> [--within FILES | --namespace NS]
                                         Non-interactive search, optionally restricted to the

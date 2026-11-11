@@ -38,7 +38,7 @@ cargo build --release
 ./target/release/slim demo            # opens on the map; ? for keys
 ```
 
-Follow "Ten minutes with the map" in the README. The sample map is
+Follow "The demo's map" in `docs/guide.md`. The sample map is
 `fixtures/demo/lean-view.toml`; the shared trail in it is the sample trail. Real terminal
 captures of each step are in `docs/screenshots/m2-*.txt` (`scripts/capture-screens.sh
 --views-only` regenerates them).

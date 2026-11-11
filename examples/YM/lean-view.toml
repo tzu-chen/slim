@@ -1,6 +1,6 @@
 # Architecture map for the YM results and verification repository
 # (https://github.com/yang-mills-group/YM), shipped with slim as an example of a
-# project map for a large formalization. The README of slim walks through it.
+# project map for a large formalization. slim's docs/guide.md walks through it.
 # Schema 1 is documented in slim's docs/map.md. All curation below is an
 # unaccepted AI suggestion based on the source at the recorded revision.
 # It is not a Lean dependency export, proof audit, or human acceptance record.

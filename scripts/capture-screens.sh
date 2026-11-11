@@ -6,7 +6,7 @@
 #        scripts/capture-screens.sh --themes-only (the colour theme PNGs)
 #        scripts/capture-screens.sh --views-only  (map, goal explorer and trails)
 #        scripts/capture-screens.sh --highlight-only (syntax and semantic colours)
-#        scripts/capture-screens.sh --ym YM_DIR      (the README walkthrough, on a checkout of
+#        scripts/capture-screens.sh --ym YM_DIR      (the guide's walkthrough, on a checkout of
 #                                                     https://github.com/yang-mills-group/YM)
 # The demo ships a project map and opens on it, so searches start with `/`.
 #
@@ -66,7 +66,7 @@ highlight() {
 }
 if [ "${1:-}" = "--highlight-only" ]; then highlight; echo "captured: highlight-* in $OUT"; exit 0; fi
 
-# The README walkthrough: the YM repository with the example map (source-only,
+# The walkthrough of docs/guide.md: the YM repository with the example map (source-only,
 # scanned into a scratch cache; nothing is written into the checkout).
 ym() {
   run y1 110 32 "$BIN $1 --map examples/YM/lean-view.toml"
