@@ -195,7 +195,7 @@ fn cmd_scan(args: &Args) -> Result<i32> {
     eprintln!("project {} at {}", project.name, project.root.display());
     eprintln!("index   {}", idx.display());
     if idx.exists() && !args.has("force") {
-        if let Ok(conn) = db::open_read(&idx) {
+        if let Some(conn) = db::open_read(&idx).ok().filter(sindex::scanner_current) {
             let t = Instant::now();
             let fr = sindex::check_freshness(&conn, &project.root, true, false, &cancel)?;
             drop(conn);
@@ -476,6 +476,20 @@ fn cmd_skim(args: &Args) -> Result<i32> {
                 }
             }
             SkimItem::Note { text, .. } => println!("   ({})", clean(text)),
+            SkimItem::Prose(p) => {
+                for part in &p.parts {
+                    if let Some((level, title, _)) = &part.heading {
+                        println!("\n{} {}", "#".repeat(*level as usize + 1), clean(title));
+                    }
+                    if let Some(l) = &part.lead {
+                        println!("   {}{}", clean(l), if part.lead_cut { " …" } else { "" });
+                    }
+                }
+                if p.folded > 0 {
+                    println!("   [{} lines folded]", p.folded);
+                }
+            }
+            SkimItem::Scope { text } => println!("{}", clean(text)),
         }
     }
     Ok(0)

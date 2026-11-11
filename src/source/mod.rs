@@ -3,4 +3,5 @@
 
 pub mod lexer;
 pub mod scan;
+pub mod scope;
 pub mod index;

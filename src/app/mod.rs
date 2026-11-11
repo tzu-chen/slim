@@ -214,7 +214,7 @@ fn resolve(target: Target) -> Result<Opening> {
                 });
             }
             let src = project.source_index();
-            let usable = src.exists() && db::open_read(&src).is_ok();
+            let usable = src.exists() && db::open_read(&src).is_ok_and(|c| crate::source::index::scanner_current(&c));
             Ok(Opening {
                 ctx: Some(IndexCtx {
                     index: src,

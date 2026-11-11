@@ -20,7 +20,13 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
-pub const SCANNER_VERSION: &str = "2";
+pub const SCANNER_VERSION: &str = "3";
+
+/// True when the index was written by this version of the scanner. An index
+/// from another version is built again: its candidates may differ.
+pub fn scanner_current(conn: &Connection) -> bool {
+    crate::db::get_meta(conn, "scanner_version").ok().flatten().as_deref() == Some(SCANNER_VERSION)
+}
 
 #[derive(Clone, Debug)]
 pub struct ScanConfig {

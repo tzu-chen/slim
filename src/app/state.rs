@@ -189,6 +189,8 @@ pub enum OutlineRow {
     Node(usize),
     Decl { item: OutlineItem, depth: u16 },
     Note { text: String, depth: u16 },
+    /// A heading of a module-doc block, where it stands among the declarations.
+    Section { title: String, depth: u16 },
 }
 
 /// A pending "reveal in outline" (applied when the outline and the
@@ -208,6 +210,8 @@ pub struct OutlinePane {
     pub rows: Vec<OutlineRow>,
     pub list: ListState,
     pub module_decls: HashMap<i64, (Vec<OutlineItem>, bool)>,
+    /// Headings of a module's doc blocks: level, text, line.
+    pub module_sections: HashMap<i64, Vec<(u8, String, u32)>>,
     /// Modules whose declarations were requested and have not arrived.
     pub pending_decls: HashSet<i64>,
     pub loaded: bool,
@@ -243,7 +247,8 @@ pub enum RRow {
     Text { text: String, warn: bool },
     Evidence { row: DeclRow, step: usize, kind_in: Option<EdgeKind>, kind_next: Option<EdgeKind>, axiom: String, category: crate::model::AxiomCategory },
     /// `occ`: where the identifier is written in the declaration's text.
-    Mention { ident: String, row: DeclRow, occ: Arc<Vec<Occurrence>> },
+    /// `also`: other declarations that have the same name.
+    Mention { ident: String, row: DeclRow, occ: Arc<Vec<Occurrence>>, also: u32 },
     Module { module: ModuleRow, flags: i64, current: bool },
 }
 
@@ -298,6 +303,9 @@ pub struct SkimPane {
     /// Index into `data.items` of the selected declaration.
     pub sel: usize,
     pub scroll: usize,
+    /// A skim just opened is read from its top (a file's title and prose
+    /// come before its first statement) until the selection moves.
+    pub from_top: bool,
     /// Selection to apply when the skim arrives (history).
     pub pending_sel: Option<usize>,
     pub version: u64,
@@ -552,6 +560,8 @@ pub struct Gens {
     pub goal: u64,
     pub conn: u64,
     pub skim: u64,
+    pub scope: u64,
+    pub peek: u64,
     pub imports: u64,
     pub idir: u64,
     pub ipath: u64,
@@ -607,6 +617,14 @@ pub struct App {
     pub current: Option<i64>,
     pub detail: Option<Box<DetailBundle>>,
     pub detail_error: Option<String>,
+    /// The `variable` and `open` lines in force at recently shown declarations.
+    pub scopes: HashMap<i64, crate::scope::DeclScope>,
+    /// Cards of the declarations selected in the right pane.
+    pub cards: HashMap<i64, Arc<crate::skim::Peek>>,
+    pub card_asked: Option<i64>,
+    /// Set by the renderer: the centre pane is not beside the right pane,
+    /// so the card is drawn under the list.
+    pub card_under_list: bool,
     pub history: History,
     pub current_how: String,
     pub filters: Filters,
@@ -675,6 +693,10 @@ impl App {
             current: None,
             detail: None,
             detail_error: None,
+            scopes: HashMap::new(),
+            cards: HashMap::new(),
+            card_asked: None,
+            card_under_list: false,
             history: History::default(),
             current_how: String::new(),
             filters: Filters { local_only: false, show_generated: false, kinds: KindFilter::All, show_implicit: true },
@@ -931,6 +953,7 @@ impl App {
         let pos = items.partition_point(|&k| k < self.center.skim.sel).min(items.len() - 1);
         let new = (pos as isize + delta).clamp(0, items.len() as isize - 1) as usize;
         self.center.skim.sel = items[new];
+        self.center.skim.from_top = false;
     }
 
     fn on_skim(&mut self, res: Result<Box<Skim>, String>) {
@@ -945,6 +968,7 @@ impl App {
                 sk.sel = keep.filter(|&k| matches!(s.items.get(k), Some(SkimItem::Decl(_)))).unwrap_or(first);
                 if !same {
                     sk.scroll = 0;
+                    sk.from_top = keep.is_none();
                 }
                 sk.data = Some(s);
                 sk.error = None;
@@ -1132,6 +1156,7 @@ impl App {
         self.ctx.info = None;
         self.search = SearchPane { query: self.search.query.clone(), cursor: self.search.cursor, scope: self.search.scope.clone(), ..Default::default() };
         self.outline = OutlinePane { order: self.outline.order, ..Default::default() };
+        self.forget_derived();
         self.center.skim = SkimPane::default();
         if self.center_mode == CenterMode::Skim {
             self.center_mode = CenterMode::Decl;
@@ -1327,6 +1352,59 @@ impl App {
             Event::Signal(_) => self.quit = true,
             Event::InputClosed => self.quit = true,
         }
+        self.sync_card();
+    }
+
+    /// The declaration whose card is shown: the one selected in the right
+    /// pane while the reader is in it.
+    pub fn card_target(&self) -> Option<i64> {
+        if self.v.view != View::Browse || self.focus != Focus::Right || self.right.stale {
+            return None;
+        }
+        match self.right.rows.get(self.right.list.selected)? {
+            RRow::Item { row, .. } | RRow::Mention { row, .. } | RRow::Evidence { row, .. } => Some(row.id),
+            _ => None,
+        }
+    }
+
+    fn sync_card(&mut self) {
+        let Some(id) = self.card_target() else { return };
+        if !self.cards.contains_key(&id) && self.card_asked != Some(id) {
+            self.card_asked = Some(id);
+            let gen = self.gens.bump();
+            self.gens.peek = gen;
+            self.q(QueryReq::Peek { gen, id });
+        }
+    }
+
+    /// Declaration ids belong to an index: what was read for them goes with it.
+    fn forget_derived(&mut self) {
+        self.scopes.clear();
+        self.cards.clear();
+        self.card_asked = None;
+    }
+
+    /// From a section heading in the outline: the declaration below it.
+    fn outline_below_section(&mut self) -> bool {
+        let sel = self.outline.list.selected;
+        if !matches!(self.outline.rows.get(sel), Some(OutlineRow::Section { .. })) {
+            return false;
+        }
+        let next = self.outline.rows[sel + 1..].iter().take_while(|r| !matches!(r, OutlineRow::Node(_))).position(|r| matches!(r, OutlineRow::Decl { .. }));
+        if let Some(k) = next {
+            self.outline.list.selected = sel + 1 + k;
+        }
+        next.is_some()
+    }
+
+    /// Asks for the context a declaration is written in, once.
+    pub fn request_scope(&mut self, id: i64) {
+        if self.scopes.contains_key(&id) || self.ctx.index.as_ref().is_none_or(|c| c.source_root.is_none()) {
+            return;
+        }
+        let gen = self.gens.bump();
+        self.gens.scope = gen;
+        self.q(QueryReq::Scope { gen, id });
     }
 
     fn on_search(&mut self, r: SearchResp) {
@@ -1450,6 +1528,7 @@ impl App {
                         self.reset_goal_tree();
                     }
                     self.outline = OutlinePane { order: self.outline.order, ..Default::default() };
+                    self.forget_derived();
                     // The import graph and a skim describe the old index.
                     self.reset_imports();
                     if self.center_mode == CenterMode::Skim {
@@ -1536,9 +1615,11 @@ impl App {
                 }
                 match res {
                     Ok(b) => {
+                        let id = b.d.row.id;
                         self.detail = Some(b);
                         self.detail_error = None;
                         self.center.version += 1;
+                        self.request_scope(id);
                         if let Some(sc) = self.pending_center_scroll.take() {
                             self.center.scroll = sc;
                         }
@@ -1591,8 +1672,8 @@ impl App {
                         }
                         for m in ms {
                             let occ = Arc::new(m.occurrences);
-                            for row in m.candidates {
-                                self.right.rows.push(RRow::Mention { ident: m.ident.clone(), row, occ: occ.clone() });
+                            for (row, also) in m.candidates.into_iter().zip(m.same_name) {
+                                self.right.rows.push(RRow::Mention { ident: m.ident.clone(), row, occ: occ.clone(), also });
                             }
                         }
                         self.apply_right_restore();
@@ -1730,9 +1811,47 @@ impl App {
                         self.outline.module_decls.insert(mid, v);
                         self.rebuild_outline_rows();
                         self.apply_reveal();
+                        if !self.outline.module_sections.contains_key(&mid) && self.ctx.index.as_ref().is_some_and(|c| c.source_root.is_some()) {
+                            self.q(QueryReq::ModuleSections { module_id: mid });
+                        }
                     }
                     Err(e) => self.warn(format!("outline: {e}")),
                 }
+            }
+            QueryResp::ModuleSections(mid, v) => {
+                let any = !v.is_empty();
+                self.outline.module_sections.insert(mid, v);
+                if !any {
+                    return;
+                }
+                self.rebuild_outline_rows();
+            }
+            QueryResp::Scope(gen, id, res) => {
+                if gen != self.gens.scope {
+                    return;
+                }
+                let Ok(sc) = res else { return };
+                let shown = !sc.is_empty();
+                if self.scopes.len() >= 64 {
+                    self.scopes.clear();
+                }
+                self.scopes.insert(id, sc);
+                if !shown {
+                    return;
+                }
+                // The declaration views cache their lines.
+                self.center.version += 1;
+                self.v.detail.version += 1;
+            }
+            QueryResp::Peek(gen, id, res) => {
+                if self.card_asked == Some(id) {
+                    self.card_asked = None;
+                }
+                let (true, Ok(Some(p))) = (gen == self.gens.peek, res) else { return };
+                if self.cards.len() >= 128 {
+                    self.cards.clear();
+                }
+                self.cards.insert(id, Arc::from(p));
             }
             QueryResp::Rows(_, _) => {}
             QueryResp::Resolved(gen, name, id) => {
@@ -2239,7 +2358,7 @@ impl App {
         let ident_of = |r: &OutlineRow| match r {
             OutlineRow::Node(i) => Some(Ident::Node(*i)),
             OutlineRow::Decl { item, .. } => Some(Ident::Decl(item.row.id)),
-            OutlineRow::Note { .. } => None,
+            OutlineRow::Note { .. } | OutlineRow::Section { .. } => None,
         };
         let old_sel = self.outline.list.selected;
         let keep = self.outline.rows.get(old_sel).and_then(ident_of);
@@ -2253,8 +2372,16 @@ impl App {
             if let Some(m) = &n.module {
                 match o.module_decls.get(&m.id) {
                     Some((items, trunc)) => {
+                        // Section headings stand where they are written.
+                        let mut secs = o.module_sections.get(&m.id).map(|v| v.as_slice()).unwrap_or(&[]).iter().peekable();
                         for it in items {
+                            while let Some((_, title, _)) = secs.next_if(|s| it.line.is_some_and(|l| s.2 < l)) {
+                                rows.push(OutlineRow::Section { title: title.clone(), depth: n.depth + 1 });
+                            }
                             rows.push(OutlineRow::Decl { item: it.clone(), depth: n.depth + 1 });
+                        }
+                        if !*trunc {
+                            rows.extend(secs.map(|(_, title, _)| OutlineRow::Section { title: title.clone(), depth: n.depth + 1 }));
                         }
                         if *trunc {
                             rows.push(OutlineRow::Note { text: "… more declarations (use search)".into(), depth: n.depth + 1 });
@@ -3325,6 +3452,11 @@ impl App {
                         self.open_left_selection(true);
                         self.focus = Focus::Center;
                     }
+                    // A heading leads to the declaration below it.
+                    Some(OutlineRow::Section { .. }) if self.outline_below_section() => {
+                        self.open_left_selection(true);
+                        self.focus = Focus::Center;
+                    }
                     _ => {}
                 },
                 LeftMode::Bookmarks | LeftMode::Trail => {
@@ -3945,8 +4077,8 @@ mod tests {
         let row = |id: i64, n: &str| DeclRow { id, name: n.into(), display: n.into(), kind: crate::model::DeclKind::Theorem, origin: Origin::Local, flags: 0, module: None };
         let occ = |line: u32, start: u32| Occurrence { line, start, end: start + 3 };
         let ms = vec![
-            Mention { ident: "foo".into(), candidates: vec![row(2, "A.foo"), row(3, "B.foo")], occurrences: vec![occ(40, 4), occ(41, 9)] },
-            Mention { ident: "bar".into(), candidates: vec![row(4, "A.bar")], occurrences: vec![occ(12, 0)] },
+            Mention { ident: "foo".into(), candidates: vec![row(2, "A.foo"), row(3, "B.foo")], same_name: vec![0, 0], occurrences: vec![occ(40, 4), occ(41, 9)] },
+            Mention { ident: "bar".into(), candidates: vec![row(4, "A.bar")], same_name: vec![0], occurrences: vec![occ(12, 0)] },
         ];
         let gen = a.gens.right;
         a.handle(Event::Query(QueryResp::Mentions(gen, Ok(ms))));

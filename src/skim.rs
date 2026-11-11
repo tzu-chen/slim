@@ -12,6 +12,7 @@ use crate::db::IndexMode;
 use crate::map::ProjectMap;
 use crate::model::{flags, DeclKind, Origin};
 use crate::snapshot::Binder;
+use crate::source::scope::{CmdKind, EventKind};
 use crate::sourceview::{SourceCache, SourceFileText};
 use anyhow::Result;
 use rusqlite::{params, Connection, OptionalExtension};
@@ -66,6 +67,19 @@ pub enum SkimItem {
     Header { title: String, sub: String, doc: Option<String>, warn: Option<String> },
     Decl(SkimDecl),
     Note { text: String, warn: bool },
+    /// A module-doc block between declarations: its headings and lead.
+    Prose(crate::scope::Prose),
+    /// A `variable`, `open` or closing `end` line, where it is written
+    /// (source-only: the statements below it are read with it).
+    Scope { text: String },
+}
+
+/// One declaration as a card: its statement, the lead of its documentation
+/// and where it is written.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Peek {
+    pub decl: SkimDecl,
+    pub path: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -101,10 +115,12 @@ struct Raw {
     sig_json: Option<String>,
     doc: Option<String>,
     keyword: Option<String>,
+    start: Option<u32>,
+    end: Option<u32>,
 }
 
 const RAW_COLS: &str = "d.id, d.name, d.display, d.kind, d.origin, d.flags, m.name, d.module_id, d.start_line, d.end_line,
-    d.kw_byte, d.header_end_byte, d.type_text, d.sig_json, d.doc, d.keyword";
+    d.kw_byte, d.header_end_byte, d.type_text, d.sig_json, d.doc, d.keyword, d.start_byte, d.end_byte";
 
 fn raw_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<Raw> {
     Ok(Raw {
@@ -126,6 +142,8 @@ fn raw_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<Raw> {
         sig_json: r.get(13)?,
         doc: r.get(14)?,
         keyword: r.get(15)?,
+        start: r.get(16)?,
+        end: r.get(17)?,
     })
 }
 
@@ -264,6 +282,8 @@ pub fn counts_line(st: &ModStats, mode: IndexMode) -> String {
 }
 
 struct Builder {
+    /// A skim of one file (a semantic index reads its prose from the file).
+    single_file: bool,
     items: Vec<SkimItem>,
     decls: usize,
     files: usize,
@@ -281,6 +301,7 @@ impl Builder {
         let Some(mf) = mod_file(env, id)? else { return Ok(()) };
         self.files += 1;
         self.stats.add(&mf.stats);
+        let header = self.items.len();
         self.items.push(SkimItem::Header {
             title: mf.name.clone(),
             sub: file_sub(&mf, env.mode),
@@ -296,6 +317,46 @@ impl Builder {
         // A selection is filtered below, so the whole file is read for it.
         let limit = if only.is_some() { 50_000 } else { room + 1 };
         let rows: Vec<Raw> = st.query_map(params![id, limit as i64], raw_from)?.collect::<rusqlite::Result<_>>()?;
+        drop(st);
+        // What stands between the declarations, when the file is read from
+        // top to bottom: module-doc blocks, and in a source-only index the
+        // `variable` and `open` lines its statements are written under.
+        let read;
+        let between: Option<(&SourceFileText, Vec<crate::source::scope::Event>)> = match (only, env.mode, &mf.file) {
+            (None, IndexMode::Source, Some(f)) => {
+                let mut extents: Vec<(usize, usize)> = rows.iter().take(room).filter_map(|r| Some((r.start? as usize, r.end? as usize))).collect();
+                // A skim that stops inside the file does not read the rest of it.
+                if rows.len() > room {
+                    let cut = extents.iter().map(|x| x.1).max().unwrap_or(0);
+                    extents.push((cut, f.text.len()));
+                }
+                Some((f, crate::source::scope::file_scope(&f.text, &f.line_starts, &extents).events))
+            }
+            (None, IndexMode::Semantic, _) if self.single_file => {
+                read = crate::scope::module_scope(env.conn, env.source_root, env.cache, id)?;
+                read.as_ref().map(|(f, s)| (f, s.events.iter().filter(|e| e.kind == EventKind::Prose).copied().collect()))
+            }
+            _ => None,
+        };
+        let mut next = 0usize;
+        let mut emit = |items: &mut Vec<SkimItem>, upto: usize| {
+            let Some((f, ev)) = &between else { return };
+            while next < ev.len() && ev[next].start < upto {
+                let e = &ev[next];
+                next += 1;
+                match e.kind {
+                    EventKind::Prose => {
+                        // The header's lead is the first block: said once.
+                        if let SkimItem::Header { doc, .. } = &mut items[header] {
+                            *doc = None;
+                        }
+                        items.push(SkimItem::Prose(crate::scope::prose(f, e)));
+                    }
+                    EventKind::Cmd { kind: CmdKind::Universe, .. } => {}
+                    _ => items.push(SkimItem::Scope { text: crate::source::scope::one_line(&f.text, e) }),
+                }
+            }
+        };
         let mut n = 0;
         for r in rows {
             if only.is_some_and(|o| !o.contains(&r.row.id)) {
@@ -305,8 +366,17 @@ impl Builder {
                 self.truncated = Some(format!("stopped after {MAX_DECLS} declarations"));
                 break;
             }
+            let at = match (&between, r.start, r.line) {
+                (Some(_), Some(b), _) => b as usize,
+                (Some((f, _)), None, Some(l)) => f.line_starts.get((l as usize).saturating_sub(1)).copied().unwrap_or(usize::MAX),
+                _ => 0,
+            };
+            emit(&mut self.items, at);
             self.items.push(SkimItem::Decl(decl_item(env.mode, r, mf.file.as_ref())));
             n += 1;
+        }
+        if self.truncated.is_none() {
+            emit(&mut self.items, usize::MAX);
         }
         self.decls += n;
         // A file that declares nothing says so in its header already.
@@ -326,7 +396,7 @@ fn module_ids(conn: &Connection, prefix: &str, limit: usize) -> Result<Vec<i64>>
 }
 
 pub fn skim(env: &mut Env, scope: &SkimScope) -> Result<Skim> {
-    let mut b = Builder { items: Vec::new(), decls: 0, files: 0, stats: ModStats::default(), truncated: None };
+    let mut b = Builder { single_file: matches!(scope, SkimScope::Module(_)), items: Vec::new(), decls: 0, files: 0, stats: ModStats::default(), truncated: None };
     let mut with_stats = false;
     match scope {
         SkimScope::Module(name) => {
@@ -449,6 +519,22 @@ pub fn skim(env: &mut Env, scope: &SkimScope) -> Result<Skim> {
     Ok(Skim { scope: scope.clone(), title, decls: b.decls, files: b.files, stats: with_stats.then_some(b.stats), truncated: b.truncated, items: b.items })
 }
 
+/// The card of one declaration.
+pub fn peek(env: &mut Env, id: i64) -> Result<Option<Peek>> {
+    let Some(r) = raw_by_id(env.conn, id)? else { return Ok(None) };
+    let mut path = None;
+    let mut file = None;
+    if let Some(mid) = r.module_id {
+        let (p, sha): (Option<String>, Option<String>) = env.conn.query_row("SELECT path, sha256 FROM modules WHERE id = ?1", [mid], |x| Ok((x.get(0)?, x.get(1)?)))?;
+        // Source-only headers are cut out of the file the index saw.
+        if let (IndexMode::Source, Some(root), Some(rel)) = (env.mode, env.source_root, &p) {
+            file = env.cache.get(root, rel).ok().filter(|f| sha.as_deref().is_none_or(|h| h == f.sha256));
+        }
+        path = p;
+    }
+    Ok(Some(Peek { decl: decl_item(env.mode, r, file.as_ref()), path }))
+}
+
 fn raw_by_id(conn: &Connection, id: i64) -> Result<Option<Raw>> {
     Ok(conn
         .query_row(&format!("SELECT {RAW_COLS} FROM decls d LEFT JOIN modules m ON m.id = d.module_id WHERE d.id = ?1"), [id], raw_from)
@@ -495,8 +581,15 @@ mod tests {
                 assert_eq!(title, "P.A");
                 assert!(sub.starts_with("P/A.lean · 2 thm · 1 types"), "{sub}");
                 assert!(sub.ends_with("1 with a sorry token"), "{sub}");
-                assert_eq!(doc.as_deref(), Some("Closure"));
+                assert!(doc.is_none(), "the module doc is the first block of prose");
                 assert!(warn.is_none());
+            }
+            other => panic!("{other:?}"),
+        }
+        match &s.items[1] {
+            SkimItem::Prose(p) => {
+                let part = &p.parts[0];
+                assert_eq!((part.heading.as_ref().map(|h| h.1.as_str()), part.lead.as_deref(), p.line, p.folded), (Some("Closure"), Some("Reflexive transitive closure."), 1, 0));
             }
             other => panic!("{other:?}"),
         }
@@ -563,6 +656,8 @@ mod tests {
                 sig_json: Some(r#"{"binders":[{"name":"n","info":"default","type":"Nat"}],"conclusion":"n = n"}"#.into()),
                 doc: Some("\n# Heading\n\nmore".into()),
                 keyword: None,
+                start: None,
+                end: None,
             },
             None,
         );

@@ -2,7 +2,7 @@
 CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.FinalTheorem › CFSG › odd_order_theorem   │ route: search “odd_order_theorem” C
 ╭ Search [local+lib] ────────╮╭ Declaration ───────────────────────────────────────╮╭ [1 Ment] 2 By 3 Evid 4 Mod 5 Idx ╮
 │/ odd_order_theorem         ││theorem CFSG.odd_order_theorem                      ││Mentions (lexical, not resolved   │
-│4 name matches · 5 text · 5…││module CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.Fina││  by Lean)                        │
+│4 name matches · 5 text · 6…││module CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.Fina││  by Lean)                        │
 │ thm   …d_order_theorem name││    lTheorem · CFSG/ThirdParty/QiuzhenCFSG/FeitThomp││odd_order_theorem_of_pfSection14F…│
 │ thm   …nalDataBridge prefix││    son/FinalTheorem.lean:2083 · source candidate   ││pfSection14FinalDataBridge_theore…│
 │ thm   …mpleReduction prefix││                                                    ││                                  │
@@ -11,8 +11,12 @@ CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.FinalTheorem › CFSG › odd_order_the
 │ thm   …_right_solvable text││      [Group G] [Finite G], Odd (Nat.card G) →      ││                                  │
 │ def   …xampleReduction text││      Group.IsSolvable G                            ││                                  │
 │ thm   …duction_theorem text││                                                    ││                                  │
-│ thm   …on7_M2_solvable text││Documentation ───────────────────────────────────── ││                                  │
-│ thm   …mul_centralizer text││ The Feit-Thompson odd order theorem.               ││                                  │
+│ thm   …on7_M2_solvable text││In scope (source text) ──────────────────────────── ││                                  │
+│ thm   …mul_centralizer text││  open CFSG                                         ││                                  │
+│                            ││  open scoped BigOperators Pointwise                ││                                  │
+│                            ││                                                    ││                                  │
+│                            ││Documentation ───────────────────────────────────── ││                                  │
+│                            ││ The Feit-Thompson odd order theorem.               ││                                  │
 │                            ││                                                    ││                                  │
 │                            ││Status & evidence ───────────────────────────────── ││                                  │
 │                            ││ · source candidate (lexical scan, not elaborated)  ││                                  │
@@ -20,13 +24,9 @@ CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.FinalTheorem › CFSG › odd_order_the
 │                            ││ · axioms and proof status: unknown without a       ││                                  │
 │                            ││     semantic snapshot                              ││                                  │
 │                            ││                                                    ││                                  │
-│                            ││                                                    ││                                  │
-│                            ││Source CFSG/ThirdParty/QiuzhenCFSG/FeitThompson/Fina││                                  │
-│                            ││2081 │       pfSection14FinalData_of_isMinCE_of_brid││                                  │
-│                            ││     │         ge (hbridge (G := G)) hmin)          ││                                  │
-│                            ││2082 │                                              ││──────────────────────────────────│
-│                            ││2083 │ /-- The Feit-Thompson odd order theorem. -/  ││`odd_order_theorem_of_pfSection14F│
-│                            ││2084 │ public theorem CFSG.odd_order_theorem : ∀ (G ││inalDataBridge` on line 2085;     │
-│                            ││     │   : Type u) [Group G] [Finite G], Odd        ││lexical match with                │
-╰────────────────────────────╯╰────────────────────────────────────────────── 79% ─╯╰──────────────────────────────────╯
+│                            ││                                                    ││──────────────────────────────────│
+│                            ││Source CFSG/ThirdParty/QiuzhenCFSG/FeitThompson/Fina││`odd_order_theorem_of_pfSection14F│
+│                            ││2081 │       pfSection14FinalData_of_isMinCE_of_brid││inalDataBridge` on line 2085;     │
+│                            ││     │         ge (hbridge (G := G)) hmin)          ││lexical match with                │
+╰────────────────────────────╯╰────────────────────────────────────────────── 71% ─╯╰──────────────────────────────────╯
  j/k scroll · s source · i implicit · m bookmark · a trail · * goal · M map · A goal view · [ ] back/fwd · ? help

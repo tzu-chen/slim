@@ -73,6 +73,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         draw_building(f, body, app);
     } else {
         let w = body.width;
+        app.card_under_list = w < 100;
         if app.v.view != super::views::View::Browse {
             super::render_views::draw_view(f, body, app);
         } else if w >= 100 {
@@ -431,6 +432,10 @@ fn draw_left(f: &mut Frame, area: Rect, app: &mut App) {
                         Line::from(vec![Span::styled(pad(&truncate(&text, avail, app.ascii), avail), st), Span::styled(line_no, if sel { st } else { t.dim })])
                     }
                     OutlineRow::Note { text, depth } => Line::from(Span::styled(format!("{}{}", " ".repeat(*depth as usize + 1), text), t.dim)),
+                    OutlineRow::Section { title, depth } => {
+                        let text = format!("{}{}", " ".repeat(*depth as usize + 1), clean(app, title));
+                        Line::from(Span::styled(pad(&truncate(&text, w, app.ascii), w), if sel { st } else { t.heading }))
+                    }
                 };
                 lines.push(line);
             }
@@ -503,6 +508,16 @@ fn result_line(app: &App, row: &DeclRow, tier: Option<&str>, w: usize, sel: bool
 fn draw_center(f: &mut Frame, area: Rect, app: &mut App) {
     let t = app.theme.clone();
     let focused = app.focus == Focus::Center;
+    // The declaration selected in the right pane shows its statement here,
+    // under the one being read.
+    let ch = card_height(app, area);
+    let area = if ch > 0 {
+        let [main, dock] = Layout::vertical([Constraint::Min(3), Constraint::Length(ch)]).areas(area);
+        draw_card(f, dock, app);
+        main
+    } else {
+        area
+    };
     if app.center_mode == CenterMode::Source {
         draw_source(f, area, app, focused);
         return;
@@ -940,6 +955,7 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
     out.push(heading(app, if mode == IndexMode::Semantic { "Statement (elaborated)" } else { "Statement (source text, not elaborated)" }, w));
     out.extend(statement_lines(app, b, w, occ));
     out.push(Line::from(""));
+    out.extend(scope_lines(app, d.row.id, w));
 
     // Documentation.
     if let Some(doc) = d.doc.as_ref().filter(|x| !x.trim().is_empty()) {
@@ -1046,7 +1062,7 @@ fn draw_skim(f: &mut Frame, area: Rect, app: &mut App, focused: bool) {
     let (_, _, lines, ranges) = sk.cache.as_ref().unwrap();
     // Keep the selected declaration on screen, with the file header above
     // it when that fits.
-    if let Some(&(a, z)) = ranges.get(sk.sel) {
+    if let Some(&(a, z)) = ranges.get(sk.sel).filter(|_| !sk.from_top) {
         let mut top = a;
         let mut k = sk.sel;
         while k > 0 && !matches!(sk.data.as_ref().unwrap().items[k - 1], SkimItem::Decl(_)) {
@@ -1147,34 +1163,7 @@ fn skim_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, usize)>)
             }
             SkimItem::Decl(d) => {
                 let nested = if matches!(d.row.kind, crate::model::DeclKind::Constructor) { 2 } else { 0 };
-                let mut first = true;
-                // A statement written over several lines is flowed into the
-                // pane as one paragraph, unless it holds a comment (joining
-                // lines would pull the following text into it).
-                let flowed;
-                let sig_lines: Vec<&str> = if d.sig.contains('\n') && !d.sig.contains("--") && !d.sig.contains("/-") {
-                    flowed = d.sig.split_whitespace().collect::<Vec<_>>().join(" ");
-                    vec![flowed.as_str()]
-                } else {
-                    d.sig.lines().collect()
-                };
-                for src_line in sig_lines {
-                    let text = format!("{}{}", " ".repeat(nested), sanitize(src_line, app.ascii));
-                    for row in wrap_line(&text, body_w, 4) {
-                        let mut spans = vec![Span::styled("  ", t.code)];
-                        // The keyword that opens the statement is coloured.
-                        let kw_len = if first { row.trim_start().find(' ').map(|k| k + row.len() - row.trim_start().len()) } else { None };
-                        match kw_len {
-                            Some(k) => {
-                                spans.push(Span::styled(row[..k].to_string(), t.kind));
-                                spans.push(Span::styled(row[k..].to_string(), t.code));
-                            }
-                            None => spans.push(Span::styled(row, t.code)),
-                        }
-                        first = false;
-                        out.push(Line::from(spans));
-                    }
-                }
+                out.extend(sig_rows(app, &d.sig, body_w, nested));
                 if d.sig_cut {
                     out.push(Line::from(vec![Span::styled("  ", t.code), Span::styled(chrome(app, "    … statement cut"), t.dim)]));
                 }
@@ -1199,10 +1188,149 @@ fn skim_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, usize)>)
                 }
             }
             SkimItem::Note { text, warn } => out.extend(wrapped(app, &chrome(app, text), w, if *warn { t.warn } else { t.dim }, 3)),
+            SkimItem::Prose(p) => {
+                for part in &p.parts {
+                    if let Some((_, title, _)) = &part.heading {
+                        out.push(Line::from(""));
+                        out.extend(wrapped(app, title, w, t.heading, 2));
+                    }
+                    if let Some(l) = &part.lead {
+                        let cut = if part.lead_cut { format!(" {}", app.sym.ellipsis) } else { String::new() };
+                        out.extend(wrapped(app, &format!("{l}{cut}"), w, t.text, 2));
+                    }
+                }
+                if p.folded > 0 {
+                    out.push(Line::from(Span::styled(format!("  {} line{} folded", p.folded, if p.folded == 1 { "" } else { "s" }), t.dim)));
+                }
+            }
+            SkimItem::Scope { text } => out.extend(sig_rows(app, text, body_w, 0).into_iter().map(|mut l| {
+                // Context, not a statement: its text stays dim.
+                if let Some(sp) = l.spans.last_mut() {
+                    sp.style = t.dim;
+                }
+                l
+            })),
         }
         ranges.push((start, out.len()));
     }
     (out, ranges)
+}
+
+/// A statement as rows of the pane: one that is written over several lines
+/// is flowed as one paragraph, unless it holds a comment (joining lines
+/// would pull the following text into it). Its keyword is coloured.
+fn sig_rows(app: &App, sig: &str, body_w: usize, nested: usize) -> Vec<Line<'static>> {
+    let t = &app.theme;
+    let mut out = Vec::new();
+    let mut first = true;
+    let flowed;
+    let sig_lines: Vec<&str> = if sig.contains('\n') && !sig.contains("--") && !sig.contains("/-") {
+        flowed = sig.split_whitespace().collect::<Vec<_>>().join(" ");
+        vec![flowed.as_str()]
+    } else {
+        sig.lines().collect()
+    };
+    for src_line in sig_lines {
+        let text = format!("{}{}", " ".repeat(nested), sanitize(src_line, app.ascii));
+        for row in wrap_line(&text, body_w, 4) {
+            let mut spans = vec![Span::styled("  ", t.code)];
+            let kw_len = if first { row.trim_start().find(' ').map(|k| k + row.len() - row.trim_start().len()) } else { None };
+            match kw_len {
+                Some(k) => {
+                    spans.push(Span::styled(row[..k].to_string(), t.kind));
+                    spans.push(Span::styled(row[k..].to_string(), t.code));
+                }
+                None => spans.push(Span::styled(row, t.code)),
+            }
+            first = false;
+            out.push(Line::from(spans));
+        }
+    }
+    out
+}
+
+/// The `variable` and `open` lines a declaration is written under.
+pub(super) fn scope_lines(app: &App, id: i64, w: usize) -> Vec<Line<'static>> {
+    let t = &app.theme;
+    let Some(sc) = app.scopes.get(&id).filter(|s| !s.is_empty()) else { return Vec::new() };
+    let mut out = vec![heading(app, "In scope (source text)", w)];
+    for l in &sc.lines {
+        out.extend(sig_rows(app, &l.text, w.saturating_sub(2).max(8), 0));
+    }
+    if sc.hidden > 0 {
+        out.push(Line::from(Span::styled(format!("  {} more variable{} it does not write", sc.hidden, if sc.hidden == 1 { "" } else { "s" }), t.dim)));
+    }
+    out.push(Line::from(""));
+    out
+}
+
+/// The card of the declaration selected in the right pane: where it is
+/// written, its statement and the lead of its documentation.
+struct Card {
+    title: Line<'static>,
+    body: Vec<Line<'static>>,
+}
+
+fn card(app: &App, w: usize, max: usize) -> Option<Card> {
+    let t = &app.theme;
+    let id = app.card_target()?;
+    let row = match app.right.rows.get(app.right.list.selected)? {
+        RRow::Item { row, .. } | RRow::Mention { row, .. } | RRow::Evidence { row, .. } => row,
+        _ => return None,
+    };
+    let peek = app.cards.get(&id);
+    let at = match peek {
+        Some(p) => match (&p.path, p.decl.line) {
+            (Some(path), Some(l)) => format!("{path}:{l}"),
+            (Some(path), None) => path.clone(),
+            (None, _) => row.module.clone().unwrap_or_default(),
+        },
+        None => row.module.clone().unwrap_or_default(),
+    };
+    let head = format!(" {} ", row.kind.short().trim_end());
+    let room = w.saturating_sub(text_width(&head) + 4);
+    let name = truncate_left(&clean(app, &row.name), room, app.ascii);
+    let at_room = room.saturating_sub(text_width(&name) + 3);
+    let mut title = vec![Span::styled(head, t.kind), Span::styled(format!("{name} "), t.decl_name)];
+    if !at.is_empty() && at_room >= 12 {
+        title.push(Span::styled(format!("{} {} ", app.sym.sep, truncate_left(&clean(app, &at), at_room, app.ascii)), t.dim));
+    }
+    let mut body: Vec<Line<'static>> = Vec::new();
+    match peek {
+        None => body.push(Line::from(Span::styled(chrome(app, "  …"), t.dim))),
+        Some(p) => {
+            let doc: Vec<Line<'static>> = p.decl.doc.as_deref().map(|d| wrapped(app, d, w, t.dim, 2)).unwrap_or_default();
+            let mut sig = sig_rows(app, &p.decl.sig, w.saturating_sub(2).max(8), 0);
+            // The statement first; the documentation keeps a row when both do not fit.
+            let keep_doc = if sig.len() + doc.len() > max { doc.len().min(1) } else { doc.len() };
+            let sig_room = max.saturating_sub(keep_doc).max(1);
+            if sig.len() > sig_room || p.decl.sig_cut {
+                sig.truncate(sig_room.saturating_sub(1).max(1));
+                sig.push(Line::from(Span::styled(chrome(app, "      … statement cut"), t.dim)));
+            }
+            body.extend(sig);
+            body.extend(doc.into_iter().take(keep_doc));
+        }
+    }
+    body.truncate(max);
+    Some(Card { title: Line::from(title), body })
+}
+
+/// Height of the card under the centre pane (borders included), when a
+/// declaration is selected in the right pane beside it.
+fn card_height(app: &App, area: Rect) -> u16 {
+    if app.card_target().is_none() || area.height < 14 {
+        return 0;
+    }
+    (area.height / 3).clamp(5, 10)
+}
+
+fn draw_card(f: &mut Frame, area: Rect, app: &App) {
+    let Some(c) = card(app, area.width.saturating_sub(2) as usize, area.height.saturating_sub(2) as usize) else { return };
+    let b = block(app, c.title, false);
+    let inner = b.inner(area);
+    f.render_widget(b, area);
+    f.render_widget(Paragraph::new(c.body), inner);
 }
 
 fn draw_source(f: &mut Frame, area: Rect, app: &mut App, focused: bool) {
@@ -1319,7 +1447,11 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App) {
         return;
     }
     let w = inner.width as usize;
-    let explain_h = if matches!(app.right_tab, RightTab::Uses | RightTab::UsedBy | RightTab::Axioms) { 4 } else { 0 };
+    // Without a centre pane beside it, the selected declaration's card
+    // stands under the list.
+    let under = if app.card_under_list { card(app, w, (inner.height as usize / 3).clamp(2, 9)) } else { None };
+    let card_h = under.as_ref().map(|c| c.body.len() as u16 + 1).unwrap_or(0);
+    let explain_h = if matches!(app.right_tab, RightTab::Uses | RightTab::UsedBy | RightTab::Axioms) { 4 + card_h } else { 0 };
     let [list_area, expl_area] = Layout::vertical([Constraint::Min(1), Constraint::Length(explain_h)]).areas(inner);
     app.hit.right_list = list_area;
     let h = list_area.height as usize;
@@ -1392,12 +1524,11 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App) {
     if explain_h > 0 {
         let txt = explain_selected(app);
         let mut el = vec![Line::from(Span::styled(app.sym.rule.repeat(w), t.dim))];
-        el.extend(
-            wrap_line(&chrome(app, &sanitize(&txt, app.ascii)), w, 0)
-                .into_iter()
-                .take(explain_h as usize - 1)
-                .map(|r| Line::from(Span::styled(r, t.dim))),
-        );
+        if let Some(c) = under {
+            el.push(c.title);
+            el.extend(c.body);
+        }
+        el.extend(wrap_line(&chrome(app, &sanitize(&txt, app.ascii)), w, 0).into_iter().take(3).map(|r| Line::from(Span::styled(r, t.dim))));
         f.render_widget(Paragraph::new(el), expl_area);
     }
 }
@@ -1461,9 +1592,15 @@ fn right_row_lines(app: &App, r: &RRow, w: usize, sel_focused: bool, sel: bool) 
             let name = truncate_left(&clean(app, &row.display), avail, app.ascii);
             vec![Line::from(Span::styled(pad(&format!("{head}{name}"), w), if sel { st_sel } else { t.text }))]
         }
-        RRow::Mention { ident, row, .. } => {
+        RRow::Mention { ident, row, also, .. } => {
             let text = format!("{} {} {} {}", clean(app, ident), app.sym.arrow, row.kind.short(), clean(app, &row.display));
-            vec![Line::from(Span::styled(pad(&truncate(&text, w, app.ascii), w), if sel { st_sel } else { t.text }))]
+            // Other declarations have this name: the nearest file is listed.
+            let right = if *also > 0 { format!(" +{also}") } else { String::new() };
+            let avail = w.saturating_sub(right.len());
+            vec![Line::from(vec![
+                Span::styled(pad(&truncate(&text, avail, app.ascii), avail), if sel { st_sel } else { t.text }),
+                Span::styled(right, if sel { st_sel } else { t.dim }),
+            ])]
         }
         RRow::Module { module, current: true, .. } => {
             let text = format!(" {} show {} in the outline (⏎)", app.sym.arrow, clean(app, &module.name));
@@ -1530,7 +1667,7 @@ fn explain_selected(app: &App) -> String {
             format!("step {step}: {}: {next}", short_name(&row.display))
         }
         Some(RRow::More { .. }) => "neighbour lists load in pages".into(),
-        Some(RRow::Mention { row, ident, occ }) => {
+        Some(RRow::Mention { row, ident, occ, also }) => {
             // Where it is written: the same places the centre pane marks.
             let mut lines: Vec<u32> = occ.iter().map(|o| o.line).collect();
             lines.dedup();
@@ -1540,7 +1677,12 @@ fn explain_selected(app: &App) -> String {
                 1 => format!(" {}× on line {}", occ.len(), lines[0]),
                 n => format!(" {}× on lines {}{}", occ.len(), lines.iter().take(6).map(|l| l.to_string()).collect::<Vec<_>>().join(", "), if n > 6 { ", …" } else { "" }),
             };
-            format!("`{ident}`{at}; lexical match with {}", row.display)
+            let more = match also {
+                0 => String::new(),
+                1 => "; 1 other declaration has this name (nearest file listed)".into(),
+                n => format!("; {n} other declarations have this name (nearest file listed)"),
+            };
+            format!("`{ident}`{at}; lexical match with {}{more}", row.display)
         }
         _ => match app.right_tab {
             RightTab::Uses if app.ctx.mode == IndexMode::Semantic => "T statement · V proof term or body · C constructor".into(),
@@ -1657,10 +1799,15 @@ pub const HELP: &[&str] = &[
     "                    group (else of the current declaration's file), each with the",
     "                    lead of its documentation and no proofs. j k move by statement,",
     "                    ⏎ opens one, S switches between its file and its namespace,",
-    "                    Esc closes. Source-only: header text as written, not elaborated",
+    "                    Esc closes. Source-only: header text as written, not elaborated.",
+    "                    A file is read top to bottom: its doc sections (/-! … -/) keep",
+    "                    their headings and leads, and in a source-only index the",
+    "                    variable and open lines stand where they are written",
     "  o                 outline: order and right-hand column — name, declarations,",
     "                    theorems, proof lines, sorry, last modified. Directories show",
-    "                    the sum of their files (the map's file tree shows every count)",
+    "                    the sum of their files (the map's file tree shows every count).",
+    "                    An open file lists the headings of its doc sections among its",
+    "                    declarations; ⏎ on one opens the declaration below it",
     "  I                 import layers. Depth of a file: the longest chain of local",
     "                    imports below it. Endpoint: a file with declarations that no",
     "                    declaring file imports. Hub: a file many files import. These",
@@ -1700,6 +1847,11 @@ pub const HELP: &[&str] = &[
     "  F5                syntax theme (VS Code Dark+, Light+, high contrast; follows the UI theme)",
     "  F6                highlighting details: what the colours come from, how fresh, indexing",
     "  1 2 3 4 5         uses · used by · axioms · module · index info",
+    "  In scope          under the statement: the variable binders it writes and the",
+    "                    open lines in force where it stands, read from the file",
+    "  Tab to the right  the selected name shows its card under the declaration:",
+    "                    where it is written, its statement, the lead of its",
+    "                    documentation. ⏎ opens it",
     "  t                 bounded count of the transitive neighbourhood",
     "  m  a  n  E        bookmark · add to trail (note) · bookmark note · export trail",
     "  e                 open in --editor (receives +LINE FILE; no shell)",
@@ -1731,7 +1883,10 @@ pub const HELP: &[&str] = &[
     "",
     "SOURCE-ONLY MODE",
     "  Declarations are candidates from a conservative lexical scan. There",
-    "  are no dependency edges; the Mentions tab is a labelled lexical guess.",
+    "  are no dependency edges; the Mentions tab is a labelled lexical guess:",
+    "  a name is looked up under the enclosing namespaces, then as written and",
+    "  under the namespaces opened there. A declaration is listed once; +N says",
+    "  that N other declarations have its name (the nearest file is listed).",
     "  Moving through the Mentions tab (1) highlights where the selected",
     "  identifier is written, in the declaration view and in the whole file,",
     "  and scrolls the first place into view.",
@@ -2453,7 +2608,7 @@ stops = [{ decl = "Demo.x" }]
             Occurrence { line: 12, start: col(2, 0), end: col(2, 0) + len },
         ]);
         a.right_tab = RightTab::Uses;
-        a.right.rows = vec![RRow::Mention { ident: "α_foo".into(), row: row(2, "N.α_foo"), occ }];
+        a.right.rows = vec![RRow::Mention { ident: "α_foo".into(), row: row(2, "N.α_foo"), occ, also: 0 }];
         a.focus = Focus::Right;
         let marked = |a: &mut App| -> Vec<String> {
             let mut t = Terminal::new(TestBackend::new(120, 40)).unwrap();

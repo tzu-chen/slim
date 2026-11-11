@@ -22,9 +22,9 @@ Reading trails │ ◎ goal: Demo.Graph.searchWithin_sound │ active trail: The
 │                                        ││    {g : Demo.Graph} {s t : Nat} (h : g.Reach s t) :    │
 │                                        ││    ∃ fuel, g.searchWithin fuel s t = true              │
 │                                        ││                                                        │
-│                                        ││In the map ──────────────────────────────────────────── │
-│                                        ││ · Deliberate test fixtures (not results)               │
+│                                        ││In scope (source text) ──────────────────────────────── │
+│                                        ││  open Demo.Graph                                       │
 │                                        ││                                                        │
-│                                        ││Prerequisites and dependents ────────────────────────── │
-╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 54% ─╯
+│                                        ││In the map ──────────────────────────────────────────── │
+╰────────────────────────────────────────╯╰────────────────────────────────────────────────── 51% ─╯
  ⏎ open · s state · n note · Q question · - + move · d remove · N new · t active · r resume · E expo

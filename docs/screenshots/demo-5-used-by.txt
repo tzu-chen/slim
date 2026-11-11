@@ -15,16 +15,16 @@ SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_correct   │ route: 
 │                        ││    (∃ fuel, g.searchWithin fuel s t =    ││                            │
 │                        ││        true) ↔ g.Reach s t               ││                            │
 │                        ││                                          ││                            │
-│                        ││Documentation ─────────────────────────── ││                            │
-│                        ││ TEST FIXTURE: a direct dependency on a   ││                            │
-│                        ││ missing proof. This "the decision        ││                            │
-│                        ││ procedure is correct" theorem contains   ││                            │
-│                        ││ no `sorry` token, yet it uses            ││                            │
-│                        ││ `searchWithin_complete`, which is proved ││                            │
-│                        ││ by `sorry`. The absence of the word      ││                            │
-│                        ││ `sorry` in a proof proves nothing.       ││────────────────────────────│
-│                        ││                                          ││the proof term or body of   │
-│                        ││Status & evidence ─────────────────────── ││Fixtures.search_trans uses  │
-│                        ││ ✓ Lean 4.33.1 snapshot of                ││Fixtures.searchWithin_correc│
-╰────────────────────────╯╰──────────────────────────────────── 42% ─╯╰────────────────────────────╯
+│                        ││In scope (source text) ────────────────── ││                            │
+│                        ││  open Demo.Graph                         ││                            │
+│                        │╰──────────────────────────────────── 25% ─╯│                            │
+│                        │╭ thm Demo.Fixtures.search_trans ──────────╮│                            │
+│                        ││  theorem Demo.Fixtures.search_trans {g : ││                            │
+│                        ││      Demo.Graph} {m n s t u : Nat} (h₁ : ││                            │
+│                        ││      g.searchWithin m s t = true) (h₂ :  ││                            │
+│                        ││      g.searchWithin n t u = true) : ∃    ││────────────────────────────│
+│                        ││      fuel, g.searchWithin fuel s u = true││the proof term or body of   │
+│                        ││  TEST FIXTURE: a dependency on a missing ││Fixtures.search_trans uses  │
+│                        ││                                          ││Fixtures.searchWithin_correc│
+╰────────────────────────╯╰──────────────────────────────────────────╯╰────────────────────────────╯
  ⏎ follow edge · →/← expand/collapse · 1-5 tabs · [ ] back/fwd · ? help · q quit

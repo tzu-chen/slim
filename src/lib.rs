@@ -23,6 +23,7 @@ pub mod map;
 pub mod relations;
 pub mod imports;
 pub mod skim;
+pub mod scope;
 pub mod highlight;
 
 /// Process start, recorded by `main` so start-up timings include index

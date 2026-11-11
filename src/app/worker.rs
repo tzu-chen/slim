@@ -223,6 +223,12 @@ pub enum QueryReq {
     SaveSession { state: String },
     /// Statements of a file, directory, namespace or map group.
     Skim { gen: u64, scope: SkimScope, show_generated: bool },
+    /// The `variable` and `open` lines in force at a declaration.
+    Scope { gen: u64, id: i64 },
+    /// The card of a declaration: statement, lead of its documentation.
+    Peek { gen: u64, id: i64 },
+    /// The section headings of a module's doc blocks.
+    ModuleSections { module_id: i64 },
     /// The import graph (read once, then kept by the worker).
     Imports { gen: u64 },
     /// What a directory imports from the rest of the project, and what imports it.
@@ -247,6 +253,9 @@ impl QueryReq {
             QueryReq::ViewDetail { .. } => "worker: view detail",
             QueryReq::GoalChildren { .. } => "worker: goal children",
             QueryReq::Skim { .. } => "worker: skim",
+            QueryReq::Scope { .. } => "worker: scope of a declaration",
+            QueryReq::Peek { .. } => "worker: card",
+            QueryReq::ModuleSections { .. } => "worker: module sections",
             QueryReq::Imports { .. } => "worker: import graph",
             QueryReq::ImportsDir { .. } => "worker: imports of a directory",
             QueryReq::ImportPath { .. } => "worker: import path",
@@ -268,6 +277,8 @@ impl QueryReq {
             QueryReq::ViewDetail { .. } => 8,
             QueryReq::Skim { .. } => 9,
             QueryReq::ImportsDir { .. } => 10,
+            QueryReq::Scope { .. } => 11,
+            QueryReq::Peek { .. } => 12,
             _ => return None,
         })
     }
@@ -292,6 +303,9 @@ pub enum QueryResp {
     GoalChildren(u64, u64, usize, Result<ChildPage, String>),
     Connection(u64, Box<ConnResult>),
     Skim(u64, Result<Box<Skim>, String>),
+    Scope(u64, i64, Result<crate::scope::DeclScope, String>),
+    Peek(u64, i64, Result<Option<Box<crate::skim::Peek>>, String>),
+    ModuleSections(i64, Vec<(u8, String, u32)>),
     Imports(u64, Result<Arc<ImportGraph>, String>),
     ImportsDir(u64, Result<DirSummary, String>),
     ImportPath(u64, Result<PathAnswer, String>),
@@ -508,6 +522,20 @@ fn handle(ctx: &IndexCtx, c: &rusqlite::Connection, users: Option<&UserStore>, c
         QueryReq::Skim { gen, scope, show_generated } => {
             let mut env = crate::skim::Env { conn: c, mode: ctx.mode, source_root: ctx.source_root.as_deref(), cache, map: map.load.map().map(|m| m.as_ref()), show_generated };
             QueryResp::Skim(gen, s(crate::skim::skim(&mut env, &scope)).map(Box::new))
+        }
+        QueryReq::Scope { gen, id } => {
+            let r = (|| -> anyhow::Result<crate::scope::DeclScope> {
+                let d = detail(c, id)?.ok_or_else(|| anyhow::anyhow!("declaration {id} not found"))?;
+                crate::scope::decl_scope(c, ctx.source_root.as_deref(), cache, &d, ctx.mode == IndexMode::Source)
+            })();
+            QueryResp::Scope(gen, id, s(r))
+        }
+        QueryReq::Peek { gen, id } => {
+            let mut env = crate::skim::Env { conn: c, mode: ctx.mode, source_root: ctx.source_root.as_deref(), cache, map: None, show_generated: true };
+            QueryResp::Peek(gen, id, s(crate::skim::peek(&mut env, id)).map(|p| p.map(Box::new)))
+        }
+        QueryReq::ModuleSections { module_id } => {
+            QueryResp::ModuleSections(module_id, crate::scope::sections(c, ctx.source_root.as_deref(), cache, module_id).unwrap_or_default())
         }
         QueryReq::Imports { gen } => QueryResp::Imports(gen, s(import_graph(c, imports))),
         QueryReq::ImportsDir { gen, full } => QueryResp::ImportsDir(

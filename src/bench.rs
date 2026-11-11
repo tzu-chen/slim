@@ -572,6 +572,7 @@ pub fn run_on_index(idx: &Path, repeat: usize, seed: u64, out: &mut dyn Write) -
     let root = info.get("source_root").map(std::path::PathBuf::from).filter(|p| p.is_dir());
     let mut cache = crate::sourceview::SourceCache::default();
     let (mut sk_file, mut sk_dir, mut sk_ns, mut ment) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    let (mut scope_lat, mut card_lat) = (Vec::new(), Vec::new());
     let (mut dir_decls, mut dir_n) = (0usize, 0usize);
     for _ in 0..repeat.min(2) {
         for r in sample.iter().take(60) {
@@ -598,12 +599,24 @@ pub fn run_on_index(idx: &Path, repeat: usize, seed: u64, out: &mut dyn Write) -
                 let _ = crate::relations::lexical_mentions(&conn, root.as_deref(), &mut cache, r.id)?;
                 ment.push(t.elapsed().as_secs_f64() * 1000.0);
             }
+            // As the worker answers them: after the declaration itself.
+            let t = Instant::now();
+            if let Some(d) = query::detail(&conn, r.id)? {
+                let _ = crate::scope::decl_scope(&conn, root.as_deref(), &mut cache, &d, mode == db::IndexMode::Source)?;
+            }
+            scope_lat.push(t.elapsed().as_secs_f64() * 1000.0);
+            let mut env = crate::skim::Env { conn: &conn, mode, source_root: root.as_deref(), cache: &mut cache, map: None, show_generated: true };
+            let t = Instant::now();
+            let _ = crate::skim::peek(&mut env, r.id)?;
+            card_lat.push(t.elapsed().as_secs_f64() * 1000.0);
         }
     }
     writeln!(out, "{}", stats("skim of a file (statements read from the source)", sk_file))?;
     writeln!(out, "{}", stats(&format!("skim of a directory (bounded: {} declarations, {} files; {} declarations on average here)", crate::skim::MAX_DECLS, crate::skim::MAX_FILES, dir_decls / dir_n.max(1)), sk_dir))?;
     writeln!(out, "{}", stats("skim of a namespace", sk_ns))?;
     writeln!(out, "{}", stats("lexical mentions of a declaration, with the position of every occurrence", ment))?;
+    writeln!(out, "{}", stats("scope of a declaration (its variable and open lines; asked after the declaration is shown)", scope_lat))?;
+    writeln!(out, "{}", stats("card of a mentioned declaration (statement and lead of its documentation)", card_lat))?;
     let mut gl = Vec::new();
     let mut graph = None;
     for _ in 0..repeat.max(3) {

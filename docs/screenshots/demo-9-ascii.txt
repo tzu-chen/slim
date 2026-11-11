@@ -16,15 +16,15 @@ SlimDemo.Fixtures.Trust > Demo.Fixtures > oracle_axiom   | route: search "oracle
 |                        ||    g.searchWithin g.edges.length s t =   ||                            |
 |                        ||        true                              ||                            |
 |                        ||                                          ||                            |
+|                        ||In scope (source text) ------------------ ||                            |
+|                        ||  open Demo.Graph                         ||                            |
+|                        ||                                          ||                            |
 |                        ||Documentation --------------------------- ||                            |
 |                        || TEST FIXTURE: a custom axiom. It asserts ||                            |
 |                        || without proof that a search with as many ||                            |
-|                        || units of fuel as the graph has edges     ||                            |
-|                        || finds every reachable target. (The       ||                            |
-|                        || statement is true, since a shortest path ||                            |
-|                        || never uses an edge twice, but here it is ||----------------------------|
-|                        || assumed rather than proved.)             ||Demo.Graph occurs in the    |
-|                        ||                                          ||statement of                |
-|                        ||Status & evidence ----------------------- ||Fixtures.oracle_axiom       |
-+------------------------++------------------------------------ 43% -++----------------------------+
+|                        || units of fuel as the graph has edges     ||----------------------------|
+|                        || finds every reachable target. (The       ||Demo.Graph occurs in the    |
+|                        || statement is true, since a shortest path ||statement of                |
+|                        || never uses an edge twice, but here it is ||Fixtures.oracle_axiom       |
++------------------------++------------------------------------ 40% -++----------------------------+
  j/k scroll | s source | i implicit | m bookmark | a trail | * goal | M map | A goal view | [ ] back

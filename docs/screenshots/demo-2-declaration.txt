@@ -15,16 +15,16 @@ SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_correct   │ route: 
 │                        ││    (∃ fuel, g.searchWithin fuel s t =    ││  11 of 12 after filters    │
 │                        ││        true) ↔ g.Reach s t               ││▸ V thm   …chWithin_complete│
 │                        ││                                          ││▸ V struc Demo.Graph        │
-│                        ││Documentation ─────────────────────────── ││▸ V def   Demo.Graph.Reach  │
-│                        ││ TEST FIXTURE: a direct dependency on a   ││▸ V def   …raph.searchWithin│
-│                        ││ missing proof. This "the decision        ││▸ V thm   …earchWithin_sound│
-│                        ││ procedure is correct" theorem contains   ││▸ V induc Bool           lib│
-│                        ││ no `sorry` token, yet it uses            ││▸ V ctor  Bool.true      lib│
-│                        ││ `searchWithin_complete`, which is proved ││▸ V induc Eq             lib│
-│                        ││ by `sorry`. The absence of the word      ││▸ V induc Exists         lib│
-│                        ││ `sorry` in a proof proves nothing.       ││────────────────────────────│
-│                        ││                                          ││Demo.Graph occurs in the    │
-│                        ││Status & evidence ─────────────────────── ││statement of                │
-│                        ││ ✓ Lean 4.33.1 snapshot of                ││Fixtures.searchWithin_correc│
-╰────────────────────────╯╰──────────────────────────────────── 42% ─╯╰────────────────────────────╯
+│                        ││In scope (source text) ────────────────── ││▸ V def   Demo.Graph.Reach  │
+│                        ││  open Demo.Graph                         ││▸ V def   …raph.searchWithin│
+│                        ││                                          ││▸ V thm   …earchWithin_sound│
+│                        ││Documentation ─────────────────────────── ││▸ V induc Bool           lib│
+│                        ││ TEST FIXTURE: a direct dependency on a   ││▸ V ctor  Bool.true      lib│
+│                        ││ missing proof. This "the decision        ││▸ V induc Eq             lib│
+│                        ││ procedure is correct" theorem contains   ││▸ V induc Exists         lib│
+│                        ││ no `sorry` token, yet it uses            ││────────────────────────────│
+│                        ││ `searchWithin_complete`, which is proved ││Demo.Graph occurs in the    │
+│                        ││ by `sorry`. The absence of the word      ││statement of                │
+│                        ││ `sorry` in a proof proves nothing.       ││Fixtures.searchWithin_correc│
+╰────────────────────────╯╰──────────────────────────────────── 40% ─╯╰────────────────────────────╯
  j/k scroll · s source · i implicit · m bookmark · a trail · * goal · M map · A goal view · [ ] back

@@ -1132,6 +1132,12 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
     if let Some(b) = bundle {
         o.head(if app.ctx.mode == IndexMode::Semantic { "Statement (elaborated)" } else { "Statement (source text, not elaborated)" });
         o.lines.extend(statement_lines(app, b, o.w, None));
+        let sc = super::render::scope_lines(app, b.d.row.id, o.w);
+        if !sc.is_empty() {
+            o.lines.push(Line::from(""));
+            o.lines.extend(sc);
+            o.lines.pop();
+        }
     }
 
     if let Some(m) = &map {

@@ -106,7 +106,13 @@ const CONTINUATIONS: &[&str] = &[
     "let", "if", "match", "deriving", "extends", "termination_by", "decreasing_by", "in",
 ];
 
-fn strip_doc(raw: &str) -> String {
+/// A word that starts a command (a declaration keyword, a modifier or
+/// another command the scanner knows).
+pub(crate) fn is_command_word(w: &str) -> bool {
+    DECL_KEYWORDS.contains(&w) || MODIFIERS.contains(&w) || OTHER_COMMANDS.contains(&w)
+}
+
+pub(crate) fn strip_doc(raw: &str) -> String {
     let inner = raw
         .strip_prefix("/--")
         .or_else(|| raw.strip_prefix("/-!"))
@@ -331,6 +337,10 @@ impl<'a> Scanner<'a> {
                 any = true;
                 k += 1;
                 while k < n && self.toks[k].is_comment() {
+                    // The module doc usually follows the imports directly.
+                    if self.toks[k].kind == TokKind::ModDoc && self.out.module_doc.is_none() {
+                        self.out.module_doc = Some(strip_doc(self.toks[k].text(self.src)));
+                    }
                     k += 1;
                 }
             }
@@ -859,15 +869,16 @@ impl<'a> Scanner<'a> {
                         }
                     }
                 }
-                // `x y : T` fields: identifiers up to `:` on this line
-                let mut names = vec![(w.to_string(), t)];
+                // `x : T`, `x (a : A) : T` or `x a : T`: one field per line.
+                // Identifiers after the name are its binders, not more
+                // fields (several fields share a type only as `(x y : T)`).
+                let names = vec![(w.to_string(), t)];
                 let mut x = i + 1;
                 let mut ok = false;
                 while x < self.toks.len() && self.toks[x].line == t.line {
                     let tx = self.toks[x];
                     let wx = tx.text(self.src);
                     if tx.kind == TokKind::Ident {
-                        names.push((wx.to_string(), tx));
                     } else if wx == ":" || wx == ":=" || tx.kind == TokKind::Open {
                         ok = wx == ":" || tx.kind == TokKind::Open;
                         break;
@@ -1042,7 +1053,7 @@ end
             ("Demo.Rel.Graph", DeclKind::Structure),
             ("Demo.Rel.Graph.edges", DeclKind::Definition),
             ("Demo.Rel.Graph.size", DeclKind::Definition),
-            ("Demo.Rel.Graph.n", DeclKind::Definition),
+            // `size n : Nat` is one field with a binder (checked with Lean 4.33.1).
             ("Demo.Rel.instance : Inhabited Graph", DeclKind::Instance),
             ("top_level", DeclKind::Theorem),
             ("«weird name»", DeclKind::Definition),
@@ -1064,7 +1075,7 @@ end
         assert_eq!(fs.decls[5].sorry_line, Some(27));
         // The commented-out sorry did not leak into helper.
         assert!(fs.decls[4].flags & flags::LEX_SORRY == 0);
-        assert!(fs.decls[10].flags & flags::ANONYMOUS != 0);
+        assert!(fs.decls[9].flags & flags::ANONYMOUS != 0);
         assert!(fs.lex_ok);
         assert!(fs.issues.is_empty(), "{:?}", fs.issues);
     }

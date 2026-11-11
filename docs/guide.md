@@ -79,17 +79,24 @@ format, not a statement about the mathematics. It was written against revision `
    (This screen: `docs/screenshots/ym-2-goal.txt`.)
 
 3. **Read a declaration.** `Enter` opens the selected step in the declaration browser:
-   statement, documentation, evidence and the source excerpt. `s` shows the whole file with
-   syntax colours, `Esc` returns. Tab `1` (Mentions) lists identifiers in its text that match
-   indexed names; moving through that list highlights where each one is written.
-   `Backspace` goes back to the goal explorer, and keeps going back through everything you
-   visited.
+   statement, documentation, evidence and the source excerpt. Under the statement, *In scope*
+   lists the `variable` and `open` lines it is written under: `Accepted (hg : g.IsSimple)
+   (F : Spec.Final C o S)` is read with `variable {g : YangMills.GaugeGroup} {C : Family
+   g.core}` and `open YM …`. `s` shows the whole file with syntax colours, `Esc` returns.
+   Tab `1` (Mentions) lists the names in its text that are indexed declarations. `Tab` into
+   that list: moving through it highlights where each name is written and shows its card
+   (where it is declared, its statement, the lead of its documentation) under the declaration
+   you are reading; `Enter` opens it. `Backspace` goes back to the goal explorer, and keeps
+   going back through everything you visited.
 
 4. **Skim a component.** `M` returns to the map. Move to *Independent review: combined
    acceptance (A7)* (`j` four times) and press `S`: the 42 landmark statements of that group
    and its subgroups, each with the lead of its documentation and the number of proof lines
    folded away. `j`/`k` move by statement, `Enter` opens one, `Esc` closes the skim.
-   `S` works the same on a file or a directory.
+   `S` works the same on a file or a directory, and there it reads from top to bottom: on
+   one of the worked examples (in the outline, `docs` › `examples` › `OctoberChain`, then `S`)
+   the numbered sections of the walkthrough stand between its statements with the lead of
+   their prose. The outline lists the same headings under the file.
 
 5. **Follow a reading trail.** `T` lists five trails shipped with the map. Select the first,
    *First reading: statements, one witness, scope*, and press `Enter`: slim copies it
@@ -267,9 +274,14 @@ The screens say where a fact comes from in a few words and leave the explanation
 section and to the help overlay (`?`).
 
 * **lexical** (`[lex]`, the Mentions tab, source-only statements, `sorry` tokens, import lines):
-  read from the text of the files without running Lean. A mention is an identifier that equals
-  an indexed name; open namespaces, local variables, notation and macros are ignored, so Lean
-  may resolve it to something else, or to nothing. Mentions run outward only: there is no
+  read from the text of the files without running Lean. A mention is an identifier that names
+  an indexed declaration when it is looked up the way Lean does: under the enclosing
+  namespaces, innermost first, then as written and under the namespaces opened where the
+  declaration stands. Local variables, notation, macros and names that need a type (`h.symm`)
+  are not resolved, so Lean may read it as something else, or as nothing. A declaration is
+  listed once however it is spelled; `+N` after a row says that N other declarations have the
+  same name (a vendored copy, a reference beside its solution) and that the one in the nearest
+  file is listed. Mentions run outward only: there is no
   "mentioned by" (text search with `/` is the way to look for one). A source-only index has no
   dependency edges at all; the Used by, Axioms and Lean-dependency views need a semantic
   snapshot (`slim export`, see above).
@@ -284,8 +296,20 @@ section and to the help overlay (`?`).
 * **import layers**: build order, not mathematics. Module names are paths from the project
   root, so in a source-only index the files of a Lake `srcDir` show as external unless slim is
   opened on that directory.
+* **in scope** (under a statement): the `variable` and `open` lines in force where the
+  declaration stands, read from the text between the declarations of its file. Of the
+  variables, the binders whose names the declaration writes are shown, with those their types
+  mention and the anonymous instances about them; Lean decides what a declaration really
+  takes. A semantic index shows the `open` lines only: an elaborated statement already has
+  its binders.
+* **card**: with the right pane focused (`Tab`), the selected name shows where it is written,
+  its statement and the lead of its documentation under the declaration being read. `Enter`
+  opens it.
 * **skim**: statements without proofs. In a source-only index a statement is its header text
-  as written.
+  as written. A file is read from top to bottom: its doc sections (`/-! … -/`) keep their
+  headings and the lead of each, and the `variable` and `open` lines stand where they are
+  written, with the `end` of the scope that holds them. The outline lists the same headings
+  among a file's declarations.
 
 ## Syntax and semantic colours
 

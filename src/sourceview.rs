@@ -54,18 +54,58 @@ impl SourceFileText {
 
 /// Small LRU of recently read files (keyed by canonical path, validated by
 /// size and mtime before reuse).
+/// Lookups by name in the open index, remembered while it stays open
+/// (the cache is dropped when the index is reopened). Declarations of one
+/// file write mostly the same names.
+#[derive(Default)]
+pub struct NameMemo {
+    /// Full name → the declarations that have it (none: not in the index).
+    pub rows: std::collections::HashMap<String, Vec<crate::db::query::DeclRow>>,
+    /// Whether any declaration lies below a namespace.
+    pub namespaces: std::collections::HashMap<String, bool>,
+}
+
+impl NameMemo {
+    /// Keeps the memo small: it is rebuilt from the index as needed.
+    pub fn trim(&mut self) {
+        if self.rows.len() > 20_000 {
+            self.rows.clear();
+        }
+        if self.namespaces.len() > 10_000 {
+            self.namespaces.clear();
+        }
+    }
+}
+
 pub struct SourceCache {
     entries: VecDeque<SourceFileText>,
     cap: usize,
+    pub names: NameMemo,
+    /// What stands between the declarations of recently read modules
+    /// (module id, content hash).
+    scopes: VecDeque<(i64, String, Arc<crate::source::scope::FileScope>)>,
 }
 
 impl Default for SourceCache {
     fn default() -> Self {
-        SourceCache { entries: VecDeque::new(), cap: 8 }
+        SourceCache { entries: VecDeque::new(), cap: 8, names: NameMemo::default(), scopes: VecDeque::new() }
     }
 }
 
 impl SourceCache {
+    pub fn scope(&mut self, module: i64, sha256: &str) -> Option<Arc<crate::source::scope::FileScope>> {
+        let pos = self.scopes.iter().position(|(m, h, _)| *m == module && h == sha256)?;
+        let e = self.scopes.remove(pos)?;
+        let s = e.2.clone();
+        self.scopes.push_front(e);
+        Some(s)
+    }
+
+    pub fn put_scope(&mut self, module: i64, sha256: &str, s: Arc<crate::source::scope::FileScope>) {
+        self.scopes.push_front((module, sha256.to_string(), s));
+        self.scopes.truncate(32);
+    }
+
     pub fn get(&mut self, root: &Path, rel: &str) -> Result<SourceFileText> {
         let path = resolve_contained(root, rel)?;
         let md = std::fs::metadata(&path)?;

@@ -941,9 +941,11 @@ impl App {
         }
         match res {
             Ok(Some(b)) => {
+                let id = b.d.row.id;
                 self.v.detail.bundle = Some(b);
                 self.v.detail.bundle_name = name;
                 self.v.detail.missing = false;
+                self.request_scope(id);
             }
             Ok(None) => {
                 self.v.detail.bundle = None;

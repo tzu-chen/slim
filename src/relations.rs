@@ -229,8 +229,13 @@ pub const MAX_OCCURRENCES: usize = 200;
 
 #[derive(Clone, Debug)]
 pub struct Mention {
+    /// The identifier as first written.
     pub ident: String,
+    /// One row per distinct name it may stand for (almost always one).
     pub candidates: Vec<DeclRow>,
+    /// For each candidate: how many other declarations have its name
+    /// (copies of a file, a reference beside its solution).
+    pub same_name: Vec<u32>,
     /// Every place the identifier is written in the declaration's text.
     pub occurrences: Vec<Occurrence>,
 }
@@ -260,8 +265,11 @@ fn is_keyword(w: &str) -> bool {
 }
 
 /// Source "mentions": identifiers in the declaration's text that match
-/// indexed names exactly (as written, or qualified by an enclosing
-/// namespace). Purely lexical.
+/// indexed names the way Lean looks a name up: under the enclosing
+/// namespaces, innermost first; failing those, as written and under each
+/// namespace opened where the declaration stands. Purely lexical. A
+/// declaration is listed once, however often and however it is written;
+/// of several declarations with one name the nearest file is listed.
 pub fn lexical_mentions(conn: &Connection, root: Option<&Path>, cache: &mut SourceCache, id: i64) -> Result<Vec<Mention>> {
     let d = crate::db::query::detail(conn, id)?.ok_or_else(|| anyhow::anyhow!("declaration not found"))?;
     let (Some(root), Some(rel)) = (root, d.module_path.as_ref()) else { return Ok(Vec::new()) };
@@ -312,47 +320,105 @@ pub fn lexical_mentions(conn: &Connection, root: Option<&Path>, cache: &mut Sour
             }
         }
     }
-    // Candidate full names: as written, and under each enclosing namespace.
+    // The enclosing namespaces, innermost first.
     let ns = crate::model::namespace_of(&d.row.name).to_string();
     let comps = crate::model::name_components(&ns);
-    let mut prefixes: Vec<String> = (1..=comps.len()).rev().map(|k| comps[..k].join(".") + ".").collect();
-    prefixes.push(String::new());
+    let inner: Vec<String> = if ns.is_empty() { Vec::new() } else { (1..=comps.len()).rev().map(|k| comps[..k].join(".") + ".").collect() };
+    // The root and the opened namespaces. `open B` inside `namespace A`
+    // opens `A.B` when there is one; a namespace the index does not have
+    // (a library) cannot match anything and is left out.
+    let mut outer: Vec<String> = vec![String::new()];
+    let opens = crate::scope::opens(conn, Some(root), cache, &d);
+    cache.names.trim();
+    {
+        let mut has = conn.prepare_cached("SELECT 1 FROM decls WHERE name >= ?1 AND name < ?2 LIMIT 1")?;
+        for o in opens.into_iter().take(16) {
+            for p in inner.iter().map(|s| s.as_str()).chain(std::iter::once("")) {
+                let full = format!("{p}{o}");
+                let there = match cache.names.namespaces.get(&full) {
+                    Some(&x) => x,
+                    None => {
+                        let x = has.exists(rusqlite::params![format!("{full}."), format!("{full}/")])?;
+                        cache.names.namespaces.insert(full.clone(), x);
+                        x
+                    }
+                };
+                if there {
+                    let full = full + ".";
+                    if !outer.contains(&full) && !inner.contains(&full) {
+                        outer.push(full);
+                    }
+                }
+            }
+        }
+    }
     let mut wanted: Vec<String> = Vec::new();
     for ident in &idents {
-        for p in &prefixes {
-            wanted.push(format!("{p}{ident}"));
+        for p in inner.iter().chain(outer.iter()) {
+            let full = format!("{p}{ident}");
+            if !cache.names.rows.contains_key(&full) {
+                wanted.push(full);
+            }
         }
     }
     wanted.sort();
     wanted.dedup();
-    // One indexed IN-query per 400 names instead of one query per name.
-    let mut found: HashMap<String, Vec<DeclRow>> = HashMap::new();
+    // One indexed IN-query per 400 names instead of one query per name;
+    // names looked up before are remembered.
     for chunk in wanted.chunks(400) {
         let marks = vec!["?"; chunk.len()].join(",");
         let mut st = conn.prepare(&format!("SELECT {ROW_COLS} FROM decls d LEFT JOIN modules m ON m.id = d.module_id WHERE d.name IN ({marks})"))?;
         let rows = st.query_map(rusqlite::params_from_iter(chunk.iter()), row_from)?;
         for r in rows {
             let r = r?;
-            if r.id != id {
-                found.entry(r.name.clone()).or_default().push(r);
-            }
+            cache.names.rows.entry(r.name.clone()).or_default().push(r);
         }
     }
-    let mut out = Vec::new();
+    for w in wanted {
+        cache.names.rows.entry(w).or_default();
+    }
+    let memo = &cache.names.rows;
+    // The declaration itself is not one of its mentions.
+    let found = |full: &str| -> Option<Vec<DeclRow>> {
+        let rows: Vec<DeclRow> = memo.get(full)?.iter().filter(|r| r.id != id).cloned().collect();
+        (!rows.is_empty()).then_some(rows)
+    };
+    // Of several declarations with one name: the one in the nearest file.
+    let here: Vec<&str> = d.row.module.as_deref().map(crate::model::name_components).unwrap_or_default();
+    let nearest = |rows: &[DeclRow]| -> DeclRow {
+        let near = |r: &DeclRow| -> usize {
+            let m = r.module.as_deref().map(crate::model::name_components).unwrap_or_default();
+            let shared = here.iter().zip(m.iter()).take_while(|(a, b)| a == b).count();
+            // The same file beats any file beside it.
+            shared * 2 + (m.len() == here.len() && shared == here.len()) as usize
+        };
+        rows.iter().max_by_key(|r| (near(r), std::cmp::Reverse(r.id))).cloned().expect("a found name has a row")
+    };
+    let mut out: Vec<Mention> = Vec::new();
+    let mut by_target: HashMap<i64, usize> = HashMap::new();
     for (ident, occurrences) in idents.into_iter().zip(places) {
-        let mut cands: Vec<DeclRow> = Vec::new();
-        for p in &prefixes {
-            if let Some(rows) = found.get(&format!("{p}{ident}")) {
-                for r in rows {
-                    if cands.len() < 5 && !cands.iter().any(|x| x.id == r.id) {
-                        cands.push(r.clone());
-                    }
-                }
+        let hit = |p: &String| found(&format!("{p}{ident}"));
+        let mut groups: Vec<Vec<DeclRow>> = inner.iter().find_map(hit).into_iter().collect();
+        if groups.is_empty() {
+            groups = outer.iter().filter_map(hit).take(5).collect();
+        }
+        if groups.is_empty() {
+            continue;
+        }
+        let candidates: Vec<DeclRow> = groups.iter().map(|g| nearest(g)).collect();
+        let same_name: Vec<u32> = groups.iter().map(|g| g.len() as u32 - 1).collect();
+        // Another spelling of a declaration already listed joins its row.
+        if let [only] = candidates.as_slice() {
+            if let Some(&k) = by_target.get(&only.id) {
+                let m = &mut out[k];
+                m.occurrences.extend(occurrences);
+                m.occurrences.sort_by_key(|o| (o.line, o.start));
+                m.occurrences.truncate(MAX_OCCURRENCES);
+                continue;
             }
+            by_target.insert(only.id, out.len());
         }
-        if !cands.is_empty() {
-            out.push(Mention { ident, candidates: cands, occurrences });
-        }
+        out.push(Mention { ident, candidates, same_name, occurrences });
     }
     Ok(out)
 }

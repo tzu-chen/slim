@@ -327,7 +327,9 @@ fn every_recorded_occurrence_of_a_mention_is_that_identifier_in_the_file() {
             assert!(!m.occurrences.is_empty(), "{} has no recorded place", m.ident);
             for o in &m.occurrences {
                 let line = lines[o.line as usize - 1];
-                assert_eq!(&line[o.start as usize..o.end as usize], m.ident, "line {} of {path}", o.line);
+                // Every spelling of the declaration is a place: `refl` and `ReflTransGen.refl`.
+                let written = &line[o.start as usize..o.end as usize];
+                assert_eq!(written.rsplit('.').next(), m.ident.rsplit('.').next(), "line {} of {path}", o.line);
                 assert!((o.line as i64) >= first && (o.line as i64) <= last, "{} at line {} is outside the declaration ({first}-{last})", m.ident, o.line);
                 checked += 1;
             }
@@ -343,6 +345,38 @@ fn every_recorded_occurrence_of_a_mention_is_that_identifier_in_the_file() {
     // And the reflexivity constructor twice, once in each branch.
     let refl = ms.iter().find(|m| m.ident == "Rel.ReflTransGen.refl").unwrap();
     assert_eq!(refl.occurrences.iter().map(|o| o.line).collect::<Vec<_>>(), vec![76, 84]);
+}
+
+/// A statement is read with the lines it is written under, and a name is
+/// found the way Lean looks it up.
+#[test]
+fn a_declaration_is_read_in_its_scope() {
+    let (_d, project, idx) = source_project();
+    let conn = db::open_read(&idx).unwrap();
+    let mut cache = SourceCache::default();
+    let root = Some(project.root.as_path());
+    let detail = |name: &str| query::detail(&conn, query::decl_by_name(&conn, name).unwrap().unwrap()).unwrap().unwrap();
+    // `single` writes `r`, `a`, `b`: their binders, and `α` through their types.
+    let d = detail("Demo.Rel.ReflTransGen.single");
+    let sc = slim::scope::decl_scope(&conn, root, &mut cache, &d, true).unwrap();
+    assert_eq!(sc.lines.iter().map(|l| l.text.as_str()).collect::<Vec<_>>(), vec!["variable {α : Type u}", "variable {r : Rel α} {a b c : α}"]);
+    assert_eq!(sc.hidden, 0);
+    // A name under an opened namespace; every declaration is listed once.
+    let d = detail("Demo.Fixtures.searchWithin_correct");
+    assert_eq!(slim::scope::opens(&conn, root, &mut cache, &d), vec!["Demo.Graph"]);
+    let ms = slim::relations::lexical_mentions(&conn, root, &mut cache, d.row.id).unwrap();
+    let targets: Vec<&str> = ms.iter().flat_map(|m| m.candidates.iter().map(|c| c.name.as_str())).collect();
+    assert!(targets.contains(&"Demo.Graph.searchWithin_sound") && targets.contains(&"Demo.Graph"), "{targets:?}");
+    let mut once = targets.clone();
+    once.sort();
+    once.dedup();
+    assert_eq!(once.len(), targets.len(), "{targets:?}");
+    // Its card: the statement as written and the lead of its documentation.
+    let mut env = slim::skim::Env { conn: &conn, mode: db::IndexMode::Source, source_root: root, cache: &mut cache, map: None, show_generated: true };
+    let p = slim::skim::peek(&mut env, query::decl_by_name(&conn, "Demo.Graph.searchWithin_sound").unwrap().unwrap()).unwrap().unwrap();
+    assert!(p.decl.sig.starts_with("theorem searchWithin_sound {g : Graph}") && !p.decl.sig.contains(":="), "{}", p.decl.sig);
+    assert!(p.decl.doc.as_deref().is_some_and(|d| d.starts_with("Soundness of the search")));
+    assert_eq!(p.path.as_deref(), Some("SlimDemo/Graph/Search.lean"));
 }
 
 #[test]

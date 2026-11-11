@@ -10,8 +10,20 @@
   Duplicate full names (often `private` helpers in different files) are flagged ambiguous.
 * Extents are approximate: a declaration ends at the next recognised command head. Unindented
   tactic proofs that contain a blank line followed by a column-0 word can end early.
-* Structure fields are recognised on lines of the form `name … : T`; binder-style field groups and
-  field docstrings are not. Constructor docstrings are not attached.
+* Structure fields are recognised on lines of the form `name … : T` (identifiers after the name
+  are its binders, as in Lean); binder-style field groups `(x y : T)` and field docstrings are
+  not. Constructor docstrings are not attached.
+* **In scope** is read from the text between declarations: `variable`, `open` and `universe`
+  commands with the section or namespace they end with. A command produced by a macro is not
+  seen, `omit` and `include` are not applied, and which variables a declaration takes is
+  decided by the names it writes (a theorem: in its statement; anything else: in its whole
+  text, the first 16 KiB), not by Lean. `open A (x y)`, `hiding` and `renaming` count as
+  `open A`.
+* **Mentions** look a name up under the enclosing namespaces, then as written and under the
+  opened namespaces that exist in the index. Names that need a type (`h.symm`, `x.1`), names
+  from libraries that are not indexed, and names made by attributes such as `@[to_additive]`
+  are not found. A short local name that equals a declaration's name is listed as that
+  declaration.
 * Module names are paths relative to the project root; a `srcDir` in the Lake configuration is
   not honoured (imports to such modules then show as external).
 * Lexical observations are reported as such: a `sorry` token is evidence of a placeholder in the

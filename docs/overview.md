@@ -30,6 +30,13 @@ selected declaration, `Esc` closes.
   the keyword are not shown. When a file changed since it was indexed, the stored byte offsets
   are not applied to it: names only, with a warning.
 * **Semantic:** the elaborated signature from the snapshot, as Lean printed it.
+* **A file is read from top to bottom.** Its doc sections (`/-! … -/`) are kept where they
+  stand: each Markdown heading with the lead of the text under it, and how many lines were
+  folded. In a source-only index the `variable` and `open` lines its statements are written
+  under are kept too, with the `end` of the scope that holds them. Only the text between the
+  declarations is lexed for this. A namespace or map-group skim picks declarations out of
+  their files and shows neither; a semantic index reads the prose of a single-file skim only
+  (its other skims do not open the files).
 * **Bounded:** 1,500 declarations and 150 files per skim; a statement longer than 1,600 bytes
   is cut. Each of these is said on screen when it happens.
 
@@ -120,6 +127,72 @@ own estimate; `slim imports` on CFSG peaks at 182 MiB resident.
 
 **Not measured:** a before/after comparison of scan time and of the browser's memory with the
 same session; frame times of the new views on CFSG; the semantic path beyond the demo snapshot.
+
+## Reading a statement in its scope
+
+Added on 2026-11-11 for reading a large, sparsely documented project (the YM repository:
+9,564 files, 6% of its declarations documented, a small human-written layer of checks and
+worked examples on top of a machine-written one).
+
+* **In scope.** Under a statement, the `variable` and `open` lines in force where the
+  declaration stands. They are read from the text *between* the declarations of its file (the
+  extents of the declarations are in the index), with the section or namespace each command
+  ends with. Asked for after the declaration is shown, so opening a declaration takes as long
+  as before.
+* **Mentions follow Lean's lookup.** A name is tried under the enclosing namespaces, innermost
+  first; failing those, as written and under each opened namespace that exists in the index.
+  A declaration is listed once, however it is spelled and however often; of several
+  declarations with the same name the one in the nearest file is listed, with `+N` for the
+  others. Names and namespaces looked up are remembered while the index stays open.
+* **Cards.** With the right pane focused, the selected name shows where it is written, its
+  statement and the lead of its documentation under the declaration being read (under the
+  list when the terminal has no room for both panes).
+* **Prose in skims and in the outline.** See "Skim" above; an expanded file in the outline
+  lists the headings of its doc sections among its declarations.
+
+Two defects of the scanner were found on the way and fixed, so a source-only index written
+by an older slim is built again when its project is opened (YM: under a second; CFSG: about
+20 s):
+
+* a module doc that directly follows the imports was dropped (the next doc block of the file,
+  if any, was recorded as its module doc). On YM the files with a recorded module doc went
+  from 832 to 7,711 of 9,564;
+* in a structure, the identifiers after a field name were recorded as further fields
+  (`order_le m : …` gave a field `m`); they are binders, as Lean 4.33.1 confirms. On YM this
+  removed 5,666 candidates, and the scan reports 894 ambiguous names instead of 4,633.
+
+Measured on 2026-11-11 with the build before this work and the build after it, on the same
+index, 2 CPUs under `research-safe-run`, warm page cache, one `slim bench --index` run each
+(raw output in `docs/bench/scope.md`). Milliseconds, p50 / p95, before → after.
+
+| | YM (9,564 files, 119,730 candidates) | CFSG (229,089 files, 2.36 M candidates) |
+|---|---|---|
+| declaration detail | 0.06 / 0.07 → 0.05 / 0.06 | 0.06 / 0.06 → 0.06 / 0.06 |
+| declarations of a module (outline) | 0.03 / 0.05 → 0.03 / 0.04 | 0.03 / 0.10 → 0.03 / 0.10 |
+| name search, whole index | 0.34 / 4.5 → 0.30 / 3.9 | 4.6 / 30.0 → 4.8 / 28.3 |
+| skim of a file | 0.12 / 0.18 → 0.13 / 0.18 | 0.14 / 0.35 → 0.16 / 0.39 |
+| skim of a directory (bounded) | 1.7 / 7.9 → 2.1 / 9.5 | 9.7 / 12.9 → 10.9 / 14.4 |
+| skim of a namespace | 0.87 / 6.6 → 0.85 / 6.3 | 2.3 / 17.7 → 2.3 / 18.1 |
+| mentions with positions | 0.18 / 0.41 → 0.30 / 1.1 (max 0.85 → 2.6) | 0.21 / 0.58 → 0.31 / 1.4 (max 1.8 → 3.9) |
+| scope of a declaration (new) | 0.10 / 0.13 | 0.09 / 0.11 |
+| card of a declaration (new) | 0.04 / 0.04 | 0.04 / 0.04 |
+
+Two paths are slower. A directory skim now also reads the prose and the scope lines of its
+files (about 0.4 ms more on YM, 1.2 ms on CFSG). A mention lookup on a declaration picked at
+random costs about half as much again at the median and two to three times as much at p95: it
+reads the `open` lines of the file and tries each name under the opened namespaces too. The
+benchmark picks declarations all over the project, which is the worst case for the name memo;
+moving through one file was not measured separately. Everything else is within the noise of
+two runs.
+
+Scans with 2 threads into an empty cache: YM 0.80, 0.72, 0.72 s before and 0.72, 0.71, 0.71 s
+after; CFSG 21.5, 20.6 s before and 19.5, 19.4 s after (the runs of one build after the
+other's, so the difference on CFSG is not established). Index sizes: YM 30.0 → 31.0 MiB (module docs
+now recorded), CFSG 652.6 → 652.4 MiB. Peak resident memory of the benchmark process: YM
+54 → 57 MiB, CFSG 534 → 526 MiB (one run each).
+
+**Not measured:** frame times with the card and the scope section on screen; the semantic
+path beyond the demo snapshot; a session that stays in one file.
 
 ## Tests
 
