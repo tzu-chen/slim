@@ -1,4 +1,9 @@
-# slim
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/slim-dark.svg">
+    <img src="assets/logo/slim-light.svg" alt="slim" height="72">
+  </picture>
+</h1>
 
 A fast terminal navigator for **reading** large Lean 4 projects: find a theorem, read its
 statement, documentation and source, follow what it depends on and what depends on it, and get

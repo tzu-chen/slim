@@ -78,3 +78,9 @@ own fixture files.
 * [Giallo](https://github.com/getzola/giallo) 0.6.0 is licensed EUPL-1.2, a copyleft licence;
   linking it into this Apache-2.0 program would need a licensing decision that is the project
   owner's to make. It was therefore not adopted (a licensing reason, not a performance one).
+
+## Logo
+
+The wordmark in `assets/logo/` is set in [Inter](https://github.com/rsms/inter) Medium
+(Copyright © The Inter Project Authors, SIL Open Font License 1.1) and stored as outlines; the
+font itself is not bundled. `scripts/make-logo.py` draws the files. The colours are lean-lang.org's.
