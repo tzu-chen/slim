@@ -28,6 +28,10 @@ jobs:
       RUST_TOOLCHAIN: '1.99.1'
       CARGO_TERM_COLOR: always
       TARGET: ${{ matrix.target }}
+      # Distributed binaries carry no debug info (Cargo.toml keeps it for local
+      # builds); symbol names stay, so backtraces remain readable.
+      CARGO_PROFILE_RELEASE_DEBUG: '0'
+      CARGO_PROFILE_RELEASE_STRIP: debuginfo
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
