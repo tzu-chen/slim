@@ -19,6 +19,12 @@
   decided by the names it writes (a theorem: in its statement; anything else: in its whole
   text, the first 16 KiB), not by Lean. `open A (x y)`, `hiding` and `renaming` count as
   `open A`.
+* **Statement and proof** are told apart by where the header text ends; a semantic index
+  has no such boundary for source mentions, so there they are not split (its Lean edges
+  are). "What it states" takes the whole text of every declaration that is not a theorem,
+  including a definition written with tactics.
+* **Glosses** are attached to full names: a renamed or moved declaration loses its gloss
+  (it stays in the data file). They are not exported with trails.
 * **Mentions** look a name up under the enclosing namespaces, then as written and under the
   opened namespaces that exist in the index. Names that need a type (`h.symm`, `x.1`), names
   from libraries that are not indexed, and names made by attributes such as `@[to_additive]`

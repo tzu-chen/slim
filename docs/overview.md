@@ -149,6 +149,15 @@ worked examples on top of a machine-written one).
   list when the terminal has no room for both panes).
 * **Prose in skims and in the outline.** See "Skim" above; an expanded file in the outline
   lists the headings of its doc sections among its declarations.
+* **Statement and proof.** A mention knows whether it is written in the statement or after
+  it. The Mentions tab lists the two apart, and the goal explorer can follow one part only
+  (`y`). *What it states* follows the statement of a theorem and the whole of anything else,
+  for Lean edges as for mentions: `Accepted` unfolds into its seven clause structures and no
+  proof is entered.
+* **Glosses** (`;`). A line of the reader's own about a name, stored in the reader's data
+  (an added table, not a new schema version: an older slim still opens the file), held in
+  memory by the browser and shown beside the name in lists, cards, skims and the goal
+  explorer. Search lists the names whose gloss holds every word of the query.
 
 Two defects of the scanner were found on the way and fixed, so a source-only index written
 by an older slim is built again when its project is opened (YM: under a second; CFSG: about

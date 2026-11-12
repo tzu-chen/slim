@@ -1222,7 +1222,7 @@ impl App {
                         hidden.push(format!("{} generated", cap(p.hidden_generated)));
                     }
                     if p.hidden_kind > 0 {
-                        hidden.push(format!("{} other-kind", p.hidden_kind));
+                        hidden.push(format!("{} in the other part", p.hidden_kind));
                     }
                     if !hidden.is_empty() {
                         rows.push(GRow::Note { node: i, text: format!("hidden: {} (H)", hidden.join(", ")), warn: false });
@@ -2323,7 +2323,7 @@ impl App {
             KeyCode::Char('y') => {
                 self.v.goal.tb = self.v.goal.tb.next();
                 self.v.goal.reveal_hidden = false;
-                let s = format!("Lean edges: {}", self.v.goal.tb.label());
+                let s = format!("follows: {}", self.v.goal.tb.label());
                 self.goal_refilter(s);
             }
             KeyCode::Char('H') => {

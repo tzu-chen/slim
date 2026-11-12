@@ -3,9 +3,9 @@ CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.FinalTheorem › CFSG › odd_order_the
 ╭ Outline [declarations] ────╮╭ Declaration ───────────────────────────────────────╮╭ [1 Ment] 2 By 3 Evid 4 Mod 5 Idx ╮
 │      thm pfSection13… :1980││theorem CFSG.odd_order_theorem                      ││Mentions (lexical, not resolved   │
 │      thm pfSection13… :1998││module CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.Fina││  by Lean)                        │
-│      thm pfSection13… :2014││    lTheorem · CFSG/ThirdParty/QiuzhenCFSG/FeitThomp││odd_order_theorem_of_pfSection14F…│
-│      thm pfSection14… :2029││    son/FinalTheorem.lean:2083 · source candidate   ││pfSection14FinalDataBridge_theore…│
-│      thm pfSection14… :2042││                                                    ││                                  │
+│      thm pfSection13… :2014││    lTheorem · CFSG/ThirdParty/QiuzhenCFSG/FeitThomp││in its proof / body — 2           │
+│      thm pfSection14… :2029││    son/FinalTheorem.lean:2083 · source candidate   ││odd_order_theorem_of_pfSection14F…│
+│      thm pfSection14… :2042││                                                    ││pfSection14FinalDataBridge_theore…│
 │      thm pfSection14… :2052││Statement (source text, not elaborated) ─────────── ││                                  │
 │      thm odd_order_t… :2062││  theorem CFSG.odd_order_theorem : ∀ (G : Type u)   ││                                  │
 │      thm odd_order_t… :2074││      [Group G] [Finite G], Odd (Nat.card G) →      ││                                  │

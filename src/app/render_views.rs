@@ -115,7 +115,9 @@ fn draw_outline(f: &mut Frame, area: Rect, app: &mut App) {
     let mut list = inner;
     // The goal explorer keeps its relation kind, direction and filters in view.
     if app.v.view == View::Goal && inner.height > 6 {
-        let [head, rest] = Layout::vertical([Constraint::Length(3), Constraint::Min(1)]).areas(inner);
+        // A relation other than the map's follows one part of a declaration.
+        let parts = app.v.goal.mode != RelMode::Curated;
+        let [head, rest] = Layout::vertical([Constraint::Length(if parts { 4 } else { 3 }), Constraint::Min(1)]).areas(inner);
         list = rest;
         let g = &app.v.goal;
         let l1 = format!("relation: {}", g.mode.label());
@@ -126,14 +128,6 @@ fn draw_outline(f: &mut Frame, area: Rect, app: &mut App) {
         } else {
             fl.push(if app.filters.local_only { "local only".into() } else { "local+ext".to_string() });
             fl.push(if app.filters.show_generated { "+generated".into() } else { "generated off".to_string() });
-            if matches!(g.mode, RelMode::Lean | RelMode::Mixed) {
-                fl.push(match g.tb {
-                    crate::relations::TypeBody::All => "T+V+C",
-                    crate::relations::TypeBody::Type => "T only",
-                    crate::relations::TypeBody::Body => "V only",
-                }
-                .to_string());
-            }
         }
         let l3 = format!("show: {}", fl.join(&format!(" {} ", app.sym.sep)));
         let unavailable = g.mode == RelMode::Lean && app.ctx.mode == IndexMode::Source;
@@ -142,6 +136,7 @@ fn draw_outline(f: &mut Frame, area: Rect, app: &mut App) {
                 Line::from(Span::styled(truncate(&chrome(app, &l1), w, app.ascii), if unavailable { t.warn } else { t.accent })),
                 Line::from(Span::styled(truncate(l2, w, app.ascii), t.dim)),
                 Line::from(Span::styled(truncate(&chrome(app, &l3), w, app.ascii), t.dim)),
+                Line::from(Span::styled(truncate(&format!("follows: {}", if g.reveal_hidden { "all parts" } else { g.tb.short() }), w, app.ascii), t.dim)),
             ]),
             head,
         );
@@ -464,6 +459,13 @@ fn goal_row_line(app: &App, i: usize, w: usize, sel: bool, focused: bool) -> Lin
                 let mark = if n.backref { " " } else if n.expanded { s.expanded } else { s.collapsed };
                 format!("{ind}{mark} {}{kind} {}", label_tags(&n.labels), clean(app, &short(&display)))
             };
+            // The reader's gloss, in the room the name leaves.
+            if let Some(gl) = app.glosses.get(&n.name) {
+                let used = text_width(&left) + right.iter().map(|x| text_width(x) + 1).sum::<usize>() + 4;
+                if w > used + 8 {
+                    right.insert(0, format!("= {}", truncate(&sanitize(gl, app.ascii), w - used, app.ascii)));
+                }
+            }
             row_line(app, &left, &right.join(" "), w, sel_style(app, sel, focused, if n.depth == 0 { t.decl_name } else { t.text }), rs, sel)
         }
         GRow::More { node, remaining, capped, .. } => {
@@ -1021,6 +1023,10 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
             }
             loc.push_str(&format!(" · {}", b.d.row.origin.label()));
             o.text(&loc, t.dim);
+            // The map's purpose has its own section below.
+            if let Some(g) = app.glosses.get(name) {
+                o.text(&format!("= {g}"), t.accent);
+            }
         }
         None => {
             o.lines.push(Line::from(Span::styled(clean(app, name), t.decl_name)));
@@ -1093,7 +1099,7 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
                 o.item(s.bullet, format!("hidden: {} Lean-generated (G, H)", cap(p.hidden_generated)), t.text);
             }
             if p.hidden_kind > 0 {
-                o.item(s.bullet, format!("hidden: {} edges of the other kind (y, H)", p.hidden_kind), t.text);
+                o.item(s.bullet, format!("hidden: {} in the part not followed (y, H)", p.hidden_kind), t.text);
             }
         }
     }

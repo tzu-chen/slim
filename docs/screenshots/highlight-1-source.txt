@@ -2,8 +2,8 @@
 SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_succ   │ route: search “searchWithin_succ” Fixtures.searchWithin_succ
 ╭ Search [local+lib] ─────────────────╮╭ Source …o/Fixtures/Trust.lean │ syntax + semantic (complete) ──╮╭ [1 Ment] 2 By 3 Evid 4 Mod 5 Idx ─────────╮
 │/ searchWithin_succ                  ││ 47 │ `sorry` token in its source text but still depends on     ││Mentions (lexical, not resolved by Lean)   │
-│1 name match · 0 in map · 0 ms       ││    │   `sorryAx`. -/                                           ││Graph → struc Demo.Graph                   │
-│ thm   …xtures.searchWithin_succ name││ 48 │ macro "fixture_trust_me" : tactic => `(tactic| sorry)     ││                                           │
+│1 name match · 0 in map · 0 ms       ││    │   `sorryAx`. -/                                           ││in its statement — 1                       │
+│ thm   …xtures.searchWithin_succ name││ 48 │ macro "fixture_trust_me" : tactic => `(tactic| sorry)     ││Graph → struc Demo.Graph                   │
 │                                     ││ 49 │                                                           ││                                           │
 │                                     ││ 50 │ /-- TEST FIXTURE: proved only by the `fixture_trust_me`   ││                                           │
 │                                     ││    │   macro, that is, by a hidden `sorry`.                    ││                                           │

@@ -2,8 +2,8 @@
 SlimDemo.Fixtures.Trust╭ Highlighting ────────────────────────────────────────────────────────────────────────────────────────╮
 ╭ Search [local+lib] ──│SETTINGS                                                                                              │ 4 Mod 5 Idx ─────────╮
 │/ searchWithin_succ   │  Highlighting mode: syntax + semantic (F4 cycles: syntax + semantic, syntax, off)                    │t resolved by Lean)   │
-│1 name match · 0 in ma│  Syntax theme: Dark+ (VS Code default dark), following the UI theme (F5 cycles; a theme change       │aph                   │
-│ thm   …xtures.searchW│      re-resolves styles, cached tokens stay)                                                         │                      │
+│1 name match · 0 in ma│  Syntax theme: Dark+ (VS Code default dark), following the UI theme (F5 cycles; a theme change       │                      │
+│ thm   …xtures.searchW│      re-resolves styles, cached tokens stay)                                                         │aph                   │
 │                      │  Stale preview: off (palette: Semantic highlighting: stale preview)                                  │                      │
 │                      │  Baseline provider: textmate-e1/vscode-lean4 0.0.240/9a799ff454ffe6fe                                │                      │
 │                      │                                                                                                      │                      │
@@ -17,8 +17,8 @@ SlimDemo.Fixtures.Trust╭ Highlighting ─────────────�
 │                      │  Imported sources: unchanged (4 local modules, contents hashed now).                                 │                      │
 │                      │  Build relation: compiled imports are the ones present at extraction. At extraction: 4 local         │                      │
 │                      │      imports, each .olean at least as new as its source when indexed.                                │                      │
-│                      │  Extracted 2026-11-11T14:49:34Z with Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit          │                      │
-│                      │      819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release) (slim-semhl-1, positions utf-16), in 0.4 s.  │                      │
+│                      │  Extracted 2026-11-11T15:18:14Z with Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit          │                      │
+│                      │      819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release) (slim-semhl-1, positions utf-16), in 0.3 s.  │                      │
 │                      │  Worker cache: 0.0 MiB of 128 MiB                                                                    │                      │
 │                      │                                                                                                      │                      │
 │                      │SEMANTIC INDEXING                                                                                     │                      │

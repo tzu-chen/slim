@@ -3,17 +3,17 @@ Goal explorer │ ◎ goal: Demo.Graph.searchWithin_sound │ Lean deps │ uses
 ╭ Goal explorer ─────────────────────────╮╭ Detail ────────────────────────────────────────────────╮
 │relation: Lean dependencies             ││theorem Demo.Graph.searchWithin_sound                   │
 │direction: uses (A lists what A needs)  ││ module SlimDemo.Graph.Search ·                         │
-│show: local+ext │ generated off │ T+V+C ││     SlimDemo/Graph/Search.lean:69 · local              │
-│▾ ◎ Demo.Graph.searchWithin_sound       ││ ◎ the pinned goal                                      │
-│  ▸ [T+V] struc Demo.Graph              ││                                                        │
-│  ▸ [T+V] def Graph.Reach               ││Its relations in this outline ───────────────────────── │
-│  ▸ [T+V] def Graph.searchWithin        ││ Lean edges before filters: T 7 · V 9 · C 0             │
-│  ▸ [T+V] induc Bool                 lib││ · hidden: 2 Lean-generated (G, H)                      │
-│  ▸ [T+V] ctor Bool.true             lib││                                                        │
-│  ▸ [T+V] induc Eq                   lib││Purpose ─────────────────────────────────────────────── │
-│  ▸ [T+V] induc Nat                  lib││ If the Boolean search answers true, the target really  │
-│  hidden: 2 generated (H)               ││  is reachable from the source.                         │
-│                                        ││ annotation: authored                                   │
+│show: local+ext │ generated off         ││     SlimDemo/Graph/Search.lean:69 · local              │
+│follows: all parts                      ││ ◎ the pinned goal                                      │
+│▾ ◎ Demo.Graph.searchWithin_sound       ││                                                        │
+│  ▸ [T+V] struc Demo.Graph              ││Its relations in this outline ───────────────────────── │
+│  ▸ [T+V] def Graph.Reach               ││ Lean edges before filters: T 7 · V 9 · C 0             │
+│  ▸ [T+V] def Graph.searchWithin        ││ · hidden: 2 Lean-generated (G, H)                      │
+│  ▸ [T+V] induc Bool                 lib││                                                        │
+│  ▸ [T+V] ctor Bool.true             lib││Purpose ─────────────────────────────────────────────── │
+│  ▸ [T+V] induc Eq                   lib││ If the Boolean search answers true, the target really  │
+│  ▸ [T+V] induc Nat                  lib││  is reachable from the source.                         │
+│  hidden: 2 generated (H)               ││ annotation: authored                                   │
 │                                        ││                                                        │
 │                                        ││Explanation ─────────────────────────────────────────── │
 │                                        ││ The search is a depth-first exploration that spends    │

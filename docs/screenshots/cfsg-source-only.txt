@@ -2,10 +2,10 @@
 CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.FinalTheorem › CFSG › odd_order_theorem   │ route: search “odd_order_theorem” C
 ╭ Search [local+lib] ────────╮╭ Declaration ───────────────────────────────────────╮╭ [1 Ment] 2 By 3 Evid 4 Mod 5 Idx ╮
 │/ odd_order_theorem         ││theorem CFSG.odd_order_theorem                      ││Mentions (lexical, not resolved   │
-│4 name matches · 5 text · 6…││module CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.Fina││  by Lean)                        │
-│ thm   …d_order_theorem name││    lTheorem · CFSG/ThirdParty/QiuzhenCFSG/FeitThomp││odd_order_theorem_of_pfSection14F…│
-│ thm   …nalDataBridge prefix││    son/FinalTheorem.lean:2083 · source candidate   ││pfSection14FinalDataBridge_theore…│
-│ thm   …mpleReduction prefix││                                                    ││                                  │
+│4 name matches · 5 text · 5…││module CFSG.ThirdParty.QiuzhenCFSG.FeitThompson.Fina││  by Lean)                        │
+│ thm   …d_order_theorem name││    lTheorem · CFSG/ThirdParty/QiuzhenCFSG/FeitThomp││in its proof / body — 2           │
+│ thm   …nalDataBridge prefix││    son/FinalTheorem.lean:2083 · source candidate   ││odd_order_theorem_of_pfSection14F…│
+│ thm   …mpleReduction prefix││                                                    ││pfSection14FinalDataBridge_theore…│
 │ def   …oddOrderTheorem word││Statement (source text, not elaborated) ─────────── ││                                  │
 │── documentation / statemen…││  theorem CFSG.odd_order_theorem : ∀ (G : Type u)   ││                                  │
 │ thm   …_right_solvable text││      [Group G] [Finite G], Odd (Nat.card G) →      ││                                  │

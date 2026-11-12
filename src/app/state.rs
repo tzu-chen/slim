@@ -165,6 +165,8 @@ pub enum LeftItem {
     Result { row: DeclRow, tier: Option<MatchTier> },
     /// A group, objective or landmark placement of the project map.
     MapHit { key: String, label: String, what: &'static str },
+    /// A declaration whose gloss (the reader's own) matches the query.
+    Gloss { name: String, text: String },
     Section(String),
 }
 
@@ -389,6 +391,8 @@ pub enum Fresh {
 #[derive(Clone, Debug)]
 pub enum InputPurpose {
     BookmarkNote { name: String },
+    /// The reader's one-line gloss of a declaration.
+    Gloss { name: String, display: String },
     StopAdd { stop: Box<Stop> },
     StopNote { id: i64 },
     StopQuestion { id: i64 },
@@ -438,6 +442,7 @@ pub enum Cmd {
     ToggleBookmark,
     AddToTrail,
     EditNote,
+    Gloss,
     ExportTrail,
     ToggleLocal,
     ToggleGenerated,
@@ -491,6 +496,7 @@ pub const COMMANDS: &[(Cmd, &str, &str)] = &[
     (Cmd::ToggleBookmark, "Bookmark / unbookmark current declaration", "m"),
     (Cmd::AddToTrail, "Add the selected declaration or group to the active trail (with note)", "a"),
     (Cmd::EditNote, "Edit note of the selected bookmark", "n"),
+    (Cmd::Gloss, "Gloss: your one-line note on the selected name, shown beside it everywhere", ";"),
     (Cmd::ExportTrail, "Export a reading trail as Markdown", "E"),
     (Cmd::ToggleLocal, "Filter: local only / library-inclusive", "L"),
     (Cmd::ToggleGenerated, "Filter: show / hide Lean-generated declarations", "G"),
@@ -620,6 +626,8 @@ pub struct App {
     /// The `variable` and `open` lines in force at recently shown declarations.
     pub scopes: HashMap<i64, crate::scope::DeclScope>,
     /// Cards of the declarations selected in the right pane.
+    /// The reader's glosses, by declaration name.
+    pub glosses: HashMap<String, String>,
     pub cards: HashMap<i64, Arc<crate::skim::Peek>>,
     pub card_asked: Option<i64>,
     /// Set by the renderer: the centre pane is not beside the right pane,
@@ -694,6 +702,7 @@ impl App {
             detail: None,
             detail_error: None,
             scopes: HashMap::new(),
+            glosses: HashMap::new(),
             cards: HashMap::new(),
             card_asked: None,
             card_under_list: false,
@@ -1377,6 +1386,54 @@ impl App {
         }
     }
 
+    /// What is said beside a name: the reader's gloss (true), else the
+    /// purpose the project map gives it (false).
+    pub fn gloss_of(&self, name: &str) -> Option<(&str, bool)> {
+        if let Some(g) = self.glosses.get(name) {
+            return Some((g.as_str(), true));
+        }
+        self.map()?.landmark(name)?.purpose.as_deref().filter(|p| !p.trim().is_empty()).map(|p| (p, false))
+    }
+
+    /// The declaration a gloss is written for: the name selected where the
+    /// reader is, with what is known to start the text from (the map's
+    /// purpose, else the lead of its documentation).
+    fn gloss_target(&self) -> Option<(String, String, Option<String>)> {
+        let lead = |doc: Option<&str>| doc.and_then(crate::skim::doc_lead);
+        let (name, display, doc): (String, String, Option<String>) = if self.v.view != View::Browse {
+            let b = self.subject_bundle()?;
+            (b.d.row.name.clone(), b.d.row.display.clone(), lead(b.d.doc.as_deref()))
+        } else {
+            let from_row = |r: &DeclRow| (r.name.clone(), r.display.clone(), self.cards.get(&r.id).and_then(|p| p.decl.doc.clone()));
+            let current = || self.detail.as_ref().map(|b| (b.d.row.name.clone(), b.d.row.display.clone(), lead(b.d.doc.as_deref())));
+            match self.focus {
+                Focus::Right => match self.right.rows.get(self.right.list.selected) {
+                    Some(RRow::Item { row, .. } | RRow::Mention { row, .. } | RRow::Evidence { row, .. }) => from_row(row),
+                    _ => current()?,
+                },
+                Focus::Left => match self.left_mode {
+                    LeftMode::Search => match self.search.items.get(self.search.list.selected) {
+                        Some(LeftItem::Result { row, .. }) => from_row(row),
+                        Some(LeftItem::Gloss { name, .. }) => (name.clone(), short_name(name), None),
+                        _ => current()?,
+                    },
+                    LeftMode::Outline => match self.outline.rows.get(self.outline.list.selected) {
+                        Some(OutlineRow::Decl { item, .. }) => from_row(&item.row),
+                        _ => current()?,
+                    },
+                    _ => current()?,
+                },
+                Focus::Center if self.center_mode == CenterMode::Skim => match self.center.skim.selected() {
+                    Some(d) => (d.row.name.clone(), d.row.display.clone(), d.doc.clone()),
+                    None => current()?,
+                },
+                Focus::Center => current()?,
+            }
+        };
+        let seed = self.map().and_then(|m| m.landmark(&name)).and_then(|l| l.purpose.clone()).or(doc);
+        Some((name, display, seed))
+    }
+
     /// Declaration ids belong to an index: what was read for them goes with it.
     fn forget_derived(&mut self) {
         self.scopes.clear();
@@ -1431,6 +1488,21 @@ impl App {
                 let listing = res.query.trim().is_empty();
                 let map_hits = if listing { Vec::new() } else { self.map().map(|m| m.search(&res.query, 8)).unwrap_or_default() };
                 let mut items: Vec<LeftItem> = Vec::new();
+                // The reader's own words for a name find it too.
+                let words: Vec<String> = res.query.split_whitespace().map(|w| w.to_lowercase()).collect();
+                let mut glossed: Vec<(&String, &String)> = if listing || res.query.trim().len() < 2 {
+                    Vec::new()
+                } else {
+                    self.glosses.iter().filter(|(_, t)| { let t = t.to_lowercase(); words.iter().all(|w| t.contains(w.as_str())) }).collect()
+                };
+                glossed.sort();
+                if !glossed.is_empty() {
+                    items.push(LeftItem::Section(format!("your glosses ({})", glossed.len())));
+                    items.extend(glossed.into_iter().take(8).map(|(n, t)| LeftItem::Gloss { name: n.clone(), text: t.clone() }));
+                    if map_hits.is_empty() {
+                        items.push(LeftItem::Section("declarations".into()));
+                    }
+                }
                 if !map_hits.is_empty() {
                     items.push(LeftItem::Section(format!("project map ({})", map_hits.len())));
                     items.extend(map_hits.iter().map(|h| LeftItem::MapHit { key: h.key.clone(), label: h.label.clone(), what: h.what }));
@@ -1670,10 +1742,24 @@ impl App {
                         if ms.is_empty() {
                             self.right.rows.push(RRow::Text { text: "no identifier equals an indexed name".into(), warn: false });
                         }
-                        for m in ms {
-                            let occ = Arc::new(m.occurrences);
-                            for (row, also) in m.candidates.into_iter().zip(m.same_name) {
-                                self.right.rows.push(RRow::Mention { ident: m.ident.clone(), row, occ: occ.clone(), also });
+                        // As the Lean tab does: what the statement writes, then
+                        // what only the proof or body writes (when the index
+                        // knows where the statement ends).
+                        use crate::relations::Part;
+                        let split = ms.iter().any(|m| m.part != Part::Unknown);
+                        let (stmt, body): (Vec<_>, Vec<_>) = ms.into_iter().partition(|m| !split || m.part != Part::Body);
+                        for (group, title) in [(stmt, "in its statement"), (body, "in its proof / body")] {
+                            if group.is_empty() {
+                                continue;
+                            }
+                            if split {
+                                self.right.rows.push(RRow::Header { text: format!("{title} — {}", group.len()), kind: None });
+                            }
+                            for m in group {
+                                let occ = Arc::new(m.occurrences);
+                                for (row, also) in m.candidates.into_iter().zip(m.same_name) {
+                                    self.right.rows.push(RRow::Mention { ident: m.ident.clone(), row, occ: occ.clone(), also });
+                                }
                             }
                         }
                         self.apply_right_restore();
@@ -1909,6 +1995,16 @@ impl App {
                         self.bookmarks.loaded = true;
                     }
                     UserData::Reading(r) => self.on_reading(*r),
+                    UserData::Glosses(v) => {
+                        self.glosses = v.into_iter().collect();
+                        // Every pane that shows names caches its rows.
+                        self.center.version += 1;
+                        self.center.skim.version += 1;
+                        self.v.detail.version += 1;
+                        if !self.search.query.is_empty() {
+                            self.run_search();
+                        }
+                    }
                     UserData::BookmarkNames(v) => {
                         self.v.detail.version += 1;
                         self.bookmarked = v.into_iter().collect();
@@ -2715,6 +2811,7 @@ impl App {
             KeyCode::Char('m') => self.run_cmd(Cmd::ToggleBookmark),
             KeyCode::Char('a') => self.run_cmd(Cmd::AddToTrail),
             KeyCode::Char('n') => self.run_cmd(Cmd::EditNote),
+            KeyCode::Char(';') => self.run_cmd(Cmd::Gloss),
             KeyCode::Char('E') => self.run_cmd(Cmd::ExportTrail),
             KeyCode::Char('L') => self.run_cmd(Cmd::ToggleLocal),
             KeyCode::Char('G') => self.run_cmd(Cmd::ToggleGenerated),
@@ -2870,7 +2967,7 @@ impl App {
                 }
                 match self.left_mode {
                     LeftMode::Search => {
-                        if matches!(self.search.items.get(idx), Some(LeftItem::Result { .. }) | Some(LeftItem::MapHit { .. })) {
+                        if matches!(self.search.items.get(idx), Some(LeftItem::Result { .. }) | Some(LeftItem::MapHit { .. }) | Some(LeftItem::Gloss { .. })) {
                             self.search.list.selected = idx;
                             self.open_left_selection(false);
                         }
@@ -2976,6 +3073,19 @@ impl App {
                     }
                     _ => self.msg("no bookmark here (notes of trail stops are edited in the trails view)"),
                 },
+            },
+            Cmd::Gloss => match self.gloss_target() {
+                Some((name, display, seed)) => {
+                    // An existing gloss is edited; a new one starts from what
+                    // is already known about the name, for the reader to cut.
+                    let text = self.glosses.get(&name).cloned().or(seed).unwrap_or_default();
+                    self.overlay = Overlay::Input {
+                        prompt: format!("Gloss for {display} (one line, shown beside the name; empty removes):"),
+                        purpose: InputPurpose::Gloss { name, display },
+                        text,
+                    };
+                }
+                None => self.msg("select a declaration first"),
             },
             Cmd::ExportTrail => self.cmd_export_trail(),
             Cmd::ToggleLocal => {
@@ -3174,6 +3284,7 @@ impl App {
         let note = if text.trim().is_empty() { None } else { Some(text.trim().to_string()) };
         match purpose {
             InputPurpose::BookmarkNote { name } => self.q(QueryReq::SetBookmarkNote { name, note }),
+            InputPurpose::Gloss { name, display } => self.q(QueryReq::SetGloss { name, display, text: note }),
             InputPurpose::StopAdd { mut stop } => {
                 stop.note = note;
                 self.q(QueryReq::StopAdd { trail: None, stop: *stop });
@@ -3439,6 +3550,13 @@ impl App {
                     if let Some(LeftItem::MapHit { key, .. }) = self.search.items.get(self.search.list.selected).cloned() {
                         self.set_view(View::Map);
                         self.map_reveal(&key);
+                        return;
+                    }
+                    if let Some(LeftItem::Gloss { name, .. }) = self.search.items.get(self.search.list.selected).cloned() {
+                        self.current_how = "gloss".into();
+                        self.goto_name(name);
+                        self.focus = Focus::Center;
+                        self.search.editing = false;
                         return;
                     }
                     self.open_left_selection(true);
@@ -4077,8 +4195,8 @@ mod tests {
         let row = |id: i64, n: &str| DeclRow { id, name: n.into(), display: n.into(), kind: crate::model::DeclKind::Theorem, origin: Origin::Local, flags: 0, module: None };
         let occ = |line: u32, start: u32| Occurrence { line, start, end: start + 3 };
         let ms = vec![
-            Mention { ident: "foo".into(), candidates: vec![row(2, "A.foo"), row(3, "B.foo")], same_name: vec![0, 0], occurrences: vec![occ(40, 4), occ(41, 9)] },
-            Mention { ident: "bar".into(), candidates: vec![row(4, "A.bar")], same_name: vec![0], occurrences: vec![occ(12, 0)] },
+            Mention { ident: "foo".into(), candidates: vec![row(2, "A.foo"), row(3, "B.foo")], same_name: vec![0, 0], part: crate::relations::Part::Unknown, occurrences: vec![occ(40, 4), occ(41, 9)] },
+            Mention { ident: "bar".into(), candidates: vec![row(4, "A.bar")], same_name: vec![0], part: crate::relations::Part::Unknown, occurrences: vec![occ(12, 0)] },
         ];
         let gen = a.gens.right;
         a.handle(Event::Query(QueryResp::Mentions(gen, Ok(ms))));

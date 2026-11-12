@@ -344,6 +344,7 @@ fn attach(app: &mut App, workers: &mut Workers, ctx: &IndexCtx, tx: &Sender<Even
     let _ = app.ch.query.as_ref().unwrap().send(QueryReq::Info { gen });
     let gen = app.gens.bump();
     let _ = app.ch.query.as_ref().unwrap().send(QueryReq::LoadBookmarks { gen });
+    let _ = app.ch.query.as_ref().unwrap().send(QueryReq::LoadGlosses);
     // Trails, questions and the pinned goal (the project map arrives by itself).
     let _ = app.ch.query.as_ref().unwrap().send(QueryReq::LoadReading);
     // Restore the previous session for this project, if any.

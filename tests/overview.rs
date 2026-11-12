@@ -371,6 +371,17 @@ fn a_declaration_is_read_in_its_scope() {
     once.sort();
     once.dedup();
     assert_eq!(once.len(), targets.len(), "{targets:?}");
+    // What it states and what only its proof writes.
+    use slim::relations::{Part, TypeBody};
+    let part = |n: &str| ms.iter().find(|m| m.candidates[0].name == n).map(|m| m.part);
+    assert_eq!((part("Demo.Graph"), part("Demo.Graph.searchWithin_sound")), (Some(Part::Statement), Some(Part::Body)));
+    let said = slim::relations::mentions_for(&conn, root, &mut cache, d.row.id, TypeBody::Says).unwrap();
+    let said: Vec<&str> = said.iter().map(|m| m.candidates[0].name.as_str()).collect();
+    assert!(said.contains(&"Demo.Graph") && !said.contains(&"Demo.Graph.searchWithin_sound"), "{said:?}");
+    // A definition is what its body says: nothing of it is left out.
+    let def = detail("Demo.Graph.searchWithin");
+    let all = slim::relations::lexical_mentions(&conn, root, &mut cache, def.row.id).unwrap().len();
+    assert_eq!(slim::relations::mentions_for(&conn, root, &mut cache, def.row.id, TypeBody::Says).unwrap().len(), all);
     // Its card: the statement as written and the lead of its documentation.
     let mut env = slim::skim::Env { conn: &conn, mode: db::IndexMode::Source, source_root: root, cache: &mut cache, map: None, show_generated: true };
     let p = slim::skim::peek(&mut env, query::decl_by_name(&conn, "Demo.Graph.searchWithin_sound").unwrap().unwrap()).unwrap().unwrap();
