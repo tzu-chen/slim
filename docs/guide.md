@@ -313,6 +313,19 @@ section and to the help overlay (`?`).
   mention and the anonymous instances about them; Lean decides what a declaration really
   takes. A semantic index shows the `open` lines only: an elaborated statement already has
   its binders.
+* **resolved by Lean at build** (the Mentions and Used by tabs of a built project): when a
+  project has been built, Lake has written beside each `.olean` an `.ilean` file: every
+  constant the module refers to, with the module that declares it and the source range of each
+  use, as the elaborator resolved it. slim uses a file's references only when Lake's own
+  hashes (in the `.trace` beside it) say that the `.ilean` was built from exactly the text on
+  screen; then the Mentions tab is headed *References (resolved by Lean at build)*, lists
+  library names too (`lib`), and highlights exactly the places Lean recorded. Tab 2 lists the
+  declarations that use the open one. A library name shows a card read from its package (or
+  from Lean's own sources), and `Enter` opens it there. Otherwise, and in a project that was
+  never built, the tab is lexical and says so. This is what Lean resolved when the project was
+  built; slim does not build, re-check or replay anything. Only names are listed: Lean also
+  resolves notations, anonymous constructors and `.1`, which are left out. Local variables
+  are not in these files.
 * **statement and proof**: the Mentions tab lists first what the statement writes (its
   header, up to `:=`, `where` or the first `|`), then what only the proof or body writes. In
   the goal explorer `y` chooses the part that is followed: everything, *what it states*, the
@@ -375,6 +388,13 @@ Outdated semantic colours are not shown unless you ask for the labelled stale pr
   files and a local SQLite index; it starts no Lean, Lake, LSP, editor, hook or network access.
   Indexes and reading data live in `~/.cache/slim` and `~/.local/share/slim`
   (override: `--cache-dir`, `SLIM_CACHE_DIR`, `SLIM_DATA_DIR`), never in the project.
+* **Build artifacts are read as data, when there are any.** In a project that was built,
+  slim reads the `.ilean` and `.trace` files Lake wrote under `.lake/build` (JSON: which
+  constant each name was resolved to, and what the artifacts were built from). It loads no
+  `.olean`, runs nothing and writes nothing there. For the card of a library declaration it
+  also reads that library's `.ilean` and source file, under `.lake/packages` or in the
+  toolchain `lean-toolchain` names; module names from the artifacts are checked before they
+  are used as paths.
 * **The project map is only read.** `lean-view.toml` is parsed as data (nothing in it is
   executed) and never rewritten; a malformed file is reported and left as it is. The one command
   that writes a map, `slim map init -o FILE`, refuses to overwrite. No model, API key or

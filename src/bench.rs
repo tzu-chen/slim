@@ -573,6 +573,8 @@ pub fn run_on_index(idx: &Path, repeat: usize, seed: u64, out: &mut dyn Write) -
     let mut cache = crate::sourceview::SourceCache::default();
     let (mut sk_file, mut sk_dir, mut sk_ns, mut ment) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     let (mut scope_lat, mut card_lat) = (Vec::new(), Vec::new());
+    let (mut tab_lat, mut by_lat, mut lean_files) = (Vec::new(), Vec::new(), 0usize);
+    let mut lib_names: Vec<(String, String, String)> = Vec::new();
     let (mut dir_decls, mut dir_n) = (0usize, 0usize);
     for _ in 0..repeat.min(2) {
         for r in sample.iter().take(60) {
@@ -599,6 +601,18 @@ pub fn run_on_index(idx: &Path, repeat: usize, seed: u64, out: &mut dyn Write) -
                 let _ = crate::relations::lexical_mentions(&conn, root.as_deref(), &mut cache, r.id)?;
                 ment.push(t.elapsed().as_secs_f64() * 1000.0);
             }
+            if mode == db::IndexMode::Source {
+                // The Mentions tab: Lean's references when the build
+                // artifacts are of this text, else the lexical lookup.
+                let t = Instant::now();
+                let m = crate::relations::mentions(&conn, root.as_deref(), &mut cache, r.id)?;
+                tab_lat.push(t.elapsed().as_secs_f64() * 1000.0);
+                lean_files += m.lean as usize;
+                let seen_in: Option<String> = conn.query_row("SELECT m.path FROM decls d JOIN modules m ON m.id = d.module_id WHERE d.id = ?1", [r.id], |x| x.get(0)).ok().flatten();
+                if let Some(seen_in) = seen_in {
+                    lib_names.extend(m.items.iter().flat_map(|x| x.candidates.iter()).filter(|c| c.id < 0).filter_map(|c| Some((c.module.clone()?, c.name.clone(), seen_in.clone()))));
+                }
+            }
             // As the worker answers them: after the declaration itself.
             let t = Instant::now();
             if let Some(d) = query::detail(&conn, r.id)? {
@@ -615,6 +629,31 @@ pub fn run_on_index(idx: &Path, repeat: usize, seed: u64, out: &mut dyn Write) -
     writeln!(out, "{}", stats(&format!("skim of a directory (bounded: {} declarations, {} files; {} declarations on average here)", crate::skim::MAX_DECLS, crate::skim::MAX_FILES, dir_decls / dir_n.max(1)), sk_dir))?;
     writeln!(out, "{}", stats("skim of a namespace", sk_ns))?;
     writeln!(out, "{}", stats("lexical mentions of a declaration, with the position of every occurrence", ment))?;
+    writeln!(out, "{}", stats(&format!("Mentions tab (Lean's references for {lean_files} of {} declarations, lexical for the rest)", tab_lat.len()), tab_lat))?;
+    if let (db::IndexMode::Source, Some(root)) = (mode, root.as_deref()) {
+        let t = Instant::now();
+        let ix = crate::leanrefs::ref_index(&conn, root, &mut cache)?;
+        let build_ms = t.elapsed().as_secs_f64() * 1000.0;
+        if ix.read_files > 0 {
+            for r in sample.iter().take(120) {
+                let t = Instant::now();
+                let _ = crate::leanrefs::used_by(&conn, root, &mut cache, &r.name, r.module.as_deref(), r.id, 300)?;
+                by_lat.push(t.elapsed().as_secs_f64() * 1000.0);
+            }
+            writeln!(out, "{}", stats(&format!("used by, from the build artifacts ({} uses in {} of {} files; read once in {build_ms:.0} ms)", ix.uses, ix.read_files, ix.local_files), by_lat))?;
+        }
+    }
+    if let Some(root) = root.as_deref().filter(|_| !lib_names.is_empty()) {
+        lib_names.sort();
+        lib_names.dedup_by(|a, b| a.0 == b.0 && a.1 == b.1);
+        let (mut lat, mut found) = (Vec::new(), 0usize);
+        for (m, n, seen_in) in lib_names.iter().take(300) {
+            let t = Instant::now();
+            found += crate::leanrefs::lib_peek(root, seen_in, m, n, &mut cache).ok().flatten().is_some() as usize;
+            lat.push(t.elapsed().as_secs_f64() * 1000.0);
+        }
+        writeln!(out, "{}", stats(&format!("card of a library declaration, through its module's .ilean and source ({found} of {} found)", lat.len()), lat))?;
+    }
     writeln!(out, "{}", stats("scope of a declaration (its variable and open lines; asked after the declaration is shown)", scope_lat))?;
     writeln!(out, "{}", stats("card of a mentioned declaration (statement and lead of its documentation)", card_lat))?;
     let mut gl = Vec::new();

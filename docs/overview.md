@@ -203,6 +203,57 @@ now recorded), CFSG 652.6 → 652.4 MiB. Peak resident memory of the benchmark p
 **Not measured:** frame times with the card and the scope section on screen; the semantic
 path beyond the demo snapshot; a session that stays in one file.
 
+## Lean's references from the build artifacts
+
+Added on 2026-11-11. In a project that was built, the Mentions tab and the Used by tab of a
+source-only index come from Lean itself, without running it.
+
+* **What is read.** `X.ilean` beside `X.olean`: for every constant the module refers to, the
+  declaring module, the full name and the range of each use (0-based lines, UTF-16 columns;
+  version 3 up to Lean 4.21, version 5 from 4.28, which also names the declaration a use
+  stands in). `X.trace`: what Lake built the artifacts from.
+* **Where.** In the build directory of the Lake package a file belongs to: the nearest
+  directory at or above the file, inside the opened one, that has a lakefile or a
+  `.lake/build`. A repository that keeps its package in a subdirectory can be opened at its
+  root.
+* **The fingerprint.** Lake records a 64-bit hash of the source text (line endings
+  normalised) and of the `.ilean`. slim computes the same hashes (MurmurHash64A with seed 11,
+  mixed into 1723) and uses a file's references only when both match. On HaagerupIzumi
+  (Lean 4.33.1) the recorded source hash equals the hash of the file for all 1,373 modules
+  whose source is there. Nothing is cached on disk: reading the artifacts again is as fast as
+  reading a copy of them would be, and a copy could go stale. What was read is kept in memory
+  while the index is open, by path and content hash.
+* **Mentions.** Every use inside the declaration whose text is the constant's own name; the
+  statement and proof parts as before; rows of the index where the name is indexed, else the
+  name and its module (`lib`).
+* **Cards of library declarations.** Through the `.ilean` of the declaring module (in the
+  project, a package under `.lake/packages`, or the toolchain) to the place its name is
+  written, and from there the statement and documentation as the scanner reads that file. A
+  name an attribute made (`add_zero` from `mul_one` by `to_additive`) shows the declaration it
+  was made from and says so. A library's artifacts carry no hash of its source (Mathlib's come
+  from a cache, Lean's with the toolchain), so there the only check is that a name stands at
+  the recorded place.
+* **Used by.** All `.ilean` files of the project whose hashes match are turned around once
+  per open index; a use is given to the declaration of the index whose lines hold it. Files
+  without matching artifacts are counted and said. A project whose `.ilean` files exceed
+  96 MiB together is not read this way.
+
+Measured on HaagerupIzumi (1,435 files, 15,360 candidates; 2 CPUs under `research-safe-run`,
+warm page cache, one `slim bench --index` run), milliseconds, p50 / p95 / max:
+
+| | |
+|---|---|
+| Mentions tab (Lean's references for 116 of 120 sampled declarations) | 0.23 / 1.1 / 4.5 |
+| the lexical lookup alone, same declarations | 0.21 / 0.45 / 0.62 |
+| reading the project's references for Used by (231,527 uses, 1,373 of 1,435 files), once | 125 |
+| Used by, per declaration | 0.04 / 0.19 / 2.2 |
+| card of a library declaration (84 names) | 0.69 / 2.3 / 3.0 |
+
+**Not measured or not run:** a project with far more or far larger `.ilean` files; any
+toolchain other than 4.33.1 end to end. The `.ilean` files of the installed toolchains 4.16
+to 4.35 were looked at and the reader accepts both of their layouts, but the `.trace` layout
+is known for 4.33.1 only; a `.trace` that is not read means the lexical tab, not a guess.
+
 ## Tests
 
 Unit tests for the import graph, skim, scoped search, the outline order, marks and the views;

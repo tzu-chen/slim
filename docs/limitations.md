@@ -19,6 +19,16 @@
   decided by the names it writes (a theorem: in its statement; anything else: in its whole
   text, the first 16 KiB), not by Lean. `open A (x y)`, `hiding` and `renaming` count as
   `open A`.
+* **Lean's references** need a build that is still of the files as they are: a file edited
+  since, a project never built (no `.lake`), or a Lake whose `.trace` slim does not read
+  (checked on 4.33.1 only) all give the lexical tab. They hold constants only (no local
+  hypotheses), and of those slim lists the ones written by name. They are used by the Mentions
+  and Used by tabs of a source-only index; the goal explorer's source mentions and the
+  connection search are still lexical, and a semantic index does not use them. The hash that
+  ties artifacts to text is Lake's 64-bit one. A library declaration's card cannot be tied to
+  its source that way, and a declaration in the toolchain can be read but not opened (it lies
+  outside the project). "Used by" lists by line: a use is given to the innermost indexed
+  declaration around it.
 * **Statement and proof** are told apart by where the header text ends; a semantic index
   has no such boundary for source mentions, so there they are not split (its Lean edges
   are). "What it states" takes the whole text of every declaration that is not a theorem,

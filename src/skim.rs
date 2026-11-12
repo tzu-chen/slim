@@ -80,6 +80,14 @@ pub enum SkimItem {
 pub struct Peek {
     pub decl: SkimDecl,
     pub path: Option<String>,
+    /// For a declaration outside the index: its file below the project
+    /// root and the line it is declared on, when it lies inside the project.
+    pub source: Option<(String, usize)>,
+}
+
+/// A statement cut to the length a skim shows.
+pub fn cut_statement(s: &str) -> (String, bool) {
+    cut(s, MAX_SIG_BYTES)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -532,7 +540,7 @@ pub fn peek(env: &mut Env, id: i64) -> Result<Option<Peek>> {
         }
         path = p;
     }
-    Ok(Some(Peek { decl: decl_item(env.mode, r, file.as_ref()), path }))
+    Ok(Some(Peek { decl: decl_item(env.mode, r, file.as_ref()), path, source: None }))
 }
 
 fn raw_by_id(conn: &Connection, id: i64) -> Result<Option<Raw>> {

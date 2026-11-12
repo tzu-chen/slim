@@ -252,11 +252,14 @@ pub enum RRow {
     /// `also`: other declarations that have the same name.
     Mention { ident: String, row: DeclRow, occ: Arc<Vec<Occurrence>>, also: u32 },
     Module { module: ModuleRow, flags: i64, current: bool },
+    /// A declaration that uses the open one (from the build artifacts):
+    /// how often, and the first line.
+    User { row: DeclRow, uses: u32, line: u32 },
 }
 
 impl RRow {
     pub fn selectable(&self) -> bool {
-        matches!(self, RRow::Item { .. } | RRow::More { .. } | RRow::Evidence { .. } | RRow::Mention { .. } | RRow::Module { .. })
+        matches!(self, RRow::Item { .. } | RRow::More { .. } | RRow::Evidence { .. } | RRow::Mention { .. } | RRow::Module { .. } | RRow::User { .. })
     }
 }
 
@@ -276,6 +279,11 @@ pub struct RightPane {
     /// The reader moved through the mentions list: the occurrences of the
     /// selected identifier are highlighted in the centre pane.
     pub marks_on: bool,
+    /// The rows of the Mentions tab are Lean's references (from the build
+    /// artifacts), not lexical matches.
+    pub lean: bool,
+    /// Why they are, or are not (shown in the Index tab).
+    pub refs_status: Option<String>,
 }
 
 #[derive(Default)]
@@ -1011,8 +1019,17 @@ impl App {
 
     /// The places to highlight in the centre pane: where the identifier of
     /// the selected row of the Mentions tab is written.
+    /// The whole-file view shows another file than the open declaration's
+    /// (a library declaration opened from its card).
+    pub fn source_is_foreign(&self) -> bool {
+        match (&self.center.source, self.detail.as_ref().and_then(|d| d.d.module_path.as_ref())) {
+            (Some(s), Some(p)) => self.center_mode == CenterMode::Source && s.rel_path != *p,
+            _ => false,
+        }
+    }
+
     pub fn mention_marks(&self) -> Option<&Arc<Vec<Occurrence>>> {
-        if !self.right.marks_on || self.right.stale || self.right_tab != RightTab::Uses {
+        if !self.right.marks_on || self.right.stale || self.right_tab != RightTab::Uses || self.source_is_foreign() {
             return None;
         }
         match self.right.rows.get(self.right.list.selected) {
@@ -1038,6 +1055,7 @@ impl App {
         self.center.version += 1;
         let Some(line) = first else { return };
         match self.center_mode {
+            CenterMode::Source if self.source_is_foreign() => {}
             CenterMode::Source => self.reveal_in_source(line),
             CenterMode::Decl => self.center.reveal_line = Some(line),
             CenterMode::Skim => {}
@@ -1113,11 +1131,8 @@ impl App {
             }),
             (RightTab::Axioms, IndexMode::Semantic) => self.q(QueryReq::Evidence { gen, id }),
             (RightTab::Uses, IndexMode::Source) => self.q(QueryReq::Mentions { gen, id }),
-            (RightTab::UsedBy, IndexMode::Source) => {
-                self.begin_right_content();
-                self.right.rows.push(RRow::Header { text: "Used by: not available".into(), kind: None });
-                self.right.rows.push(RRow::Text { text: "a source-only index has no dependency edges; a semantic snapshot has them".into(), warn: false });
-            }
+            // Lean's own references, when the project was built.
+            (RightTab::UsedBy, IndexMode::Source) => self.q(QueryReq::UsedBy { gen, id }),
             (RightTab::Axioms, IndexMode::Source) => {
                 self.begin_right_content();
                 self.build_source_evidence_rows();
@@ -1371,7 +1386,7 @@ impl App {
             return None;
         }
         match self.right.rows.get(self.right.list.selected)? {
-            RRow::Item { row, .. } | RRow::Mention { row, .. } | RRow::Evidence { row, .. } => Some(row.id),
+            RRow::Item { row, .. } | RRow::Mention { row, .. } | RRow::Evidence { row, .. } | RRow::User { row, .. } => Some(row.id),
             _ => None,
         }
     }
@@ -1382,7 +1397,18 @@ impl App {
             self.card_asked = Some(id);
             let gen = self.gens.bump();
             self.gens.peek = gen;
-            self.q(QueryReq::Peek { gen, id });
+            // A declaration the index does not hold is found by its name,
+            // through the build artifacts of the module that declares it.
+            let seen_in = self.detail.as_ref().and_then(|d| d.d.module_path.clone());
+            let lib = match self.right.rows.get(self.right.list.selected) {
+                Some(RRow::Mention { row, .. }) if id < 0 => row.module.clone().zip(seen_in).map(|(m, s)| (m, row.name.clone(), s)),
+                _ => None,
+            };
+            match lib {
+                Some((module, name, seen_in)) => self.q(QueryReq::PeekLib { gen, key: id, module, name, seen_in }),
+                None if id < 0 => self.card_asked = None,
+                None => self.q(QueryReq::Peek { gen, id }),
+            }
         }
     }
 
@@ -1408,7 +1434,7 @@ impl App {
             let current = || self.detail.as_ref().map(|b| (b.d.row.name.clone(), b.d.row.display.clone(), lead(b.d.doc.as_deref())));
             match self.focus {
                 Focus::Right => match self.right.rows.get(self.right.list.selected) {
-                    Some(RRow::Item { row, .. } | RRow::Mention { row, .. } | RRow::Evidence { row, .. }) => from_row(row),
+                    Some(RRow::Item { row, .. } | RRow::Mention { row, .. } | RRow::Evidence { row, .. } | RRow::User { row, .. }) => from_row(row),
                     _ => current()?,
                 },
                 Focus::Left => match self.left_mode {
@@ -1688,6 +1714,9 @@ impl App {
                 match res {
                     Ok(b) => {
                         let id = b.d.row.id;
+                        if self.detail.as_ref().map(|d| &d.d.module_path) != Some(&b.d.module_path) {
+                            self.right.refs_status = None;
+                        }
                         self.detail = Some(b);
                         self.detail_error = None;
                         self.center.version += 1;
@@ -1738,10 +1767,21 @@ impl App {
                 match res {
                     Ok(ms) => {
                         // What a mention is and is not is in the help and the docs.
-                        self.right.rows.push(RRow::Header { text: "Mentions (lexical, not resolved by Lean)".into(), kind: None });
+                        self.right.lean = ms.lean;
+                        self.right.refs_status = Some(ms.status.explain());
+                        let title = if ms.lean { "References (resolved by Lean at build)" } else { "Mentions (lexical, not resolved by Lean)" };
+                        self.right.rows.push(RRow::Header { text: title.into(), kind: None });
+                        let mut ms = ms.items;
                         if ms.is_empty() {
-                            self.right.rows.push(RRow::Text { text: "no identifier equals an indexed name".into(), warn: false });
+                            let none = if self.right.lean { "no declaration is written by name" } else { "no identifier equals an indexed name" };
+                            self.right.rows.push(RRow::Text { text: none.into(), warn: false });
                         }
+                        // Library names follow the same filter as the Lean tabs.
+                        let before = ms.len();
+                        if self.filters.local_only {
+                            ms.retain(|m| m.candidates.iter().any(|r| r.origin != Origin::Library));
+                        }
+                        let hidden = before - ms.len();
                         // As the Lean tab does: what the statement writes, then
                         // what only the proof or body writes (when the index
                         // knows where the statement ends).
@@ -1761,6 +1801,47 @@ impl App {
                                     self.right.rows.push(RRow::Mention { ident: m.ident.clone(), row, occ: occ.clone(), also });
                                 }
                             }
+                        }
+                        if hidden > 0 {
+                            self.right.rows.push(RRow::Text { text: format!("hidden: {hidden} library name{} (L)", if hidden == 1 { "" } else { "s" }), warn: false });
+                        }
+                        self.apply_right_restore();
+                    }
+                    Err(e) => self.right.error = Some(e),
+                }
+            }
+            QueryResp::UsedBy(gen, res) => {
+                if gen != self.gens.right {
+                    return;
+                }
+                self.begin_right_content();
+                match res {
+                    Ok(u) if u.read_files == 0 => {
+                        self.right.rows.push(RRow::Header { text: "Used by: not available".into(), kind: None });
+                        let why = u.unavailable.unwrap_or_else(|| "no build artifacts are of the files as they are now".into());
+                        self.right.rows.push(RRow::Text { text: format!("{why}; a semantic snapshot has dependency edges too"), warn: false });
+                    }
+                    Ok(u) => {
+                        let n = u.users.len() + u.more;
+                        self.right.rows.push(RRow::Header { text: format!("Used by (resolved by Lean at build) — {n}"), kind: None });
+                        let mut file: Option<String> = None;
+                        for x in u.users {
+                            if x.row.module != file {
+                                file = x.row.module.clone();
+                                self.right.rows.push(RRow::Text { text: file.clone().unwrap_or_default(), warn: false });
+                            }
+                            self.right.rows.push(RRow::User { row: x.row, uses: x.uses, line: x.line });
+                        }
+                        if u.more > 0 {
+                            self.right.rows.push(RRow::Text { text: format!("{} more not listed", u.more), warn: false });
+                        }
+                        if u.loose > 0 {
+                            self.right.rows.push(RRow::Text { text: format!("{} use{} outside any indexed declaration", u.loose, if u.loose == 1 { "" } else { "s" }), warn: false });
+                        }
+                        // What the list cannot know about is said.
+                        if u.read_files < u.local_files {
+                            let n = u.local_files - u.read_files;
+                            self.right.rows.push(RRow::Text { text: format!("{n} file{} without build artifacts of their present text: not looked at", if n == 1 { "" } else { "s" }), warn: true });
                         }
                         self.apply_right_restore();
                     }
@@ -2270,10 +2351,15 @@ impl App {
             return;
         };
         let g = |k: &str| info.get(k).map(String::from);
+        let refs = self.right.refs_status.clone();
         let mut t = vec![
             format!("mode: {}", if mode == IndexMode::Semantic { "semantic snapshot" } else { "source-only scan" }),
             format!("declarations: {} ({} local) · modules: {} ({} local)", info.decls, info.local, info.modules, info.local_modules),
         ];
+        // Said by the Mentions tab of the open declaration, about its file.
+        if let Some(r) = refs {
+            t.push(format!("Lean references of this file: {r}"));
+        }
         if mode == IndexMode::Semantic {
             t.push(format!("edges: {}", info.edges));
             if let Some(v) = g("lean_version") {
@@ -3639,9 +3725,26 @@ impl App {
                         self.preview_session = false;
                         self.open(row.id, "evidence path".into(), true);
                     }
+                    // A library declaration: its file, at the line it is declared on.
+                    Some(RRow::Mention { row, .. }) if row.id < 0 => match self.cards.get(&row.id).map(|c| c.source.clone()) {
+                        Some(Some((rel_path, line))) => {
+                            self.push_history();
+                            self.center_mode = CenterMode::Source;
+                            self.focus = Focus::Center;
+                            let gen = self.gens.bump();
+                            self.gens.source = gen;
+                            self.q(QueryReq::FullSource { gen, rel_path, focus_line: line, highlight: Some((line, line)), sha256: None });
+                        }
+                        Some(None) => self.msg(format!("{} is declared outside this project's directory: its card is all there is", row.display)),
+                        None => self.msg("its declaration has not been found yet"),
+                    },
                     Some(RRow::Mention { row, .. }) => {
                         self.preview_session = false;
-                        self.open(row.id, "lexical mention".into(), true);
+                        self.open(row.id, if self.right.lean { "reference".into() } else { "lexical mention".into() }, true);
+                    }
+                    Some(RRow::User { row, .. }) => {
+                        self.preview_session = false;
+                        self.open(row.id, "used by".into(), true);
                     }
                     Some(RRow::Module { module, current, .. }) => {
                         let decl = if current { self.current } else { None };
@@ -4199,7 +4302,7 @@ mod tests {
             Mention { ident: "bar".into(), candidates: vec![row(4, "A.bar")], same_name: vec![0], part: crate::relations::Part::Unknown, occurrences: vec![occ(12, 0)] },
         ];
         let gen = a.gens.right;
-        a.handle(Event::Query(QueryResp::Mentions(gen, Ok(ms))));
+        a.handle(Event::Query(QueryResp::Mentions(gen, Ok(crate::relations::Mentions { items: ms, lean: false, status: crate::leanrefs::RefStatus::NoBuild }))));
         assert!(matches!(a.right.rows[a.right.list.selected], RRow::Mention { .. }));
         assert!(a.mention_marks().is_none(), "opening a declaration highlights nothing by itself");
         // Moving in the list turns the highlight on and asks for the line.
@@ -4226,7 +4329,7 @@ mod tests {
         assert!(a.mention_marks().is_some());
         a.load_right();
         let gen = a.gens.right;
-        a.handle(Event::Query(QueryResp::Mentions(gen, Ok(Vec::new()))));
+        a.handle(Event::Query(QueryResp::Mentions(gen, Ok(crate::relations::Mentions { items: Vec::new(), lean: false, status: crate::leanrefs::RefStatus::NoBuild }))));
         assert!(a.mention_marks().is_none() && !a.right.marks_on);
     }
 

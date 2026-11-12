@@ -232,6 +232,11 @@ pub enum QueryReq {
     Scope { gen: u64, id: i64 },
     /// The card of a declaration: statement, lead of its documentation.
     Peek { gen: u64, id: i64 },
+    /// The card of a declaration the index does not hold (a library's):
+    /// found through the build artifacts of the module that declares it.
+    PeekLib { gen: u64, key: i64, module: String, name: String, seen_in: String },
+    /// Who uses a declaration, from the build artifacts of the whole project.
+    UsedBy { gen: u64, id: i64 },
     /// The section headings of a module's doc blocks.
     ModuleSections { module_id: i64 },
     /// The import graph (read once, then kept by the worker).
@@ -260,6 +265,8 @@ impl QueryReq {
             QueryReq::Skim { .. } => "worker: skim",
             QueryReq::Scope { .. } => "worker: scope of a declaration",
             QueryReq::Peek { .. } => "worker: card",
+            QueryReq::PeekLib { .. } => "worker: card of a library declaration",
+            QueryReq::UsedBy { .. } => "worker: used by (build artifacts)",
             QueryReq::ModuleSections { .. } => "worker: module sections",
             QueryReq::Imports { .. } => "worker: import graph",
             QueryReq::ImportsDir { .. } => "worker: imports of a directory",
@@ -283,7 +290,8 @@ impl QueryReq {
             QueryReq::Skim { .. } => 9,
             QueryReq::ImportsDir { .. } => 10,
             QueryReq::Scope { .. } => 11,
-            QueryReq::Peek { .. } => 12,
+            QueryReq::Peek { .. } | QueryReq::PeekLib { .. } => 12,
+            QueryReq::UsedBy { .. } => 13,
             _ => return None,
         })
     }
@@ -292,7 +300,7 @@ impl QueryReq {
 pub enum QueryResp {
     Detail(u64, Result<Box<DetailBundle>, String>),
     Neighbors(u64, Option<u64>, usize, Result<Vec<NeighborGroup>, String>),
-    Mentions(u64, Result<Vec<Mention>, String>),
+    Mentions(u64, Result<crate::relations::Mentions, String>),
     Evidence(u64, Result<Vec<AxiomEvidence>, String>),
     ModuleTree(u64, Result<Box<OutlineTree>, String>),
     ModuleDecls(u64, i64, Result<(Vec<OutlineItem>, bool), String>),
@@ -311,6 +319,7 @@ pub enum QueryResp {
     Scope(u64, i64, Result<crate::scope::DeclScope, String>),
     Peek(u64, i64, Result<Option<Box<crate::skim::Peek>>, String>),
     ModuleSections(i64, Vec<(u8, String, u32)>),
+    UsedBy(u64, Result<crate::leanrefs::UsedBy, String>),
     Imports(u64, Result<Arc<ImportGraph>, String>),
     ImportsDir(u64, Result<DirSummary, String>),
     ImportPath(u64, Result<PathAnswer, String>),
@@ -539,6 +548,23 @@ fn handle(ctx: &IndexCtx, c: &rusqlite::Connection, users: Option<&UserStore>, c
             let mut env = crate::skim::Env { conn: c, mode: ctx.mode, source_root: ctx.source_root.as_deref(), cache, map: None, show_generated: true };
             QueryResp::Peek(gen, id, s(crate::skim::peek(&mut env, id)).map(|p| p.map(Box::new)))
         }
+        QueryReq::PeekLib { gen, key, module, name, seen_in } => {
+            let r = match ctx.source_root.as_deref() {
+                Some(root) => crate::leanrefs::lib_peek(root, &seen_in, &module, &name, cache),
+                None => Ok(None),
+            };
+            QueryResp::Peek(gen, key, r.map(|p| p.map(Box::new)))
+        }
+        QueryReq::UsedBy { gen, id } => {
+            let r = (|| -> anyhow::Result<crate::leanrefs::UsedBy> {
+                let root = ctx.source_root.as_deref().ok_or_else(|| anyhow::anyhow!("no source root for this index"))?;
+                let d = detail(c, id)?.ok_or_else(|| anyhow::anyhow!("declaration {id} not found"))?;
+                // Lean names the module below its package.
+                let module = d.module_path.as_deref().map(|p| crate::leanrefs::package_of(cache, root, p).module_name(p));
+                crate::leanrefs::used_by(c, root, cache, &d.row.name, module.as_deref(), id, 300)
+            })();
+            QueryResp::UsedBy(gen, s(r))
+        }
         QueryReq::ModuleSections { module_id } => {
             QueryResp::ModuleSections(module_id, crate::scope::sections(c, ctx.source_root.as_deref(), cache, module_id).unwrap_or_default())
         }
@@ -664,7 +690,7 @@ fn handle(ctx: &IndexCtx, c: &rusqlite::Connection, users: Option<&UserStore>, c
         QueryReq::Neighbors { gen, id, dir, filter, limit, offset, parent } => {
             QueryResp::Neighbors(gen, parent, offset, s(neighbors(c, id, dir, &filter, limit, offset)))
         }
-        QueryReq::Mentions { gen, id } => QueryResp::Mentions(gen, s(crate::relations::lexical_mentions(c, ctx.source_root.as_deref(), cache, id))),
+        QueryReq::Mentions { gen, id } => QueryResp::Mentions(gen, s(crate::relations::mentions(c, ctx.source_root.as_deref(), cache, id))),
         QueryReq::Evidence { gen, id } => QueryResp::Evidence(gen, s(axiom_evidence(c, id))),
         QueryReq::ModuleList { gen, local_only } => {
             QueryResp::ModuleTree(gen, s(modules_with_stats(c, local_only)).map(|m| Box::new(build_outline_tree(m))))

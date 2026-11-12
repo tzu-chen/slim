@@ -425,22 +425,7 @@ pub fn lexical_mentions(conn: &Connection, root: Option<&Path>, cache: &mut Sour
             }
         }
     }
-    wanted.sort();
-    wanted.dedup();
-    // One indexed IN-query per 400 names instead of one query per name;
-    // names looked up before are remembered.
-    for chunk in wanted.chunks(400) {
-        let marks = vec!["?"; chunk.len()].join(",");
-        let mut st = conn.prepare(&format!("SELECT {ROW_COLS} FROM decls d LEFT JOIN modules m ON m.id = d.module_id WHERE d.name IN ({marks})"))?;
-        let rows = st.query_map(rusqlite::params_from_iter(chunk.iter()), row_from)?;
-        for r in rows {
-            let r = r?;
-            cache.names.rows.entry(r.name.clone()).or_default().push(r);
-        }
-    }
-    for w in wanted {
-        cache.names.rows.entry(w).or_default();
-    }
+    remember_names(conn, cache, wanted)?;
     let memo = &cache.names.rows;
     // The declaration itself is not one of its mentions, and neither is
     // another declaration of its own name (the name it is declared with
@@ -502,6 +487,146 @@ pub fn lexical_mentions(conn: &Connection, root: Option<&Path>, cache: &mut Sour
         out.push(Mention { ident, candidates, same_name, part, occurrences });
     }
     Ok(out)
+}
+
+/// Looks `wanted` full names up in the index and remembers what was found
+/// (and what was not) while the index stays open.
+fn remember_names(conn: &Connection, cache: &mut SourceCache, mut wanted: Vec<String>) -> Result<()> {
+    wanted.retain(|w| !cache.names.rows.contains_key(w));
+    wanted.sort();
+    wanted.dedup();
+    // One indexed IN-query per 400 names instead of one query per name.
+    for chunk in wanted.chunks(400) {
+        let marks = vec!["?"; chunk.len()].join(",");
+        let mut st = conn.prepare(&format!("SELECT {ROW_COLS} FROM decls d LEFT JOIN modules m ON m.id = d.module_id WHERE d.name IN ({marks})"))?;
+        let rows = st.query_map(rusqlite::params_from_iter(chunk.iter()), row_from)?;
+        for r in rows {
+            let r = r?;
+            cache.names.rows.entry(r.name.clone()).or_default().push(r);
+        }
+    }
+    for w in wanted {
+        cache.names.rows.entry(w).or_default();
+    }
+    Ok(())
+}
+
+/// What a declaration refers to, for the Mentions tab: as Lean resolved it
+/// when the project was built, if the build artifacts are of the text
+/// shown; else by the lexical lookup.
+#[derive(Clone, Debug)]
+pub struct Mentions {
+    pub items: Vec<Mention>,
+    /// The items are Lean's references, not lexical matches.
+    pub lean: bool,
+    /// Why Lean's references are used, or are not.
+    pub status: crate::leanrefs::RefStatus,
+}
+
+pub fn mentions(conn: &Connection, root: Option<&Path>, cache: &mut SourceCache, id: i64) -> Result<Mentions> {
+    let (items, status) = lean_mentions(conn, root, cache, id)?;
+    Ok(match items {
+        Some(items) => Mentions { items, lean: true, status },
+        None => Mentions { items: lexical_mentions(conn, root, cache, id)?, lean: false, status },
+    })
+}
+
+/// The constants written in a declaration, as Lean resolved them at build
+/// time (see [`crate::leanrefs`]): every use whose text is the constant's
+/// name. Notations, anonymous constructors and numeric projections are
+/// resolved by Lean too, but are not names a reader sees, and are left out.
+fn lean_mentions(conn: &Connection, root: Option<&Path>, cache: &mut SourceCache, id: i64) -> Result<(Option<Vec<Mention>>, crate::leanrefs::RefStatus)> {
+    use crate::leanrefs::{file_refs, synthetic_id, written_as_name, RefStatus};
+    let d = crate::db::query::detail(conn, id)?.ok_or_else(|| anyhow::anyhow!("declaration not found"))?;
+    let (Some(root), Some(rel)) = (root, d.module_path.as_ref()) else { return Ok((None, RefStatus::NoArtifact)) };
+    let Ok(f) = cache.get(root, rel) else { return Ok((None, RefStatus::NoArtifact)) };
+    // Byte extents are those of the text the index saw.
+    let (Some(sb), Some(eb)) = (d.pos.kw_byte.or(d.pos.start_byte), d.pos.end_byte) else { return Ok((None, RefStatus::NoArtifact)) };
+    if d.module_sha256.as_deref().is_some_and(|h| h != f.sha256) {
+        return Ok((None, RefStatus::SourceDiffers));
+    }
+    let (refs, status) = file_refs(root, rel, &f, cache);
+    let Some(refs) = refs else { return Ok((None, status)) };
+    // The index names modules by their path below the opened root; Lean
+    // names them below their package.
+    let pkg = crate::leanrefs::package_of(cache, root, rel);
+    let prefix = pkg.rel.replace('/', ".");
+    let (sb, eb) = (sb as usize, (eb as usize).min(f.text.len()));
+    let header = d.pos.header_end_byte.map(|h| h as usize);
+    struct Found<'a> {
+        t: &'a crate::leanrefs::Target,
+        name: &'a str,
+        uses: Vec<(usize, usize)>,
+    }
+    let mut found: Vec<Found> = Vec::new();
+    for t in &refs.targets {
+        let from = t.uses.partition_point(|u| u.0 < sb);
+        let uses: Vec<(usize, usize)> = t.uses[from..].iter().take_while(|u| u.1 <= eb).filter(|u| written_as_name(&f.text[u.0..u.1], &t.name)).copied().collect();
+        let name = crate::leanrefs::private_stripped(&t.name);
+        if uses.is_empty() || name == d.row.name {
+            continue;
+        }
+        found.push(Found { t, name, uses });
+    }
+    found.sort_by_key(|x| x.uses[0]);
+    remember_names(conn, cache, found.iter().map(|x| x.name.to_string()).collect())?;
+    cache.names.trim();
+    let mut local_module = conn.prepare_cached("SELECT 1 FROM modules WHERE name = ?1 AND is_local = 1")?;
+    let mut out: Vec<Mention> = Vec::new();
+    for x in found.into_iter().take(400) {
+        let rows: Vec<&DeclRow> = cache.names.rows.get(x.name).map(|v| v.iter().filter(|r| r.id != id).collect()).unwrap_or_default();
+        // The declaring module settles which of several rows it is.
+        let indexed_as = format!("{prefix}{}", x.t.module);
+        let row = match rows.iter().find(|r| r.module.as_deref() == Some(indexed_as.as_str())).or(rows.first()) {
+            Some(r) => (*r).clone(),
+            None => {
+                let known = match cache.names.namespaces.get(&format!("module:{indexed_as}")) {
+                    Some(&k) => k,
+                    None => {
+                        let k = local_module.exists([&indexed_as])?;
+                        cache.names.namespaces.insert(format!("module:{indexed_as}"), k);
+                        k
+                    }
+                };
+                DeclRow {
+                    id: synthetic_id(&x.t.name),
+                    name: x.t.name.clone(),
+                    display: x.name.to_string(),
+                    kind: crate::model::DeclKind::Unknown,
+                    // A local name the scanner did not index (a field of a
+                    // binder group, a name an attribute made), or a library's.
+                    origin: if known { Origin::SourceCandidate } else { Origin::Library },
+                    flags: 0,
+                    module: Some(x.t.module.clone()),
+                }
+            }
+        };
+        let (mut stmt, mut body) = (false, false);
+        let mut occurrences = Vec::new();
+        for &(a, z) in &x.uses {
+            match header {
+                Some(h) if a < h => stmt = true,
+                Some(_) => body = true,
+                None => {}
+            }
+            if occurrences.len() < MAX_OCCURRENCES {
+                let line = f.line_of_byte(a);
+                let ls = f.line_starts.get(line.saturating_sub(1)).copied().unwrap_or(0);
+                let le = f.line_starts.get(line).copied().unwrap_or(f.text.len());
+                occurrences.push(Occurrence { line: line as u32, start: (a - ls) as u32, end: (z.min(le) - ls) as u32 });
+            }
+        }
+        let part = match (stmt, body) {
+            (true, true) => Part::Both,
+            (true, false) => Part::Statement,
+            (false, true) => Part::Body,
+            (false, false) => Part::Unknown,
+        };
+        let first = x.uses[0];
+        let ident = f.text[first.0..first.1].trim_start_matches('@').to_string();
+        out.push(Mention { ident, candidates: vec![row], same_name: vec![0], part, occurrences });
+    }
+    Ok((Some(out), RefStatus::Verified))
 }
 
 /// The mentions of a declaration that `tb` follows.

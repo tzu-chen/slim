@@ -81,6 +81,8 @@ pub struct SourceCache {
     entries: VecDeque<SourceFileText>,
     cap: usize,
     pub names: NameMemo,
+    /// Build artifacts read for Lean's references.
+    pub lean: crate::leanrefs::LeanMemo,
     /// What stands between the declarations of recently read modules
     /// (module id, content hash).
     scopes: VecDeque<(i64, String, Arc<crate::source::scope::FileScope>)>,
@@ -88,7 +90,7 @@ pub struct SourceCache {
 
 impl Default for SourceCache {
     fn default() -> Self {
-        SourceCache { entries: VecDeque::new(), cap: 8, names: NameMemo::default(), scopes: VecDeque::new() }
+        SourceCache { entries: VecDeque::new(), cap: 8, names: NameMemo::default(), lean: Default::default(), scopes: VecDeque::new() }
     }
 }
 

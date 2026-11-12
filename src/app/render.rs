@@ -1300,7 +1300,7 @@ fn card(app: &App, w: usize, max: usize) -> Option<Card> {
     let t = &app.theme;
     let id = app.card_target()?;
     let row = match app.right.rows.get(app.right.list.selected)? {
-        RRow::Item { row, .. } | RRow::Mention { row, .. } | RRow::Evidence { row, .. } => row,
+        RRow::Item { row, .. } | RRow::Mention { row, .. } | RRow::Evidence { row, .. } | RRow::User { row, .. } => row,
         _ => return None,
     };
     let peek = app.cards.get(&id);
@@ -1312,7 +1312,8 @@ fn card(app: &App, w: usize, max: usize) -> Option<Card> {
         },
         None => row.module.clone().unwrap_or_default(),
     };
-    let head = format!(" {} ", row.kind.short().trim_end());
+    let kind = peek.map(|p| p.decl.row.kind).filter(|_| row.kind == crate::model::DeclKind::Unknown).unwrap_or(row.kind);
+    let head = if kind == crate::model::DeclKind::Unknown { " ".to_string() } else { format!(" {} ", kind.short().trim_end()) };
     let room = w.saturating_sub(text_width(&head) + 4);
     let name = truncate_left(&clean(app, &row.name), room, app.ascii);
     let at_room = room.saturating_sub(text_width(&name) + 3);
@@ -1474,6 +1475,7 @@ fn draw_right(f: &mut Frame, area: Rect, app: &mut App) {
         return;
     }
     let w = inner.width as usize;
+    // (a foreign file in the centre keeps its own text unmarked)
     // Without a centre pane beside it, the selected declaration's card
     // stands under the list.
     let under = if app.card_under_list { card(app, w, (inner.height as usize / 3).clamp(2, 9)) } else { None };
@@ -1624,15 +1626,38 @@ fn right_row_lines(app: &App, r: &RRow, w: usize, sel_focused: bool, sel: bool) 
             v
         }
         RRow::Mention { ident, row, also, .. } => {
-            let text = format!("{} {} {} {}", clean(app, ident), app.sym.arrow, row.kind.short(), clean(app, &row.display));
+            // A library declaration's kind is known once its card was read.
+            let kind = match row.kind {
+                crate::model::DeclKind::Unknown => app.cards.get(&row.id).map(|c| c.decl.row.kind).filter(|k| *k != crate::model::DeclKind::Unknown).map(|k| format!("{} ", k.short())).unwrap_or_default(),
+                k => format!("{} ", k.short()),
+            };
+            let text = format!("{} {} {kind}{}", clean(app, ident), app.sym.arrow, clean(app, &row.display));
             // Other declarations have this name: the nearest file is listed.
-            let right = if *also > 0 { format!(" +{also}") } else { String::new() };
+            let right = if *also > 0 {
+                format!(" +{also}")
+            } else if row.origin == Origin::Library {
+                " lib".to_string()
+            } else {
+                String::new()
+            };
             let avail = w.saturating_sub(right.len());
             let mut v = vec![Line::from(vec![
                 Span::styled(pad(&truncate(&text, avail, app.ascii), avail), if sel { st_sel } else { t.text }),
                 Span::styled(right, if sel { st_sel } else { t.dim }),
             ])];
             v.extend(gloss_row(app, &row.name, w, 4, false));
+            v
+        }
+        RRow::User { row, uses, line } => {
+            let right = if *uses > 1 { format!(" {uses}× :{line}") } else { format!(" :{line}") };
+            let head = format!(" {} ", row.kind.short());
+            let avail = w.saturating_sub(right.len() + text_width(&head));
+            let name = truncate_left(&clean(app, &short_name(&row.display)), avail, app.ascii);
+            let mut v = vec![Line::from(vec![
+                Span::styled(pad(&format!("{head}{name}"), avail + text_width(&head)), if sel { st_sel } else { t.text }),
+                Span::styled(right, if sel { st_sel } else { t.dim }),
+            ])];
+            v.extend(gloss_row(app, &row.name, w, text_width(&head) + 2, false));
             v
         }
         RRow::Module { module, current: true, .. } => {
@@ -1700,6 +1725,9 @@ fn explain_selected(app: &App) -> String {
             format!("step {step}: {}: {next}", short_name(&row.display))
         }
         Some(RRow::More { .. }) => "neighbour lists load in pages".into(),
+        Some(RRow::User { row, uses, line }) => {
+            format!("{} writes {cur} {}, first on line {line} of its file; Lean resolved the name", row.display, if *uses == 1 { "once".to_string() } else { format!("{uses} times") })
+        }
         Some(RRow::Mention { row, ident, occ, also }) => {
             // Where it is written: the same places the centre pane marks.
             let mut lines: Vec<u32> = occ.iter().map(|o| o.line).collect();
@@ -1715,7 +1743,12 @@ fn explain_selected(app: &App) -> String {
                 1 => "; 1 other declaration has this name (nearest file listed)".into(),
                 n => format!("; {n} other declarations have this name (nearest file listed)"),
             };
-            format!("`{ident}`{at}; lexical match with {}{more}", row.display)
+            if app.right.lean {
+                let from = row.module.as_deref().filter(|_| row.id < 0).map(|m| format!(" (declared in {m})")).unwrap_or_default();
+                format!("`{ident}`{at}; Lean resolved it to {}{from}", row.name)
+            } else {
+                format!("`{ident}`{at}; lexical match with {}{more}", row.display)
+            }
         }
         _ => match app.right_tab {
             RightTab::Uses if app.ctx.mode == IndexMode::Semantic => "T statement · V proof term or body · C constructor".into(),
@@ -1932,6 +1965,11 @@ pub const HELP: &[&str] = &[
     "  that N other declarations have its name (the nearest file is listed).",
     "  What the statement writes comes first, then what only the proof or body",
     "  writes.",
+    "  In a project that was built, the tab lists Lean's own references instead",
+    "  (from the .ilean files Lake wrote, used only when Lake's hashes tie them",
+    "  to the text shown): exact places, library names too (lib), each with a",
+    "  card; ⏎ opens a library declaration in its package. Tab 2 then lists the",
+    "  declarations that use the open one. Nothing is run.",
     "  Moving through the Mentions tab (1) highlights where the selected",
     "  identifier is written, in the declaration view and in the whole file,",
     "  and scrolls the first place into view.",
