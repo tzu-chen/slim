@@ -626,7 +626,7 @@ fn lean_mentions(conn: &Connection, root: Option<&Path>, cache: &mut SourceCache
         let ident = f.text[first.0..first.1].trim_start_matches('@').to_string();
         out.push(Mention { ident, candidates: vec![row], same_name: vec![0], part, occurrences });
     }
-    Ok((Some(out), RefStatus::Verified))
+    Ok((Some(out), status))
 }
 
 /// The mentions of a declaration that `tb` follows.

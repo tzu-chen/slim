@@ -70,26 +70,38 @@ pub fn lake_text_hash(text: &str) -> u64 {
 pub enum RefStatus {
     /// Lake's hashes tie the `.ilean` to the text shown.
     Verified,
+    /// There is no Lake trace to compare with (the module was compiled
+    /// without Lake, or by a Lake whose trace is not read): the `.ilean`
+    /// is not older than the file, and the declarations it records stand
+    /// where it says.
+    Consistent,
     NoBuild,
     NoArtifact,
-    NoTrace,
-    /// The `.trace` has a layout this slim does not read.
-    TraceFormat,
     SourceDiffers,
     ArtifactDiffers,
+    /// No trace, and the file is newer than its `.ilean`.
+    SourceNewer,
+    /// No trace, and the names are not where the `.ilean` says.
+    Inconsistent,
     Unreadable(String),
 }
 
 impl RefStatus {
+    /// The references are used.
+    pub fn usable(&self) -> bool {
+        matches!(self, RefStatus::Verified | RefStatus::Consistent)
+    }
+
     pub fn explain(&self) -> String {
         match self {
             RefStatus::Verified => "from the build artifacts (.ilean); Lake's hashes match this text".into(),
+            RefStatus::Consistent => "from the build artifacts (.ilean); no Lake trace to compare hashes with: the .ilean is not older than the file and its declarations stand where it says".into(),
             RefStatus::NoBuild => "none: the project has no build directory".into(),
             RefStatus::NoArtifact => "none: no .ilean for this file".into(),
-            RefStatus::NoTrace => "not used: no .trace beside the .ilean".into(),
-            RefStatus::TraceFormat => "not used: the .trace of this Lake version is not read".into(),
             RefStatus::SourceDiffers => "not used: the file changed since it was built".into(),
             RefStatus::ArtifactDiffers => "not used: the .ilean is not the one its .trace records".into(),
+            RefStatus::SourceNewer => "not used: the file is newer than its .ilean, and there is no Lake trace to compare hashes with".into(),
+            RefStatus::Inconsistent => "not used: the declarations are not where the .ilean says, and there is no Lake trace".into(),
             RefStatus::Unreadable(e) => format!("not used: {e}"),
         }
     }
@@ -240,28 +252,58 @@ fn read_bounded(p: &Path) -> Result<Vec<u8>, String> {
     std::fs::read(p).map_err(|e| e.to_string())
 }
 
-fn read_refs(lib: &Path, mrel: &str, f: &SourceFileText) -> (Option<FileRefs>, RefStatus) {
+/// Without a trace: whether the declarations the `.ilean` records for
+/// this file stand where it says (the name is written at the place).
+/// A few never do (a name an attribute made, an anonymous instance); in a
+/// file that was edited since, hardly any does.
+fn names_stand(il: &Ilean, f: &SourceFileText) -> bool {
+    let (mut checked, mut held) = (0usize, 0usize);
+    for (k, info) in &il.references {
+        let Some(def) = info.definition.as_deref().and_then(range_of) else { continue };
+        let Some((_, name)) = ref_ident(k) else { continue };
+        checked += 1;
+        held += bytes_of(f, def).is_some_and(|(a, z)| written_as_name(&f.text[a..z], &name)) as usize;
+    }
+    checked == 0 || held * 2 >= checked
+}
+
+/// The `.ilean` of a module, if it is of the text given: by Lake's hashes
+/// when there is a trace, else by its age and by what it says about the
+/// file (`file` gives the file with its lines, only asked for then).
+fn load_ilean(lib: &Path, mrel: &str, src: &Path, text: &str, file: &mut dyn FnMut() -> Option<SourceFileText>) -> Result<(Ilean, RefStatus), RefStatus> {
     let ilean_path = lib.join(format!("{mrel}.ilean"));
-    if !ilean_path.is_file() {
-        return (None, RefStatus::NoArtifact);
+    let Ok(ilean_md) = std::fs::metadata(&ilean_path) else { return Err(RefStatus::NoArtifact) };
+    let hashes = std::fs::read(lib.join(format!("{mrel}.trace"))).ok().and_then(|t| serde_json::from_slice::<serde_json::Value>(&t).ok()).as_ref().and_then(trace_hashes);
+    let parse = |bytes: &[u8]| serde_json::from_slice::<Ilean>(bytes).map_err(|e| RefStatus::Unreadable(format!("the .ilean is not read: {e}")));
+    match hashes {
+        Some((src_hash, ilean_hash)) => {
+            if lake_text_hash(text) != src_hash {
+                return Err(RefStatus::SourceDiffers);
+            }
+            let bytes = read_bounded(&ilean_path).map_err(RefStatus::Unreadable)?;
+            if ilean_hash.is_some_and(|h| h != lake_hash(&bytes)) {
+                return Err(RefStatus::ArtifactDiffers);
+            }
+            Ok((parse(&bytes)?, RefStatus::Verified))
+        }
+        None => {
+            let newer = std::fs::metadata(src).ok().and_then(|s| Some(s.modified().ok()? > ilean_md.modified().ok()?)).unwrap_or(true);
+            if newer {
+                return Err(RefStatus::SourceNewer);
+            }
+            let il = parse(&read_bounded(&ilean_path).map_err(RefStatus::Unreadable)?)?;
+            match file() {
+                Some(f) if names_stand(&il, &f) => Ok((il, RefStatus::Consistent)),
+                _ => Err(RefStatus::Inconsistent),
+            }
+        }
     }
-    let Ok(trace) = std::fs::read(lib.join(format!("{mrel}.trace"))) else { return (None, RefStatus::NoTrace) };
-    let Some((src_hash, ilean_hash)) = serde_json::from_slice::<serde_json::Value>(&trace).ok().as_ref().and_then(trace_hashes) else {
-        return (None, RefStatus::TraceFormat);
-    };
-    if lake_text_hash(&f.text) != src_hash {
-        return (None, RefStatus::SourceDiffers);
-    }
-    let bytes = match read_bounded(&ilean_path) {
-        Ok(b) => b,
-        Err(e) => return (None, RefStatus::Unreadable(e)),
-    };
-    if ilean_hash.is_some_and(|h| h != lake_hash(&bytes)) {
-        return (None, RefStatus::ArtifactDiffers);
-    }
-    let il: Ilean = match serde_json::from_slice(&bytes) {
+}
+
+fn read_refs(lib: &Path, mrel: &str, f: &SourceFileText) -> (Option<FileRefs>, RefStatus) {
+    let (il, status) = match load_ilean(lib, mrel, &f.path, &f.text, &mut || Some(f.clone())) {
         Ok(x) => x,
-        Err(e) => return (None, RefStatus::Unreadable(format!("the .ilean is not read: {e}"))),
+        Err(s) => return (None, s),
     };
     let mut targets = Vec::with_capacity(il.references.len());
     for (k, info) in il.references {
@@ -275,7 +317,7 @@ fn read_refs(lib: &Path, mrel: &str, f: &SourceFileText) -> (Option<FileRefs>, R
         targets.push(Target { module, name, uses });
     }
     targets.sort_by(|a, b| a.uses[0].cmp(&b.uses[0]).then_with(|| a.name.cmp(&b.name)));
-    (Some(FileRefs { targets }), RefStatus::Verified)
+    (Some(FileRefs { targets }), status)
 }
 
 /// The constants the file `rel` (below `root`) refers to, as Lean resolved
@@ -322,6 +364,8 @@ pub struct RefIndex {
     /// Local files in the index, and how many had artifacts tied to their text.
     pub local_files: usize,
     pub read_files: usize,
+    /// Of those, the files read without a Lake trace to compare hashes with.
+    pub unhashed_files: usize,
     pub uses: usize,
     pub ms: f64,
     /// Why nothing was read, when nothing was.
@@ -345,6 +389,7 @@ pub struct UsedBy {
     pub more: usize,
     pub local_files: usize,
     pub read_files: usize,
+    pub unhashed_files: usize,
     pub unavailable: Option<String>,
 }
 
@@ -374,17 +419,11 @@ fn build_index(conn: &rusqlite::Connection, root: &Path, cache: &mut SourceCache
     }
     let mut module_ids: HashMap<String, u32> = HashMap::new();
     for (id, rel, lib, mrel) in mods {
-        let ilean_path = lib.join(format!("{mrel}.ilean"));
-        let Ok(bytes) = read_bounded(&ilean_path) else { continue };
-        // Only artifacts Lake's hashes tie to the file as it is now.
-        let Some((src_hash, ilean_hash)) = std::fs::read(lib.join(format!("{mrel}.trace"))).ok().and_then(|t| serde_json::from_slice::<serde_json::Value>(&t).ok()).as_ref().and_then(trace_hashes) else {
-            continue;
-        };
-        let Ok(text) = std::fs::read_to_string(root.join(&rel)) else { continue };
-        if lake_text_hash(&text) != src_hash || ilean_hash.is_some_and(|h| h != lake_hash(&bytes)) {
-            continue;
-        }
-        let Ok(il) = serde_json::from_slice::<Ilean>(&bytes) else { continue };
+        // Only artifacts that are of the file as it is now.
+        let src = root.join(&rel);
+        let Ok(text) = std::fs::read_to_string(&src) else { continue };
+        let Ok((il, status)) = load_ilean(&lib, &mrel, &src, &text, &mut || cache.get(root, &rel).ok()) else { continue };
+        ix.unhashed_files += (status == RefStatus::Consistent) as usize;
         let file = ix.files.len() as u32;
         ix.files.push(id);
         ix.read_files += 1;
@@ -435,7 +474,7 @@ pub fn ref_index(conn: &rusqlite::Connection, root: &Path, cache: &mut SourceCac
 /// index whose lines hold it.
 pub fn used_by(conn: &rusqlite::Connection, root: &Path, cache: &mut SourceCache, name: &str, module: Option<&str>, self_id: i64, limit: usize) -> anyhow::Result<UsedBy> {
     let ix = ref_index(conn, root, cache)?;
-    let mut out = UsedBy { local_files: ix.local_files, read_files: ix.read_files, unavailable: ix.unavailable.clone(), ..Default::default() };
+    let mut out = UsedBy { local_files: ix.local_files, read_files: ix.read_files, unhashed_files: ix.unhashed_files, unavailable: ix.unavailable.clone(), ..Default::default() };
     let Some(all) = ix.by_name.get(name) else { return Ok(out) };
     // Two private declarations may share a name: the declaring module tells them apart.
     let want = module.and_then(|m| ix.modules.iter().position(|x| x == m)).map(|m| m as u32);

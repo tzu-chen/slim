@@ -71,6 +71,31 @@ fn check(sub: &str) {
     assert_eq!(u.users.iter().map(|x| (x.row.name.as_str(), x.uses, x.line)).collect::<Vec<_>>(), vec![("P.bar", 1, 3), ("P.baz", 1, 4)]);
     assert_eq!((u.read_files, u.local_files), (1, 1));
 
+    // Compiled without Lake, there is no trace to compare hashes with: the
+    // references are used while the `.ilean` is not older than the file and
+    // its declarations stand where it says, and the tab says which it is.
+    let trace_path = lib.join("A.trace");
+    let trace = std::fs::read(&trace_path).unwrap();
+    std::fs::remove_file(&trace_path).unwrap();
+    let old = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+    let set_time = |p: &std::path::Path, t| std::fs::File::options().write(true).open(p).unwrap().set_modified(t).unwrap();
+    set_time(&pkg.join("P/A.lean"), old);
+    let m = relations::mentions(&conn, Some(&root), &mut SourceCache::default(), id("P.baz")).unwrap();
+    assert!(m.lean && m.status == RefStatus::Consistent && m.items.len() == 2, "{:?}", m.status);
+    let u = leanrefs::used_by(&conn, &root, &mut SourceCache::default(), "P.foo", Some("P.A"), id("P.foo"), 50).unwrap();
+    assert_eq!((u.users.len(), u.read_files, u.unhashed_files), (2, 1, 1));
+    // A file newer than its `.ilean` is not trusted to it.
+    set_time(&pkg.join("P/A.lean"), std::time::SystemTime::now() + std::time::Duration::from_secs(3600));
+    let m = relations::mentions(&conn, Some(&root), &mut SourceCache::default(), id("P.baz")).unwrap();
+    assert!(!m.lean && m.status == RefStatus::SourceNewer, "{:?}", m.status);
+    // Nor is an `.ilean` whose declarations are not where it says.
+    set_time(&pkg.join("P/A.lean"), old);
+    std::fs::write(lib.join("A.ilean"), ILEAN.replace("\"definition\":[1,4,1,7]", "\"definition\":[0,0,0,3]").replace("\"definition\":[2,8,2,11]", "\"definition\":[0,4,0,7]")).unwrap();
+    let m = relations::mentions(&conn, Some(&root), &mut SourceCache::default(), id("P.baz")).unwrap();
+    assert!(!m.lean && m.status == RefStatus::Inconsistent, "{:?}", m.status);
+    std::fs::write(lib.join("A.ilean"), ILEAN).unwrap();
+    std::fs::write(&trace_path, trace).unwrap();
+
     // The file changes: its artifacts are of another text, and are not used.
     std::fs::write(pkg.join("P/A.lean"), format!("{SRC}-- edited\n")).unwrap();
     let m = relations::mentions(&conn, Some(&root), &mut SourceCache::default(), id("P.baz")).unwrap();

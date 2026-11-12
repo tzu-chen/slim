@@ -316,9 +316,12 @@ section and to the help overlay (`?`).
 * **resolved by Lean at build** (the Mentions and Used by tabs of a built project): when a
   project has been built, Lake has written beside each `.olean` an `.ilean` file: every
   constant the module refers to, with the module that declares it and the source range of each
-  use, as the elaborator resolved it. slim uses a file's references only when Lake's own
-  hashes (in the `.trace` beside it) say that the `.ilean` was built from exactly the text on
-  screen; then the Mentions tab is headed *References (resolved by Lean at build)*, lists
+  use, as the elaborator resolved it. slim uses a file's references when Lake's own hashes
+  (in the `.trace` beside it) say that the `.ilean` was built from exactly the text on
+  screen. When there is no trace to compare with (modules compiled without Lake, as some
+  build scripts do), it uses them if the `.ilean` is not older than the file and the
+  declarations it records stand where it says, and the heading adds *no Lake trace: not
+  hash-checked*. Then the Mentions tab is headed *References (resolved by Lean at build)*, lists
   library names too (`lib`), and highlights exactly the places Lean recorded. Tab 2 lists the
   declarations that use the open one. A library name shows a card read from its package (or
   from Lean's own sources), and `Enter` opens it there. Otherwise, and in a project that was

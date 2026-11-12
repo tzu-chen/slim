@@ -1769,7 +1769,11 @@ impl App {
                         // What a mention is and is not is in the help and the docs.
                         self.right.lean = ms.lean;
                         self.right.refs_status = Some(ms.status.explain());
-                        let title = if ms.lean { "References (resolved by Lean at build)" } else { "Mentions (lexical, not resolved by Lean)" };
+                        let title = match (ms.lean, &ms.status) {
+                            (false, _) => "Mentions (lexical, not resolved by Lean)",
+                            (true, crate::leanrefs::RefStatus::Consistent) => "References (resolved by Lean at build; no Lake trace: not hash-checked)",
+                            (true, _) => "References (resolved by Lean at build)",
+                        };
                         self.right.rows.push(RRow::Header { text: title.into(), kind: None });
                         let mut ms = ms.items;
                         if ms.is_empty() {
@@ -1839,6 +1843,12 @@ impl App {
                             self.right.rows.push(RRow::Text { text: format!("{} use{} outside any indexed declaration", u.loose, if u.loose == 1 { "" } else { "s" }), warn: false });
                         }
                         // What the list cannot know about is said.
+                        if u.unhashed_files > 0 {
+                            self.right.rows.push(RRow::Text {
+                                text: format!("{} of {} files read have no Lake trace: not hash-checked", u.unhashed_files, u.read_files),
+                                warn: false,
+                            });
+                        }
                         if u.read_files < u.local_files {
                             let n = u.local_files - u.read_files;
                             self.right.rows.push(RRow::Text { text: format!("{n} file{} without build artifacts of their present text: not looked at", if n == 1 { "" } else { "s" }), warn: true });

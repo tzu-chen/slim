@@ -20,8 +20,11 @@
   text, the first 16 KiB), not by Lean. `open A (x y)`, `hiding` and `renaming` count as
   `open A`.
 * **Lean's references** need a build that is still of the files as they are: a file edited
-  since, a project never built (no `.lake`), or a Lake whose `.trace` slim does not read
-  (checked on 4.33.1 only) all give the lexical tab. They hold constants only (no local
+  since, or a project never built (no `.lake`), gives the lexical tab. Without a Lake trace
+  that slim reads (the layout is known for 4.33.1; a module compiled without Lake has none)
+  nothing ties the `.ilean` to the text by a hash: it is then used if it is not older than
+  the file and its declarations stand where it says, which a file restored to an older text
+  with an older date could pass in part. The tabs say when this is the case. They hold constants only (no local
   hypotheses), and of those slim lists the ones written by name. They are used by the Mentions
   and Used by tabs of a source-only index; the goal explorer's source mentions and the
   connection search are still lexical, and a semantic index does not use them. The hash that

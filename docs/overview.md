@@ -220,7 +220,13 @@ source-only index come from Lean itself, without running it.
   normalised) and of the `.ilean`. slim computes the same hashes (MurmurHash64A with seed 11,
   mixed into 1723) and uses a file's references only when both match. On HaagerupIzumi
   (Lean 4.33.1) the recorded source hash equals the hash of the file for all 1,373 modules
-  whose source is there. Nothing is cached on disk: reading the artifacts again is as fast as
+  whose source is there. Where there is no trace, or not one of a layout slim reads (a
+  module compiled by calling `lean` directly has an `.ilean` and nothing else), the
+  references are used on weaker grounds and the tabs say so: the `.ilean` must not be older
+  than the file, and at least half of the declarations it records for the file must have
+  their name written at the recorded place. In two builds looked at, 99.7% (hashed) and
+  99.1% (not hashed) of such places hold the name, and no file has less than 53%; after an
+  edit that moves lines, hardly any would. Nothing is cached on disk: reading the artifacts again is as fast as
   reading a copy of them would be, and a copy could go stale. What was read is kept in memory
   while the index is open, by path and content hash.
 * **Mentions.** Every use inside the declaration whose text is the constant's own name; the
@@ -250,9 +256,11 @@ warm page cache, one `slim bench --index` run), milliseconds, p50 / p95 / max:
 | card of a library declaration (84 names) | 0.69 / 2.3 / 3.0 |
 
 **Not measured or not run:** a project with far more or far larger `.ilean` files; any
-toolchain other than 4.33.1 end to end. The `.ilean` files of the installed toolchains 4.16
-to 4.35 were looked at and the reader accepts both of their layouts, but the `.trace` layout
-is known for 4.33.1 only; a `.trace` that is not read means the lexical tab, not a guess.
+toolchain other than 4.33.1 (with traces) and 4.32.0 (a project compiled without Lake, no
+traces: Lean's references for 120 of 120 sampled declarations, 808 of 812 files read for
+Used by) end to end. The `.ilean` files of the installed toolchains 4.16 to 4.35 were looked
+at and the reader accepts both of their layouts; the `.trace` layout is known for 4.33.1
+only, and a trace that is not read is treated as no trace.
 
 ## Tests
 
