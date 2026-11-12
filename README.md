@@ -20,10 +20,28 @@ Editing and developing proofs stays in your editor.
 slim is not a proof checker. It never claims a theorem is "proved"; it shows evidence and where
 that evidence came from.
 
+## Download
+
+Prebuilt binaries for Linux are attached to the
+[v0.1.0 release](https://github.com/tzu-chen/slim/releases/tag/v0.1.0), a preview: `x86_64` for
+64-bit Intel/AMD and `aarch64` for 64-bit ARM. They need glibc 2.34 or newer and do not run on
+Alpine/musl. There are no macOS or Windows binaries yet.
+
+```sh
+name=slim-v0.1.0-$(uname -m)-unknown-linux-gnu
+curl -LO https://github.com/tzu-chen/slim/releases/download/v0.1.0/$name.tar.gz
+tar -xzf $name.tar.gz
+./$name/slim demo
+```
+
+Each archive has a `.sha256` file beside it on the release page. The rest of this README is
+written for a source checkout: where a command says `./target/release/slim`, use the extracted
+`slim`, and the YM example also needs `examples/YM/lean-view.toml` from this repository.
+
 ## Build
 
-You need a Rust toolchain (tested with rustc 1.99.1) and a C compiler (for the bundled SQLite
-and Oniguruma). Dependencies are pinned in `Cargo.lock`.
+To build from source instead you need a Rust toolchain (tested with rustc 1.99.1) and a C
+compiler (for the bundled SQLite and Oniguruma). Dependencies are pinned in `Cargo.lock`.
 
 ```sh
 git clone https://github.com/tzu-chen/slim.git && cd slim
