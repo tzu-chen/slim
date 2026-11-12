@@ -179,6 +179,8 @@ pub fn build_outline_tree(mods: Vec<(ModuleRow, ModStats)>) -> OutlineTree {
 pub enum UserData {
     Bookmarks(Vec<Mark>),
     BookmarkNames(Vec<String>),
+    /// The reader's glosses: declaration name, one line of text.
+    Glosses(Vec<(String, String)>),
     Reading(Box<Reading>),
 }
 
@@ -198,6 +200,9 @@ pub enum QueryReq {
     LoadBookmarks { gen: u64 },
     ToggleBookmark { mark: Mark },
     SetBookmarkNote { name: String, note: Option<String> },
+    LoadGlosses,
+    /// Sets (or with `None` removes) the reader's gloss of a name.
+    SetGloss { name: String, display: String, text: Option<String> },
     /// Detail of a declaration (by name) for the map, goal and trail views.
     ViewDetail { gen: u64, name: String },
     GoalChildren { gen: u64, node: u64, q: ChildQuery },
@@ -703,6 +708,12 @@ fn handle(ctx: &IndexCtx, c: &rusqlite::Connection, users: Option<&UserStore>, c
         QueryReq::SetBookmarkNote { name, note } => user_op(users, |u| {
             u.set_bookmark_note(&ctx.user_key, &name, note.as_deref())?;
             Ok(("note saved".into(), Some(UserData::Bookmarks(u.bookmarks(&ctx.user_key)?))))
+        }),
+        QueryReq::LoadGlosses => user_op(users, |u| Ok((String::new(), Some(UserData::Glosses(u.glosses(&ctx.user_key)?))))),
+        QueryReq::SetGloss { name, display, text } => user_op(users, |u| {
+            u.set_gloss(&ctx.user_key, &name, text.as_deref())?;
+            let msg = if text.is_some() { format!("gloss saved for {display}") } else { format!("gloss removed from {display}") };
+            Ok((msg, Some(UserData::Glosses(u.glosses(&ctx.user_key)?))))
         }),
         QueryReq::SaveSession { state } => user_op(users, |u| {
             u.save_session(&ctx.user_key, &state)?;

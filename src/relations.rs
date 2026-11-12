@@ -66,16 +66,21 @@ impl RelMode {
             RelMode::Curated => "curated in the project map: an author's explanation, not checked by Lean",
             RelMode::Mentions => "lexical: identifiers in the source text that equal an indexed name; not resolved by Lean",
             RelMode::Lean => "Lean-derived: constants in the elaborated statement (T), proof term or body (V) or constructor list (C)",
-            RelMode::Mixed => "all kinds, each labelled: [cur] curated · [lex] lexical · [T] [V] [C] Lean-derived",
+            RelMode::Mixed => "all kinds, each labelled: [cur] curated · [lex] lexical (s statement, b proof or body) · [T] [V] [C] Lean-derived",
         }
     }
 }
 
-/// Which Lean edges to follow.
+/// Which part of a declaration's references to follow (Lean edges and
+/// source mentions alike).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TypeBody {
     All,
-    /// Only references in elaborated statements (types).
+    /// What the declaration states: the statement of a theorem, and all of
+    /// a definition, structure or inductive type (its body and its
+    /// constructors are what it means). Proofs are left out.
+    Says,
+    /// Only references in statements (elaborated types; the header text).
     Type,
     /// Only references in proof terms and definition bodies.
     Body,
@@ -84,7 +89,8 @@ pub enum TypeBody {
 impl TypeBody {
     pub fn next(self) -> TypeBody {
         match self {
-            TypeBody::All => TypeBody::Type,
+            TypeBody::All => TypeBody::Says,
+            TypeBody::Says => TypeBody::Type,
             TypeBody::Type => TypeBody::Body,
             TypeBody::Body => TypeBody::All,
         }
@@ -92,24 +98,56 @@ impl TypeBody {
     pub fn label(self) -> &'static str {
         match self {
             TypeBody::All => "statement + proof/body",
-            TypeBody::Type => "statement only (T)",
-            TypeBody::Body => "proof/body only (V)",
+            TypeBody::Says => "what it states (definitions whole, proofs left out)",
+            TypeBody::Type => "statement only",
+            TypeBody::Body => "proof/body only",
         }
     }
-    fn kinds(self) -> &'static [EdgeKind] {
+    pub fn short(self) -> &'static str {
+        match self {
+            TypeBody::All => "all parts",
+            TypeBody::Says => "what it states",
+            TypeBody::Type => "statement only",
+            TypeBody::Body => "proof/body only",
+        }
+    }
+    /// The Lean edge kinds to follow out of a declaration.
+    fn kinds(self, theorem: bool) -> &'static [EdgeKind] {
         match self {
             TypeBody::All => &[EdgeKind::Type, EdgeKind::Value, EdgeKind::Ctor],
+            TypeBody::Says if theorem => &[EdgeKind::Type],
+            TypeBody::Says => &[EdgeKind::Type, EdgeKind::Value, EdgeKind::Ctor],
             TypeBody::Type => &[EdgeKind::Type],
             TypeBody::Body => &[EdgeKind::Value],
         }
     }
+    /// Whether a source mention standing in `part` is followed.
+    pub fn takes(self, theorem: bool, part: Part) -> bool {
+        match (self, part) {
+            (TypeBody::All, _) | (_, Part::Unknown) => true,
+            (TypeBody::Says, p) => !theorem || p != Part::Body,
+            (TypeBody::Type, p) => p != Part::Body,
+            (TypeBody::Body, p) => p != Part::Statement,
+        }
+    }
+}
+
+/// Where in a declaration's text a name is written: its statement (the
+/// header, up to `:=`, `where` or the first `|`), what follows, or both.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Part {
+    Statement,
+    Body,
+    Both,
+    /// The index has no header boundary for this declaration (a snapshot).
+    Unknown,
 }
 
 /// Why an edge is shown.
 #[derive(Clone, Debug, PartialEq)]
 pub enum EdgeLabel {
     Curated { kind: String, origin: Provenance, step: Option<u32> },
-    Lexical { ident: String },
+    Lexical { ident: String, part: Part },
     Lean { type_: bool, body: bool, ctor: bool },
 }
 
@@ -119,7 +157,12 @@ impl EdgeLabel {
         match self {
             EdgeLabel::Curated { step: Some(n), .. } => format!("cur {n}"),
             EdgeLabel::Curated { .. } => "cur".into(),
-            EdgeLabel::Lexical { .. } => "lex".into(),
+            EdgeLabel::Lexical { part, .. } => match part {
+                Part::Statement => "lex s".into(),
+                Part::Body => "lex b".into(),
+                Part::Both => "lex s+b".into(),
+                Part::Unknown => "lex".into(),
+            },
             EdgeLabel::Lean { type_, body, ctor } => {
                 let mut v = Vec::new();
                 if *type_ {
@@ -143,8 +186,14 @@ impl EdgeLabel {
                 let s = step.map(|n| format!("step {n} of a curated argument")).unwrap_or_else(|| format!("curated relation \"{kind}\""));
                 format!("{s}: the map says {a} uses {b} ({}); not Lean-derived", origin.label())
             }
-            EdgeLabel::Lexical { ident } => {
-                format!("lexical: the text of {a} contains `{ident}`, the name of {b}; not resolved by Lean")
+            EdgeLabel::Lexical { ident, part } => {
+                let what = match part {
+                    Part::Statement => "statement",
+                    Part::Body => "proof or body",
+                    Part::Both => "statement and proof or body",
+                    Part::Unknown => "text",
+                };
+                format!("lexical: the {what} of {a} contains `{ident}`, the name of {b}; not resolved by Lean")
             }
             EdgeLabel::Lean { type_, body, ctor } => {
                 let mut v = Vec::new();
@@ -236,6 +285,8 @@ pub struct Mention {
     /// For each candidate: how many other declarations have its name
     /// (copies of a file, a reference beside its solution).
     pub same_name: Vec<u32>,
+    /// Where it is written: in the statement, after it, or both.
+    pub part: Part,
     /// Every place the identifier is written in the declaration's text.
     pub occurrences: Vec<Occurrence>,
 }
@@ -294,6 +345,13 @@ pub fn lexical_mentions(conn: &Connection, root: Option<&Path>, cache: &mut Sour
     let mut seen: HashMap<String, usize> = HashMap::new();
     let mut idents = Vec::new();
     let mut places: Vec<Vec<Occurrence>> = Vec::new();
+    // Where the statement ends, when the index knows (a source-only scan).
+    let header = match (d.pos.kw_byte.or(d.pos.start_byte), d.pos.end_byte, d.pos.header_end_byte) {
+        (Some(_), Some(_), Some(h)) => Some(h as usize),
+        _ => None,
+    };
+    // Per identifier: written in the statement, written after it.
+    let mut parts: Vec<(bool, bool)> = Vec::new();
     while let Some(t) = lx.next_token() {
         if t.kind == TokKind::Ident {
             let w = t.text(text);
@@ -308,12 +366,18 @@ pub fn lexical_mentions(conn: &Connection, root: Option<&Path>, cache: &mut Sour
                     seen.insert(w.to_string(), idents.len());
                     idents.push(w.to_string());
                     places.push(Vec::new());
+                    parts.push((false, false));
                     idents.len() - 1
                 }
                 None => continue,
             };
+            let abs = sb + t.start as usize;
+            match header {
+                Some(h) if abs < h => parts[k].0 = true,
+                Some(_) => parts[k].1 = true,
+                None => {}
+            }
             if places[k].len() < MAX_OCCURRENCES {
-                let abs = sb + t.start as usize;
                 let line = f.line_of_byte(abs);
                 let col = abs - f.line_starts.get(line.saturating_sub(1)).copied().unwrap_or(0);
                 places[k].push(Occurrence { line: line as u32, start: col as u32, end: (col + (t.end - t.start) as usize) as u32 });
@@ -378,8 +442,13 @@ pub fn lexical_mentions(conn: &Connection, root: Option<&Path>, cache: &mut Sour
         cache.names.rows.entry(w).or_default();
     }
     let memo = &cache.names.rows;
-    // The declaration itself is not one of its mentions.
+    // The declaration itself is not one of its mentions, and neither is
+    // another declaration of its own name (the name it is declared with
+    // is in its text).
     let found = |full: &str| -> Option<Vec<DeclRow>> {
+        if full == d.row.name {
+            return None;
+        }
         let rows: Vec<DeclRow> = memo.get(full)?.iter().filter(|r| r.id != id).cloned().collect();
         (!rows.is_empty()).then_some(rows)
     };
@@ -396,7 +465,14 @@ pub fn lexical_mentions(conn: &Connection, root: Option<&Path>, cache: &mut Sour
     };
     let mut out: Vec<Mention> = Vec::new();
     let mut by_target: HashMap<i64, usize> = HashMap::new();
-    for (ident, occurrences) in idents.into_iter().zip(places) {
+    let part_of = |p: (bool, bool)| match p {
+        (true, true) => Part::Both,
+        (true, false) => Part::Statement,
+        (false, true) => Part::Body,
+        (false, false) => Part::Unknown,
+    };
+    for ((ident, occurrences), part) in idents.into_iter().zip(places).zip(parts) {
+        let part = part_of(part);
         let hit = |p: &String| found(&format!("{p}{ident}"));
         let mut groups: Vec<Vec<DeclRow>> = inner.iter().find_map(hit).into_iter().collect();
         if groups.is_empty() {
@@ -414,13 +490,33 @@ pub fn lexical_mentions(conn: &Connection, root: Option<&Path>, cache: &mut Sour
                 m.occurrences.extend(occurrences);
                 m.occurrences.sort_by_key(|o| (o.line, o.start));
                 m.occurrences.truncate(MAX_OCCURRENCES);
+                m.part = match (m.part, part) {
+                    (a, b) if a == b => a,
+                    (Part::Unknown, x) | (x, Part::Unknown) => x,
+                    _ => Part::Both,
+                };
                 continue;
             }
             by_target.insert(only.id, out.len());
         }
-        out.push(Mention { ident, candidates, same_name, occurrences });
+        out.push(Mention { ident, candidates, same_name, part, occurrences });
     }
     Ok(out)
+}
+
+/// The mentions of a declaration that `tb` follows.
+pub fn mentions_for(conn: &Connection, root: Option<&Path>, cache: &mut SourceCache, id: i64, tb: TypeBody) -> Result<Vec<Mention>> {
+    let all = lexical_mentions(conn, root, cache, id)?;
+    if tb == TypeBody::All {
+        return Ok(all);
+    }
+    let theorem = is_theorem(conn, id)?;
+    Ok(all.into_iter().filter(|m| tb.takes(theorem, m.part)).collect())
+}
+
+fn is_theorem(conn: &Connection, id: i64) -> Result<bool> {
+    let k: Option<u8> = conn.prepare_cached("SELECT kind FROM decls WHERE id = ?1")?.query_row([id], |r| r.get(0)).optional()?;
+    Ok(k.map(crate::model::DeclKind::from_u8) == Some(crate::model::DeclKind::Theorem))
 }
 
 fn push_child(page: &mut ChildPage, c: Child) {
@@ -477,7 +573,8 @@ fn lean_label(conn: &Connection, dir: Direction, node: i64, other: i64) -> Resul
 
 fn lean_page(conn: &Connection, id: i64, q: &ChildQuery, page: &mut ChildPage) -> Result<()> {
     let (self_col, other_col) = cols(q.dir);
-    let kinds = q.tb.kinds();
+    // What a declaration states is asked of the declaration that uses.
+    let kinds = q.tb.kinds(q.dir == Direction::Uses && is_theorem(conn, id)?);
     let kl = kind_list(kinds);
     let mut counts = [0u64; 3];
     {
@@ -631,7 +728,11 @@ pub fn children(env: &mut Env, q: &ChildQuery) -> Result<ChildPage> {
             )),
             (None, _) => page.notes.push((format!("{} is not in this index", q.name), true)),
             (Some(r), true) => {
-                let ms = lexical_mentions(env.conn, env.source_root, env.cache, r.id)?;
+                let all = lexical_mentions(env.conn, env.source_root, env.cache, r.id)?;
+                let total = all.len();
+                let theorem = r.kind == crate::model::DeclKind::Theorem;
+                let ms: Vec<Mention> = all.into_iter().filter(|m| q.tb.takes(theorem, m.part)).collect();
+                page.hidden_kind += (total - ms.len()) as u64;
                 if env.source_root.is_none() {
                     page.notes.push(("no source root for this index: source mentions cannot be computed".into(), true));
                 }
@@ -647,7 +748,7 @@ pub fn children(env: &mut Env, q: &ChildQuery) -> Result<ChildPage> {
                         if n > 200 {
                             continue;
                         }
-                        push_child(&mut page, Child { name: row.name.clone(), row: Some(row), labels: vec![EdgeLabel::Lexical { ident: m.ident.clone() }], note: None });
+                        push_child(&mut page, Child { name: row.name.clone(), row: Some(row), labels: vec![EdgeLabel::Lexical { ident: m.ident.clone(), part: m.part }], note: None });
                     }
                 }
                 page.hidden_external += hidden;
@@ -776,7 +877,8 @@ impl ConnQuery {
     /// "A uses … uses B" / "A is used by … B" with the relation kind spelled out.
     pub fn describe(&self) -> String {
         let rel = match self.mode {
-            RelMode::Lean => format!("Lean dependencies, {}", self.tb.label()),
+            RelMode::Lean => format!("Lean dependencies, {}", self.tb.short()),
+            RelMode::Mentions if self.tb != TypeBody::All => format!("{}, {}", RelMode::Mentions.label(), self.tb.short()),
             m => m.label().to_string(),
         };
         format!(
@@ -855,8 +957,22 @@ fn connection_inner(env: &mut Env, q: &ConnQuery, lim: &Limits, cancel: &dyn Fn(
             let conn = env.conn;
             let (res, n) = if q.mode == RelMode::Lean {
                 let (self_col, other_col) = cols(q.dir);
-                let mut st = conn.prepare(&format!("SELECT {other_col} FROM edges WHERE {self_col} = ?1 AND kind IN ({})", kind_list(q.tb.kinds())))?;
-                bfs(a.id, &b.id, |n| Ok(st.query_map([*n], |r| r.get(0))?.collect::<rusqlite::Result<Vec<i64>>>()?), lim, cancel)?
+                // Two statements: the edges out of a theorem, and out of anything else.
+                let mut sts = [true, false].map(|theorem| conn.prepare(&format!("SELECT {other_col} FROM edges WHERE {self_col} = ?1 AND kind IN ({})", kind_list(q.tb.kinds(theorem && uses)))));
+                let says = q.tb == TypeBody::Says && uses;
+                bfs(
+                    a.id,
+                    &b.id,
+                    |n| {
+                        let st = match &mut sts[if says && is_theorem(conn, *n)? { 0 } else { 1 }] {
+                            Ok(st) => st,
+                            Err(e) => anyhow::bail!("{e}"),
+                        };
+                        Ok(st.query_map([*n], |r| r.get(0))?.collect::<rusqlite::Result<Vec<i64>>>()?)
+                    },
+                    lim,
+                    cancel,
+                )?
             } else {
                 // Each expansion reads and lexes source text: a much smaller budget.
                 let lim = Limits { max_nodes: lim.max_nodes.min(400), max_ms: lim.max_ms };
@@ -864,7 +980,7 @@ fn connection_inner(env: &mut Env, q: &ConnQuery, lim: &Limits, cancel: &dyn Fn(
                 bfs(
                     a.id,
                     &b.id,
-                    |n| Ok(lexical_mentions(conn, root, cache, *n)?.into_iter().flat_map(|m| m.candidates.into_iter().map(|c| c.id)).collect()),
+                    |n| Ok(mentions_for(conn, root, cache, *n, q.tb)?.into_iter().flat_map(|m| m.candidates.into_iter().map(|c| c.id)).collect()),
                     &lim,
                     cancel,
                 )?
@@ -881,16 +997,16 @@ fn connection_inner(env: &mut Env, q: &ConnQuery, lim: &Limits, cancel: &dyn Fn(
                                 Some(match (q.tb, l) {
                                     (TypeBody::Type, _) => EdgeLabel::Lean { type_: true, body: false, ctor: false },
                                     (TypeBody::Body, _) => EdgeLabel::Lean { type_: false, body: true, ctor: false },
+                                    (TypeBody::Says, _) if is_theorem(conn, *id)? => EdgeLabel::Lean { type_: true, body: false, ctor: false },
                                     (_, l) => l,
                                 })
                             }
                             Some(nx) => {
-                                let ident = lexical_mentions(conn, env.source_root, env.cache, *id)?
-                                    .into_iter()
-                                    .find(|m| m.candidates.iter().any(|c| c.id == *nx))
-                                    .map(|m| m.ident)
-                                    .unwrap_or_default();
-                                Some(EdgeLabel::Lexical { ident })
+                                let m = mentions_for(conn, env.source_root, env.cache, *id, q.tb)?.into_iter().find(|m| m.candidates.iter().any(|c| c.id == *nx));
+                                Some(match m {
+                                    Some(m) => EdgeLabel::Lexical { ident: m.ident, part: m.part },
+                                    None => EdgeLabel::Lexical { ident: String::new(), part: Part::Unknown },
+                                })
                             }
                         };
                         steps.push(ConnStep { name: row.as_ref().map(|r| r.name.clone()).unwrap_or_default(), row, next });
@@ -958,7 +1074,7 @@ mod tests {
     #[test]
     fn labels_never_blur_kinds() {
         let cur = EdgeLabel::Curated { kind: "uses".into(), origin: Provenance::Authored, step: Some(2) };
-        let lex = EdgeLabel::Lexical { ident: "foo".into() };
+        let lex = EdgeLabel::Lexical { ident: "foo".into(), part: Part::Unknown };
         let lean = EdgeLabel::Lean { type_: true, body: true, ctor: false };
         assert_eq!((cur.tag(), lex.tag(), lean.tag()), ("cur 2".to_string(), "lex".to_string(), "T+V".to_string()));
         assert!(cur.explain("A", "B").contains("not Lean-derived"));

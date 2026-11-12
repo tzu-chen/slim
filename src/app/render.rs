@@ -379,6 +379,15 @@ fn draw_left(f: &mut Frame, area: Rect, app: &mut App) {
                     LeftItem::Result { row, tier } => {
                         lines.push(result_line(app, row, tier.map(|x| x.tag()), w, sel, focused));
                     }
+                    LeftItem::Gloss { name, text } => {
+                        let st = if sel { if focused { t.selected } else { t.selected_unfocused } } else { t.text };
+                        let head = format!(" = {} ", short_name(name));
+                        let avail = w.saturating_sub(text_width(&head));
+                        lines.push(Line::from(vec![
+                            Span::styled(truncate(&clean(app, &head), w, app.ascii), st),
+                            Span::styled(pad(&truncate(&sanitize(text, app.ascii), avail, app.ascii), avail), if sel { st } else { t.dim }),
+                        ]));
+                    }
                     LeftItem::MapHit { label, what, .. } => {
                         let st = if sel { if focused { t.selected } else { t.selected_unfocused } } else { t.text };
                         let right = format!(" {what}");
@@ -774,6 +783,9 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
     }
     loc.push_str(&format!(" · {}", d.row.origin.label()));
     out.extend(wrapped(app, &chrome(app, &loc), w, t.dim, 0));
+    if let Some(g) = app.glosses.get(&d.row.name) {
+        out.extend(wrapped(app, &format!("= {g}"), w, t.accent, 0));
+    }
     out.push(Line::from(""));
 
     // Conspicuous alerts first, so a placeholder or custom axiom is never
@@ -1167,6 +1179,10 @@ fn skim_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, usize)>)
                 if d.sig_cut {
                     out.push(Line::from(vec![Span::styled("  ", t.code), Span::styled(chrome(app, "    … statement cut"), t.dim)]));
                 }
+                if let Some(g) = app.glosses.get(&d.row.name) {
+                    let text = truncate(&format!("    = {}", sanitize(g, app.ascii)), body_w, app.ascii);
+                    out.push(Line::from(vec![Span::styled("  ", t.code), Span::styled(text, t.accent)]));
+                }
                 // One more row for what was left out: the first line of the
                 // documentation, and how much text is folded away.
                 let mut meta: Vec<String> = Vec::new();
@@ -1214,6 +1230,15 @@ fn skim_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, usize)>)
         ranges.push((start, out.len()));
     }
     (out, ranges)
+}
+
+/// What is said beside a name, on one row: the reader's gloss (`= …`).
+/// A card also falls back on the purpose the project map gives the name
+/// (`map: …`); lists stay as short as the reader's own words.
+pub(super) fn gloss_row(app: &App, name: &str, w: usize, indent: usize, with_map: bool) -> Option<Line<'static>> {
+    let (text, own) = app.gloss_of(name).filter(|(_, own)| *own || with_map)?;
+    let s = format!("{}{}{}", " ".repeat(indent), if own { "= " } else { "map: " }, sanitize(text, app.ascii));
+    Some(Line::from(Span::styled(truncate(&s, w, app.ascii), if own { app.theme.accent } else { app.theme.dim })))
 }
 
 /// A statement as rows of the pane: one that is written over several lines
@@ -1299,6 +1324,8 @@ fn card(app: &App, w: usize, max: usize) -> Option<Card> {
     match peek {
         None => body.push(Line::from(Span::styled(chrome(app, "  …"), t.dim))),
         Some(p) => {
+            body.extend(gloss_row(app, &row.name, w, 2, true));
+            let max = max.saturating_sub(body.len()).max(1);
             let doc: Vec<Line<'static>> = p.decl.doc.as_deref().map(|d| wrapped(app, d, w, t.dim, 2)).unwrap_or_default();
             let mut sig = sig_rows(app, &p.decl.sig, w.saturating_sub(2).max(8), 0);
             // The statement first; the documentation keeps a row when both do not fit.
@@ -1573,10 +1600,12 @@ fn right_row_lines(app: &App, r: &RRow, w: usize, sel_focused: bool, sel: bool) 
             let head = format!("{ind}{mark} {} {}{} ", kind.tag(), row.kind.short(), bm);
             let avail = w.saturating_sub(right.chars().count() + text_width(&head));
             let name = truncate_left(&clean(app, &row.display), avail, app.ascii);
-            vec![Line::from(vec![
+            let mut v = vec![Line::from(vec![
                 Span::styled(pad(&format!("{head}{name}"), avail + text_width(&head)), if sel { st_sel } else { t.text }),
                 Span::styled(right, if sel { st_sel } else if row.origin == Origin::Unresolved { t.warn } else { t.dim }),
-            ])]
+            ])];
+            v.extend(gloss_row(app, &row.name, w, text_width(&ind) + 4, false));
+            v
         }
         RRow::More { remaining, depth, .. } => {
             let text = format!("{}{} {} more — ⏎ to load", "  ".repeat(*depth as usize), app.sym.ellipsis, remaining);
@@ -1590,17 +1619,21 @@ fn right_row_lines(app: &App, r: &RRow, w: usize, sel_focused: bool, sel: bool) 
             let head = format!(" {}{lead}", " ".repeat((*step).min(6)));
             let avail = w.saturating_sub(text_width(&head));
             let name = truncate_left(&clean(app, &row.display), avail, app.ascii);
-            vec![Line::from(Span::styled(pad(&format!("{head}{name}"), w), if sel { st_sel } else { t.text }))]
+            let mut v = vec![Line::from(Span::styled(pad(&format!("{head}{name}"), w), if sel { st_sel } else { t.text }))];
+            v.extend(gloss_row(app, &row.name, w, text_width(&head) + 2, false));
+            v
         }
         RRow::Mention { ident, row, also, .. } => {
             let text = format!("{} {} {} {}", clean(app, ident), app.sym.arrow, row.kind.short(), clean(app, &row.display));
             // Other declarations have this name: the nearest file is listed.
             let right = if *also > 0 { format!(" +{also}") } else { String::new() };
             let avail = w.saturating_sub(right.len());
-            vec![Line::from(vec![
+            let mut v = vec![Line::from(vec![
                 Span::styled(pad(&truncate(&text, avail, app.ascii), avail), if sel { st_sel } else { t.text }),
                 Span::styled(right, if sel { st_sel } else { t.dim }),
-            ])]
+            ])];
+            v.extend(gloss_row(app, &row.name, w, 4, false));
+            v
         }
         RRow::Module { module, current: true, .. } => {
             let text = format!(" {} show {} in the outline (⏎)", app.sym.arrow, clean(app, &module.name));
@@ -1721,7 +1754,7 @@ fn draw_status(f: &mut Frame, area: Rect, app: &App) {
             (Focus::Left, LeftMode::Search, true) => "type to search · ↓/⏎ results · Esc stop typing · Tab panes · ? help",
             (Focus::Left, LeftMode::Outline, _) => "⏎/→ expand · ← collapse · o order/column · S skim · f search within · / search · ? help",
             (Focus::Center, _, _) if app.center_mode == CenterMode::Skim => "j/k next/previous statement · ⏎ open · S file/namespace · f search within · Esc close · [ back · ? help",
-            (Focus::Right, _, _) => "⏎ follow edge · →/← expand/collapse · 1-5 tabs · [ ] back/fwd · ? help · q quit",
+            (Focus::Right, _, _) => "⏎ follow edge · →/← expand/collapse · ; gloss · 1-5 tabs · [ ] back/fwd · ? help · q quit",
             (Focus::Center, _, _) => "j/k scroll · s source · i implicit · m bookmark · a trail · * goal · M map · A goal view · [ ] back/fwd · ? help",
             _ => "/ search · O outline · B bookmarks · M map · A goal · T trails · : commands · [ ] back/fwd · ? help · q quit",
         };
@@ -1786,7 +1819,8 @@ pub const HELP: &[&str] = &[
     "  w  < >            detail: wrap long lines, or scroll them sideways",
     "  Map    r reloads lean-view.toml after you edit it (slim never writes it)",
     "  Goal   r relation kind: curated · source mentions · Lean deps · all, labelled",
-    "         u direction (uses / used by) · y statement or proof edges · L G filters",
+    "         u direction (uses / used by) · L G filters · y the part followed: all ·",
+    "         what it states · statement only · proof/body only",
     "         H show everything the filters hide · c connection to a declaration",
     "  Trail  s state (unread, read, understood, revisit) · n explanation · Q question",
     "         - + move a stop · d remove · N new trail · e rename · t make active",
@@ -1821,7 +1855,11 @@ pub const HELP: &[&str] = &[
     "WHAT THE GOAL EXPLORER SHOWS",
     "  A uses B: unfolding A lists its prerequisite B. Used by is the reverse.",
     "  [cur]        curated in the project map: an author's explanation, not a Lean fact",
-    "  [lex]        the source text mentions an indexed name: approximate, unresolved",
+    "  [lex]        the source text mentions an indexed name: approximate, unresolved;",
+    "               s in the statement, b in the proof or body",
+    "  What it states (y): the statement of a theorem, and all of a definition,",
+    "  structure or inductive type; proofs are left out. Unfolding with it reads",
+    "  a statement down to the definitions it is made of.",
     "  [T] [V] [C]  Lean-derived: in the elaborated statement / proof or body /",
     "               constructor list, from a semantic snapshot",
     "  ↺ cycle      already on the path from the goal: shown, never unfolded again",
@@ -1847,6 +1885,11 @@ pub const HELP: &[&str] = &[
     "  F5                syntax theme (VS Code Dark+, Light+, high contrast; follows the UI theme)",
     "  F6                highlighting details: what the colours come from, how fresh, indexing",
     "  1 2 3 4 5         uses · used by · axioms · module · index info",
+    "  ;                 gloss: your own line about the selected name (the one selected",
+    "                    in a list, else the open declaration), shown beside it in",
+    "                    lists, cards, skims and the goal explorer, and found by",
+    "                    search. It starts from the map's purpose or the lead of the",
+    "                    documentation; empty removes it",
     "  In scope          under the statement: the variable binders it writes and the",
     "                    open lines in force where it stands, read from the file",
     "  Tab to the right  the selected name shows its card under the declaration:",
@@ -1887,6 +1930,8 @@ pub const HELP: &[&str] = &[
     "  a name is looked up under the enclosing namespaces, then as written and",
     "  under the namespaces opened there. A declaration is listed once; +N says",
     "  that N other declarations have its name (the nearest file is listed).",
+    "  What the statement writes comes first, then what only the proof or body",
+    "  writes.",
     "  Moving through the Mentions tab (1) highlights where the selected",
     "  identifier is written, in the declaration view and in the whole file,",
     "  and scrolls the first place into view.",
@@ -2241,7 +2286,7 @@ stops = [{ decl = "Demo.x" }]
             row: None,
             depth,
             parent,
-            labels: if depth == 0 { vec![] } else { vec![EdgeLabel::Lean { type_: true, body: true, ctor: false }, EdgeLabel::Lexical { ident: "x".into() }] },
+            labels: if depth == 0 { vec![] } else { vec![EdgeLabel::Lean { type_: true, body: true, ctor: false }, EdgeLabel::Lexical { part: crate::relations::Part::Unknown, ident: "x".into() }] },
             note: Some("why".into()),
             expanded: true,
             loaded: true,

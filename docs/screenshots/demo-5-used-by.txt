@@ -27,4 +27,4 @@ SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_correct   │ route: 
 │                        ││  TEST FIXTURE: a dependency on a missing ││Fixtures.search_trans uses  │
 │                        ││                                          ││Fixtures.searchWithin_correc│
 ╰────────────────────────╯╰──────────────────────────────────────────╯╰────────────────────────────╯
- ⏎ follow edge · →/← expand/collapse · 1-5 tabs · [ ] back/fwd · ? help · q quit
+ ⏎ follow edge · →/← expand/collapse · ; gloss · 1-5 tabs · [ ] back/fwd · ? help · q quit

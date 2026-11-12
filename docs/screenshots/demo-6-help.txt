@@ -27,4 +27,4 @@ SlimDe╭ Help ─────────────────────�
 │     │IN THE MAP, GOAL AND TRAIL VIEWS                                                      │ses  │
 │     │  j k ↑ ↓           move · Space or → expands · ← collapses or goes to the parent     │orrec│
 ╰─────╰──────────────────────────────────────────────────────────────────────────────────────╯─────╯
- ⏎ follow edge · →/← expand/collapse · 1-5 tabs · [ ] back/fwd · ? help · q quit
+ ⏎ follow edge · →/← expand/collapse · ; gloss · 1-5 tabs · [ ] back/fwd · ? help · q quit

@@ -76,6 +76,12 @@ format, not a statement about the mathematics. It was written against revision `
    dependency computed by Lean. (`r` switches to source mentions, `[lex]`; Lean dependencies
    need a semantic snapshot and say so here.)
 
+   To read what the theorem *states*, press `r` (source mentions) and then `y` once: the
+   header says `follows: what it states`. Now `Space` unfolds only the statement side:
+   `combined_acceptance` → `CombinedAcceptance` → `Accepted` → its seven clause structures,
+   with every proof left out. Rows are tagged `[lex s]` (written in the statement) or
+   `[lex b]` (written in a definition's body).
+
    (This screen: `docs/screenshots/ym-2-goal.txt`.)
 
 3. **Read a declaration.** `Enter` opens the selected step in the declaration browser:
@@ -88,6 +94,11 @@ format, not a statement about the mathematics. It was written against revision `
    (where it is declared, its statement, the lead of its documentation) under the declaration
    you are reading; `Enter` opens it. `Backspace` goes back to the goal explorer, and keeps
    going back through everything you visited.
+
+   The names of the submission say little (`YM.Trace.Cask.AirC`), and 94% of its
+   declarations have no doc comment. When you have worked out what one is, press `;` on it
+   and write a line: your gloss is shown beside that name from then on (in these lists, in
+   cards, skims and the goal explorer), and `/` finds the name by your words.
 
 4. **Skim a component.** `M` returns to the map. Move to *Independent review: combined
    acceptance (A7)* (`j` four times) and press `S`: the 42 landmark statements of that group
@@ -302,6 +313,20 @@ section and to the help overlay (`?`).
   mention and the anonymous instances about them; Lean decides what a declaration really
   takes. A semantic index shows the `open` lines only: an elaborated statement already has
   its binders.
+* **statement and proof**: the Mentions tab lists first what the statement writes (its
+  header, up to `:=`, `where` or the first `|`), then what only the proof or body writes. In
+  the goal explorer `y` chooses the part that is followed: everything, *what it states*, the
+  statement only, or the proof or body only. *What it states* is the statement of a theorem
+  and the whole of a definition, structure or inductive type (its body and its constructors
+  are what it means); unfolding with it reads a statement down to the definitions it is made
+  of. It applies to Lean dependencies too (`[T]` for a theorem, `[T]`, `[V]` and `[C]`
+  otherwise).
+* **gloss** (`;`): a line of your own about a name, kept with your trails and bookmarks
+  outside the project. It is shown beside the name (`= …`) wherever names are listed, and
+  search finds the name by its words. A new gloss starts from the purpose the project map
+  gives the name, else from the lead of its documentation, for you to cut. It is your note,
+  not a statement about Lean; it is attached to the full name, so a renamed declaration
+  loses it.
 * **card**: with the right pane focused (`Tab`), the selected name shows where it is written,
   its statement and the lead of its documentation under the declaration being read. `Enter`
   opens it.

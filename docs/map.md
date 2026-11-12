@@ -50,7 +50,8 @@ one row per declaration with every label it has. No view is called "proof depend
 Unfolding is lazy and finite. A declaration already on the path from the goal is shown as a
 back-reference (`↺ cycle`) and not unfolded again. A declaration that merely appears elsewhere in
 the outline is marked `↗ again` and can still be unfolded. Lean edges come 50 at a time with a
-"more" row. Filters (`L` local only, `G` generated, `y` statement or proof edges) hide rows and
+"more" row. Filters (`L` local only, `G` generated, `y` the part followed: all, what it states, statement only,
+proof or body only) hide rows and
 say how many; `H` reveals everything. Hiding is a display choice, not a claim of irrelevance.
 
 A **connection** is a shortest path of one relation kind in one direction, found by a search

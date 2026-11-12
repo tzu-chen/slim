@@ -19,12 +19,12 @@ SlimDemo.Fixtures.Trust › Demo.Fixtures › searchWithin_correct   │ route: 
 │                        ││  open Demo.Graph                         ││                            │
 │                        │╰──────────────────────────────────── 25% ─╯│                            │
 │                        │╭ thm …o.Fixtures.searchWithin_complete ───╮│                            │
+│                        ││  map: TEST FIXTURE: completeness of the …││                            │
 │                        ││  theorem Demo.Fixtures.searchWithin_compl││                            │
 │                        ││      ete {g : Demo.Graph} {s t : Nat} (h ││                            │
-│                        ││      : g.Reach s t) : ∃ fuel,            ││                            │
-│                        ││      g.searchWithin fuel s t = true      ││────────────────────────────│
-│                        ││  TEST FIXTURE: a deliberately incomplete ││step 1: Fixtures.searchWithi│
-│                        ││                                          ││n_complete: its proof term  │
+│                        ││      : g.Reach s t) : ∃ fuel,            ││────────────────────────────│
+│                        ││      g.searchWithin fuel s t = true      ││step 1: Fixtures.searchWithi│
+│                        ││  TEST FIXTURE: a deliberately incomplete ││n_complete: its proof term  │
 │                        ││                                          ││or body uses the next step  │
 ╰────────────────────────╯╰──────────────────────────────────────────╯╰────────────────────────────╯
- ⏎ follow edge · →/← expand/collapse · 1-5 tabs · [ ] back/fwd · ? help · q quit
+ ⏎ follow edge · →/← expand/collapse · ; gloss · 1-5 tabs · [ ] back/fwd · ? help · q quit

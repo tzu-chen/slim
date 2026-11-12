@@ -73,6 +73,11 @@ CREATE TABLE IF NOT EXISTS prefs (
 );
 "#;
 
+const SCHEMA_GLOSSES: &str = "CREATE TABLE IF NOT EXISTS glosses (
+  project TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL, updated INTEGER NOT NULL,
+  PRIMARY KEY (project, name)
+);";
+
 /// A reader's own annotation of a stop. None of these is a statement about
 /// Lean: "understood" means the reader says so.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -241,7 +246,30 @@ impl UserStore {
         conn.execute_batch(SCHEMA)?;
         let store = UserStore { conn, path: path.to_path_buf() };
         store.migrate()?;
+        // An added table, not a new schema version: an older slim still
+        // opens this file and does not see it.
+        store.conn.execute_batch(SCHEMA_GLOSSES)?;
         Ok(store)
+    }
+
+    /// The reader's glosses: declaration name and one line of text.
+    pub fn glosses(&self, project: &str) -> Result<Vec<(String, String)>> {
+        let mut st = self.conn.prepare("SELECT name, text FROM glosses WHERE project = ?1 ORDER BY name")?;
+        let v = st.query_map([project], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<rusqlite::Result<_>>()?;
+        Ok(v)
+    }
+
+    /// Sets the gloss of a name; `None` (or empty text) removes it.
+    pub fn set_gloss(&self, project: &str, name: &str, text: Option<&str>) -> Result<()> {
+        match text.map(|t| t.split_whitespace().collect::<Vec<_>>().join(" ")).filter(|t| !t.is_empty()) {
+            Some(t) => self.conn.execute(
+                "INSERT INTO glosses(project, name, text, updated) VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(project, name) DO UPDATE SET text = excluded.text, updated = excluded.updated",
+                params![project, name, t, crate::db::now_unix()],
+            )?,
+            None => self.conn.execute("DELETE FROM glosses WHERE project = ?1 AND name = ?2", params![project, name])?,
+        };
+        Ok(())
     }
 
     pub fn is_bookmarked(&self, project: &str, name: &str) -> Result<bool> {
@@ -861,6 +889,28 @@ mod tests {
 
     fn stop(name: &str) -> Stop {
         Stop { name: name.into(), display: name.into(), kind: "theorem".into(), module: Some("M".into()), path: Some("M.lean".into()), line: Some(3), ..Default::default() }
+    }
+
+    #[test]
+    fn glosses_are_one_line_per_name_and_project() {
+        let d = tempfile::tempdir().unwrap();
+        let p = d.path().join("u.sqlite");
+        let u = UserStore::open_at(&p).unwrap();
+        u.set_gloss("proj", "YM.Spec.Final", Some("  the final witness:\n fields and phases ")).unwrap();
+        u.set_gloss("proj", "YM.Family", Some("a Wilson lattice family")).unwrap();
+        u.set_gloss("other", "YM.Family", Some("elsewhere")).unwrap();
+        u.set_gloss("proj", "YM.Family", Some("the lattice family")).unwrap();
+        drop(u);
+        // Kept across sessions; an older slim still opens the file (same schema version).
+        let u = UserStore::open_at(&p).unwrap();
+        assert_eq!(
+            u.glosses("proj").unwrap(),
+            vec![("YM.Family".to_string(), "the lattice family".to_string()), ("YM.Spec.Final".to_string(), "the final witness: fields and phases".to_string())]
+        );
+        assert_eq!(u.conn.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0)).unwrap(), USER_SCHEMA_VERSION);
+        u.set_gloss("proj", "YM.Family", Some("   ")).unwrap();
+        assert_eq!(u.glosses("proj").unwrap().len(), 1);
+        assert_eq!(u.glosses("other").unwrap().len(), 1);
     }
 
     #[test]
