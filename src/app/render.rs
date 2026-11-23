@@ -179,7 +179,7 @@ fn draw_crumbs(f: &mut Frame, area: Rect, app: &App) {
     if let Some(b) = &app.detail {
         let d = &b.d;
         if let Some(m) = &d.row.module {
-            spans.push(Span::styled(clean(app, m), t.dim));
+            spans.push(Span::styled(clean(app, app.modname(m)), t.dim));
             spans.push(Span::styled(format!(" {} ", app.sym.crumb), t.dim));
         }
         let ns = crate::model::namespace_of(&d.row.display);
@@ -495,8 +495,10 @@ pub(super) fn pad(s: &str, w: usize) -> String {
 
 fn result_line(app: &App, row: &DeclRow, tier: Option<&str>, w: usize, sel: bool, focused: bool) -> Line<'static> {
     let t = &app.theme;
-    let st = if sel { if focused { t.selected } else { t.selected_unfocused } } else { t.text };
-    let mark = if app.bookmarked.contains(&row.name) { app.sym.bookmark } else { " " };
+    // What the endpoints do not reach is listed, dimmed and marked.
+    let outside = app.left_mode == LeftMode::Search && app.search.outside.contains(&row.id);
+    let st = if sel { if focused { t.selected } else { t.selected_unfocused } } else if outside { t.dim } else { t.text };
+    let mark = if app.bookmarked.contains(&row.name) { app.sym.bookmark } else if outside { "·" } else { " " };
     let right = match (tier, row.origin) {
         (Some(ti), Origin::Library) => format!(" {ti}·lib"),
         (Some(ti), _) => format!(" {ti}"),
@@ -673,6 +675,32 @@ fn marks_on(occ: Option<&[Occurrence]>, line: usize, from: usize) -> Vec<(u32, u
         .collect()
 }
 
+/// A statement as given / then, the definitions of its names on a rail
+/// under the part that writes them. Instance and implicit arguments are
+/// dimmed: they are rarely what a reader is after.
+fn contract_lines(app: &App, c: &crate::contract::Contract, w: usize) -> Vec<Line<'static>> {
+    use crate::contract::Role;
+    let t = &app.theme;
+    let mut out = Vec::new();
+    for l in crate::contract::render(c) {
+        if l.role == Role::Head {
+            continue; // the title above already names the declaration
+        }
+        let style = match l.role {
+            Role::Explicit | Role::Then => t.code,
+            Role::Quiet | Role::Note => t.dim,
+            Role::DefHead => t.accent,
+            _ => t.text,
+        };
+        let (lead, lead_style) = if l.indent == 0 { (format!("  {:<6}", l.label), t.heading) } else { (format!("{}{} ", " ".repeat(4 + l.indent as usize), app.sym.gutter), t.dim) };
+        let lw = text_width(&lead);
+        for (i, r) in wrap_line(&sanitize(&l.text, app.ascii), w.saturating_sub(lw).max(12), 4).into_iter().enumerate() {
+            out.push(Line::from(vec![Span::styled(if i == 0 { lead.clone() } else if l.indent == 0 { " ".repeat(lw) } else { lead.clone() }, lead_style), Span::styled(r, style)]));
+        }
+    }
+    out
+}
+
 pub(super) fn statement_lines(app: &App, b: &super::worker::DetailBundle, w: usize, occ: Option<&[Occurrence]>) -> Vec<Line<'static>> {
     let t = &app.theme;
     let d = &b.d;
@@ -775,7 +803,7 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
     }
     let mut loc = String::new();
     if let Some(m) = &d.row.module {
-        loc.push_str(&format!("module {m}"));
+        loc.push_str(&format!("module {}", app.modname(m)));
     }
     if let Some(p) = &d.module_path {
         let line = b.decl_lines.map(|x| x.0 as u32).or(d.pos.start_line);
@@ -785,6 +813,31 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
     out.extend(wrapped(app, &chrome(app, &loc), w, t.dim, 0));
     if let Some(g) = app.glosses.get(&d.row.name) {
         out.extend(wrapped(app, &format!("= {g}"), w, t.accent, 0));
+    }
+    // What the reader wrote about the namespaces it lies in (an
+    // abbreviation spelled out, say), outermost first.
+    {
+        let comps = crate::model::name_components(crate::model::namespace_of(&d.row.display));
+        for k in 1..=comps.len() {
+            let ns = comps[..k].join(".");
+            if let Some(g) = app.glosses.get(&ns).filter(|_| !ns.is_empty()) {
+                out.extend(wrapped(app, &format!("{ns} = {g}"), w, t.dim, 0));
+            }
+        }
+    }
+    // Where it stands under the endpoints (from the reference graph).
+    if let Some(p) = app.v.guide.position.as_ref().filter(|p| p.id == d.row.id) {
+        let line = if !p.has_roots {
+            format!("[{}] {} declaration(s) refer to it · no endpoints chosen (* pins a goal)", p.tag, p.users)
+        } else if p.reached {
+            // The ends of the chain say most: the endpoint, and what uses it.
+            let c = &p.chain;
+            let path = if c.len() <= 4 { c.join(&format!(" {} ", s.arrow)) } else { format!("{} {a} {} {a} … {a} {} {a} {}", c[0], c[1], c[c.len() - 2], c[c.len() - 1], a = s.arrow) };
+            format!("[{}] {path} · step {} · {} reached only through it · W why", p.tag, p.depth, crate::reading::thousands(p.excl.saturating_sub(1) as u64))
+        } else {
+            format!("[{}] not reached from the endpoints · {} declaration(s) refer to it", p.tag, p.users)
+        };
+        out.extend(wrapped(app, &chrome(app, &clean(app, &line)), w, if p.reached || !p.has_roots { t.dim } else { t.warn }, 0));
     }
     out.push(Line::from(""));
 
@@ -964,8 +1017,20 @@ pub fn detail_layout(app: &App, w: usize) -> (Vec<Line<'static>>, Vec<(usize, us
     ev.push(Line::from(""));
 
     // Statement.
-    out.push(heading(app, if mode == IndexMode::Semantic { "Statement (elaborated)" } else { "Statement (source text, not elaborated)" }, w));
-    out.extend(statement_lines(app, b, w, occ));
+    match app.contract_for(d.row.id) {
+        Some(c) => {
+            out.push(heading(app, &format!("Statement, its names unfolded {} level{} (u more · U less)", c.depth, if c.depth == 1 { "" } else { "s" }), w));
+            out.extend(contract_lines(app, c, w));
+            out.extend(wrapped(app, &crate::contract::footer(c), w, t.dim, 0));
+        }
+        None => {
+            out.push(heading(app, if mode == IndexMode::Semantic { "Statement (elaborated)" } else { "Statement (source text, not elaborated)" }, w));
+            out.extend(statement_lines(app, b, w, occ));
+            if let Some(e) = &app.v.guide.contract_error {
+                out.extend(wrapped(app, &format!("not unfolded: {e}"), w, t.warn, 0));
+            }
+        }
+    }
     out.push(Line::from(""));
     out.extend(scope_lines(app, d.row.id, w));
 
@@ -1781,6 +1846,12 @@ fn draw_status(f: &mut Frame, area: Rect, app: &App) {
             (View::Trails, _, false) => Some("⏎ open · s state · n note · Q question · - + move · d remove · N new · t active · r resume · E export · ? help"),
             (View::Imports, _, true) => Some("Space expand · ⏎ outline · Tab detail · p import path · S skim · ? help"),
             (View::Imports, _, false) => Some("Space expand · ⏎ show in the outline · p why it imports a module · S skim · f search within · Esc declarations · ? help"),
+            (View::Guide, _, _) => Some(match app.v.guide.mode {
+                super::guide::GuideMode::Start => "⏎ open · H start · D contents · N named statements · M map · T trails · Esc declarations · ? help",
+                super::guide::GuideMode::Contents => "Space/→ unfold · ← up · ⏎ open · W why · * pin as goal · H start · Esc declarations · ? help",
+                super::guide::GuideMode::Ledger => "⏎ open the statement · p its proof · f this namespace · F all · H start · Esc declarations · ? help",
+                super::guide::GuideMode::Why => "⏎ open · D contents · H start · Esc declarations · ? help",
+            }),
         };
         let hints = match (app.focus, app.left_mode, app.search.editing) {
             _ if view_hints.is_some() => view_hints.unwrap(),
@@ -1839,6 +1910,13 @@ pub const HELP: &[&str] = &[
     "  T                 reading trails, stops and questions",
     "  I                 import layers: files by import depth, endpoints, hubs;",
     "                    from a declaration it shows where its file sits",
+    "  H                 start here: what the project ends in and the ways into it",
+    "                    (a project without a map opens on it)",
+    "  D                 contents by dependence: what the endpoints rest on, the",
+    "                    largest parts first (needs the reference graph)",
+    "  N                 named statements and the theorems that prove them",
+    "  W                 why is this here: a chain of references from an endpoint",
+    "                    to the current declaration",
     "  / O B             the declaration browser (search, outline, bookmarks)",
     "  Esc               leave a view · Backspace or [ goes back through history",
     "  *                 pin the selected declaration as the goal; on the goal: clear",
@@ -1885,6 +1963,27 @@ pub const HELP: &[&str] = &[
     "                    Inside a scope an empty query lists what is there",
     "  Counts are sizes, not progress: there is no percent proved.",
     "",
+    "THE REFERENCE GRAPH (slim graph build <PROJECT_DIR>, outside the browser)",
+    "  Which declaration refers to which, for the whole project, in one file",
+    "  beside the index. From Lean's own references (.ilean files of a build,",
+    "  or of a published build cache given with --artifacts) where they are of",
+    "  the text shown, lexically elsewhere; every screen says which.",
+    "  [ref]        Lean's references: what is written, as Lean resolved it. Not",
+    "               the kernel's dependencies: instances and what simp found by",
+    "               itself are not written anywhere",
+    "  Endpoints    the pinned goal; else the objectives of the project map; else",
+    "               the theorems of the files that nothing imports",
+    "  D            a row's number: the declarations the endpoints reach only",
+    "               through it, itself included (its subtree in the dominator",
+    "               tree). a = b: a theorem whose whole proof is the name b",
+    "  N            depth from an endpoint (· not reached) · how many refer to it",
+    "               · by: the theorem whose type is exactly this name. p opens the",
+    "               proof, f restricts to the namespace, F clears",
+    "  The line under a declaration's place: a shortest chain from an endpoint,",
+    "  its step, and how much is reached only through it.",
+    "  In the goal explorer the same numbers stand on the right of each row and",
+    "  order the rows, heaviest first.",
+    "",
     "WHAT THE GOAL EXPLORER SHOWS",
     "  A uses B: unfolding A lists its prerequisite B. Used by is the reverse.",
     "  [cur]        curated in the project map: an author's explanation, not a Lean fact",
@@ -1910,8 +2009,19 @@ pub const HELP: &[&str] = &[
     "  O  B              outline (reveals the current declaration) · bookmarks",
     "                    search also lists matching map groups and landmarks",
     "  L  G  K           filters: local only · show generated · kind",
+    "  C                 all matches · those the endpoints reach · the rest. With a",
+    "                    reference graph, reached matches come first within a tier",
+    "                    and the others are marked · and dimmed; the line above the",
+    "                    list counts the matches by component",
+    "                    A query no name contains says so: what follows are near",
+    "                    spellings, probably unrelated",
+    "                    Statements are searched as text too (source-only: as written)",
     "",
     "READING",
+    "  u  U              unfold the project's names in the statement, one level more",
+    "                    or less: given / then, each definition under the part that",
+    "                    writes it, library names left alone",
+    "  ;  ,              gloss the selected name · gloss the namespace it lies in",
     "  i                 show/hide implicit and instance arguments",
     "  s                 whole source file (Esc returns), syntax-coloured",
     "  F4                highlighting: syntax + semantic / syntax / off",

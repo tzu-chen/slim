@@ -245,6 +245,12 @@ pub enum QueryReq {
     ImportsDir { gen: u64, full: String },
     /// "Why does `from` import `to`": a chain of import lines.
     ImportPath { gen: u64, from: String, to: String },
+    /// The reading views built on the reference graph; `goal`: the pinned goal.
+    Guide { gen: u64, goal: Option<String>, req: super::guide::GuideReq },
+    /// Where a declaration stands under the endpoints.
+    Position { gen: u64, goal: Option<String>, id: i64 },
+    /// A statement with its vocabulary unfolded to `depth` levels.
+    Contract { gen: u64, id: i64, depth: u8 },
     Reopen,
     Shutdown,
 }
@@ -271,6 +277,9 @@ impl QueryReq {
             QueryReq::Imports { .. } => "worker: import graph",
             QueryReq::ImportsDir { .. } => "worker: imports of a directory",
             QueryReq::ImportPath { .. } => "worker: import path",
+            QueryReq::Guide { .. } => "worker: reading view (reference graph)",
+            QueryReq::Position { .. } => "worker: position under the endpoints",
+            QueryReq::Contract { .. } => "worker: statement unfolded",
             QueryReq::ReloadMap => "worker: other",
             _ => "worker: other",
         }
@@ -292,6 +301,8 @@ impl QueryReq {
             QueryReq::Scope { .. } => 11,
             QueryReq::Peek { .. } | QueryReq::PeekLib { .. } => 12,
             QueryReq::UsedBy { .. } => 13,
+            QueryReq::Position { .. } => 14,
+            QueryReq::Contract { .. } => 15,
             _ => return None,
         })
     }
@@ -323,6 +334,9 @@ pub enum QueryResp {
     Imports(u64, Result<Arc<ImportGraph>, String>),
     ImportsDir(u64, Result<DirSummary, String>),
     ImportPath(u64, Result<PathAnswer, String>),
+    Guide(u64, super::guide::GuideReq, Result<super::guide::GuideData, String>),
+    Position(u64, i64, Option<super::guide::Position>),
+    Contract(u64, i64, Result<Box<crate::contract::Contract>, String>),
     Message(String),
     Error(String),
 }
@@ -348,9 +362,11 @@ fn query_loop(ctx: IndexCtx, rx: Receiver<QueryReq>, tx: Sender<Event>) {
     if let Err(e) = &users {
         let _ = tx.send(Event::Query(QueryResp::Error(format!("user data unavailable: {e}"))));
     }
-    let mut cache = SourceCache::default();
+    let mut cache = SourceCache::for_index(&ctx.index);
     // Loaded when the import view first asks; dropped with the index.
     let mut imports: Option<Arc<ImportGraph>> = None;
+    // The reference graph, read on a thread of its own from now on.
+    let mut slot = super::guide::GraphSlot::new(&ctx.index);
     let mut map = MapBundle { load: MapLoad::Absent { looked_at: None }, resolution: Resolution::default() };
     if !publish_map(&ctx, conn.as_ref(), &mut map, &tx) {
         return;
@@ -380,8 +396,9 @@ fn query_loop(ctx: IndexCtx, rx: Receiver<QueryReq>, tx: Sender<Event>) {
                 QueryReq::Reopen | QueryReq::ReloadMap => {
                     if matches!(req, QueryReq::Reopen) {
                         conn = db::open_read(&ctx.index).ok();
-                        cache = SourceCache::default();
+                        cache = SourceCache::for_index(&ctx.index);
                         imports = None;
+                        slot = super::guide::GraphSlot::new(&ctx.index);
                     }
                     // The index or the sidecar changed: resolve the map again.
                     if !publish_map(&ctx, conn.as_ref(), &mut map, &tx) {
@@ -392,7 +409,7 @@ fn query_loop(ctx: IndexCtx, rx: Receiver<QueryReq>, tx: Sender<Event>) {
                     let key = req.timing_key();
                     let t = Instant::now();
                     let resp = match (&conn, &users) {
-                        (Some(c), u) => handle(&ctx, c, u.as_ref().ok(), &mut cache, &map, &mut imports, req),
+                        (Some(c), u) => handle(&ctx, c, u.as_ref().ok(), &mut cache, &map, &mut imports, &mut slot, req),
                         (None, _) => QueryResp::Error("index not available".into()),
                     };
                     super::timing::record(key, t.elapsed().as_secs_f64() * 1000.0);
@@ -510,7 +527,7 @@ fn import_graph(c: &rusqlite::Connection, slot: &mut Option<Arc<ImportGraph>>) -
     Ok(g)
 }
 
-fn handle(ctx: &IndexCtx, c: &rusqlite::Connection, users: Option<&UserStore>, cache: &mut SourceCache, map: &MapBundle, imports: &mut Option<Arc<ImportGraph>>, req: QueryReq) -> QueryResp {
+fn handle(ctx: &IndexCtx, c: &rusqlite::Connection, users: Option<&UserStore>, cache: &mut SourceCache, map: &MapBundle, imports: &mut Option<Arc<ImportGraph>>, slot: &mut super::guide::GraphSlot, req: QueryReq) -> QueryResp {
     // Changes to trails and questions answer with the whole reading state.
     let read_op = |f: &dyn Fn(&UserStore) -> anyhow::Result<(String, Option<(i64, Option<i64>)>)>| -> QueryResp {
         let Some(u) = users else { return QueryResp::Error("user data unavailable".into()) };
@@ -520,6 +537,23 @@ fn handle(ctx: &IndexCtx, c: &rusqlite::Connection, users: Option<&UserStore>, c
         }
     };
     match req {
+        QueryReq::Guide { gen, goal, req } => {
+            let mut env = super::guide::GuideEnv { ctx, c, cache, map, slot };
+            let r = super::guide::handle(&mut env, goal.as_deref(), &req);
+            QueryResp::Guide(gen, req, s(r))
+        }
+        QueryReq::Position { gen, goal, id } => {
+            let mut env = super::guide::GuideEnv { ctx, c, cache, map, slot };
+            QueryResp::Position(gen, id, super::guide::position(&mut env, goal.as_deref(), id))
+        }
+        QueryReq::Contract { gen, id, depth } => {
+            let r = (|| -> anyhow::Result<Box<crate::contract::Contract>> {
+                let root = ctx.source_root.as_deref().ok_or_else(|| anyhow::anyhow!("no source root for this index"))?;
+                let opts = crate::contract::Options { depth, ..Default::default() };
+                Ok(Box::new(crate::contract::contract(c, root, cache, id, &opts)?))
+            })();
+            QueryResp::Contract(gen, id, s(r))
+        }
         QueryReq::ViewDetail { gen, name } => {
             let r = (|| -> anyhow::Result<Option<Box<DetailBundle>>> {
                 match decl_by_name(c, &name)? {
@@ -531,7 +565,25 @@ fn handle(ctx: &IndexCtx, c: &rusqlite::Connection, users: Option<&UserStore>, c
         }
         QueryReq::GoalChildren { gen, node, q } => {
             let mut env = Env { conn: c, mode: ctx.mode, map: map.load.map().map(|m| m.as_ref()), source_root: ctx.source_root.as_deref(), cache };
-            QueryResp::GoalChildren(gen, node, q.offset, s(crate::relations::children(&mut env, &q)))
+            let mut page = crate::relations::children(&mut env, &q);
+            // With a reference graph: what each child weighs under the
+            // project's endpoints, and where a relay hands over; the
+            // heaviest first, except in an argument someone wrote, whose
+            // order is theirs.
+            if let (Ok(p), Ok(Some((g, cone, roots)))) = (&mut page, slot.cone(c, map, None)) {
+                if !roots.nodes.is_empty() {
+                    for ch in &p.children {
+                        let Some(v) = ch.row.as_ref().and_then(|r| g.node(r.id)) else { continue };
+                        let relay = g.relay_target(v).and_then(|t| crate::db::query::row(c, g.id(t)).ok().flatten()).map(|r| super::state::short_name(&r.display));
+                        p.weights.insert(ch.name.clone(), (if cone.contains(v) { cone.excl[v as usize] } else { 0 }, relay));
+                    }
+                    if q.mode != crate::relations::RelMode::Curated && q.dir == Direction::Uses {
+                        let w = p.weights.clone();
+                        p.children.sort_by_key(|ch| std::cmp::Reverse(w.get(&ch.name).map(|x| x.0).unwrap_or(0)));
+                    }
+                }
+            }
+            QueryResp::GoalChildren(gen, node, q.offset, s(page))
         }
         QueryReq::Skim { gen, scope, show_generated } => {
             let mut env = crate::skim::Env { conn: c, mode: ctx.mode, source_root: ctx.source_root.as_deref(), cache, map: map.load.map().map(|m| m.as_ref()), show_generated };
@@ -563,6 +615,15 @@ fn handle(ctx: &IndexCtx, c: &rusqlite::Connection, users: Option<&UserStore>, c
                 let module = d.module_path.as_deref().map(|p| crate::leanrefs::package_of(cache, root, p).module_name(p));
                 crate::leanrefs::used_by(c, root, cache, &d.row.name, module.as_deref(), id, 300)
             })();
+            // A project too large to read its artifacts in one go: the
+            // reference graph holds the same uses, turned around already.
+            let r = match r {
+                Ok(u) if u.read_files == 0 => {
+                    let mut env = super::guide::GuideEnv { ctx, c, cache, map, slot };
+                    Ok(super::guide::used_by(&mut env, id, 300).unwrap_or(u))
+                }
+                other => other,
+            };
             QueryResp::UsedBy(gen, s(r))
         }
         QueryReq::ModuleSections { module_id } => {
@@ -843,7 +904,7 @@ pub fn spawn_connection(ctx: IndexCtx, tx: Sender<Event>, gen: u64, latest: Arc<
             let res = match db::open_read(&ctx.index) {
                 Ok(conn) => {
                     let map = load_map(&ctx, None).load;
-                    let mut cache = SourceCache::default();
+                    let mut cache = SourceCache::for_index(&ctx.index);
                     let mut env = Env { conn: &conn, mode: ctx.mode, map: map.map().map(|m| m.as_ref()), source_root: ctx.source_root.as_deref(), cache: &mut cache };
                     crate::relations::connection(&mut env, &q, &lim, &cancel)
                 }
@@ -876,6 +937,12 @@ pub struct SearchResults {
     pub doc_ms: f64,
     /// A file scope names no local file (the reader is told).
     pub scope_empty: bool,
+    /// The name matches by component (label, count), most first.
+    pub groups: Vec<(String, u32)>,
+    /// Hits that the endpoints do not reach, by declaration id.
+    pub outside: Vec<i64>,
+    /// Whether reach is known at all (a reference graph and endpoints).
+    pub has_cone: bool,
 }
 
 /// Ids of the modules a file scope covers.
@@ -917,6 +984,10 @@ fn load_index(ctx: &IndexCtx) -> anyhow::Result<(NameIndex, rusqlite::Connection
 fn search_loop(ctx: IndexCtx, rx: Receiver<SearchReq>, tx: Sender<Event>, latest: Arc<AtomicU64>) {
     let mut state: Option<(NameIndex, rusqlite::Connection)> = None;
     let mut reload = true;
+    // What reading order knows: read after the index, so that the first
+    // searches are not kept waiting for it.
+    let mut rank: Option<Arc<crate::nameindex::Rank>> = None;
+    let mut rank_due = false;
     // The module set of the scope in use (resolved once per scope).
     let mut scope_cache: Option<(String, Arc<ModuleSet>)> = None;
     loop {
@@ -933,11 +1004,23 @@ fn search_loop(ctx: IndexCtx, rx: Receiver<SearchReq>, tx: Sender<Event>, latest
                         memory: ni.memory_bytes(),
                     }));
                     state = Some((ni, conn));
+                    rank = None;
+                    rank_due = true;
                 }
                 Err(e) => {
                     let _ = tx.send(Event::Search(SearchResp::Failed(format!("{e:#}"))));
                     state = None;
                 }
+            }
+        }
+        if std::mem::take(&mut rank_due) {
+            if let Some((_, conn)) = &state {
+                let map = match (&ctx.map_path, &ctx.source_root) {
+                    (Some(p), _) => crate::map::load(p).map().cloned(),
+                    (None, Some(r)) => crate::map::load_for_root(r).map().cloned(),
+                    _ => None,
+                };
+                rank = crate::reading::rank_for_index(&ctx.index, conn, map.as_deref()).ok().map(Arc::new);
             }
         }
         let Ok(mut req) = rx.recv() else { return };
@@ -974,6 +1057,12 @@ fn search_loop(ctx: IndexCtx, rx: Receiver<SearchReq>, tx: Sender<Event>, latest
                     }
                 };
                 let cancel = || latest.load(Ordering::Relaxed) != gen;
+                params.rank = rank.clone();
+                let has_cone = rank.as_ref().is_some_and(|r| r.has_cone);
+                if !has_cone {
+                    // Nothing is known about reach: the filter cannot apply.
+                    params.reach = crate::nameindex::Reach::Any;
+                }
                 let outcome = ni.search(&params, &cancel);
                 if outcome.cancelled {
                     continue;
@@ -1002,7 +1091,14 @@ fn search_loop(ctx: IndexCtx, rx: Receiver<SearchReq>, tx: Sender<Event>, latest
                 if latest.load(Ordering::Relaxed) != gen {
                     continue;
                 }
-                let res = SearchResults { gen, query: params.query.clone(), outcome, rows, doc_rows, doc_ms, scope_empty };
+                let (groups, outside) = match &rank {
+                    Some(r) => (
+                        outcome.groups.iter().map(|(c, n)| (r.components[*c as usize].0.clone(), *n)).collect(),
+                        rows.iter().chain(doc_rows.iter()).filter(|x| x.id >= 0 && r.in_cone(x.id as u32) == Some(false)).map(|x| x.id).collect(),
+                    ),
+                    None => (Vec::new(), Vec::new()),
+                };
+                let res = SearchResults { gen, query: params.query.clone(), outcome, rows, doc_rows, doc_ms, scope_empty, groups, outside, has_cone };
                 if tx.send(Event::Search(SearchResp::Results(Box::new(res)))).is_err() {
                     return;
                 }

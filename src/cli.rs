@@ -19,7 +19,8 @@ const VALUED: &[&str] = &[
     "library-types", "timeout", "memory-mib", "sandbox", "decls", "edges", "seed", "repeat", "max-seconds", "lean",
     "exporter-dir", "limit", "editor", "query", "max-library-decls", "module", "report", "pp", "map", "trail",
     "syntax-theme", "highlight", "list", "files", "max-files", "file-timeout", "budget", "cgroup", "highlight-memory-mib",
-    "open-docs", "max-file-mib", "trace", "repeat-trace", "namespace", "group", "within",
+    "open-docs", "max-file-mib", "trace", "repeat-trace", "namespace", "group", "within", "goal", "artifacts", "depth",
+    "against", "from", "revision", "top",
 ];
 
 impl Args {
@@ -91,7 +92,8 @@ fn is_command(s: &str) -> bool {
     matches!(
         s,
         "demo" | "open" | "scan" | "import" | "export" | "info" | "search" | "trail" | "bench" | "help" | "version" | "check-axioms"
-            | "bookmarks" | "fixture-demo-snapshot" | "map" | "highlight" | "imports" | "skim"
+            | "bookmarks" | "fixture-demo-snapshot" | "map" | "highlight" | "imports" | "skim" | "graph" | "why" | "contents"
+            | "ledger" | "contract" | "dossier" | "diff" | "start" | "gloss"
     )
 }
 
@@ -115,7 +117,9 @@ USAGE
   slim info [<PROJECT_DIR> | --index FILE]       Provenance, coverage and freshness
   slim search <PROJECT_DIR|--index FILE> <QUERY...> [--within FILES | --namespace NS]
                                         Non-interactive search, optionally restricted to the
-                                        files below a dotted module prefix or to a namespace
+                                        files below a dotted module prefix or to a namespace;
+                                        --reached / --unreached: only what the endpoints reach, or
+                                        the rest (with a reference graph)
   slim skim <PROJECT_DIR|--index FILE> [MODULE_OR_DIR] [--namespace NS] [--group ID]
                                         Statements of a file, a directory, a namespace or a map
                                         group, with the first line of their documentation and no
@@ -124,12 +128,41 @@ USAGE
                                         The import order: directories by import depth, endpoints
                                         (files nothing that declares imports) and hubs; with two
                                         modules, a chain of import lines from the first to the second
+  slim graph build <PROJECT_DIR> [--artifacts DIR] [--lexical] [--threads N]
+                                        The reference graph: which declaration refers to which,
+                                        from the .ilean files of a build (or of a published build
+                                        cache in DIR) where they are of the text, lexically
+                                        elsewhere. Reads files, runs nothing. `graph status` says
+                                        what it holds; `graph show DIR NAME` lists one declaration's
+  slim contents <PROJECT_DIR> [NAME] [--depth N] [--limit N]
+                                        Contents by dependence: what the endpoints reach, by how
+                                        much is reached only through each declaration
+  slim why <PROJECT_DIR> <NAME>         A shortest chain of references from an endpoint to NAME
+  slim ledger <PROJECT_DIR> [--namespace NS] [--limit N]
+                                        Named statements (definitions of sort Prop) and the
+                                        theorems of exactly that type
+                                        (contents, why, ledger: --goal NAME sets the endpoints;
+                                        otherwise the map's objectives, else the theorems of the
+                                        files that nothing imports)
+  slim contract <PROJECT_DIR> <NAME> [--depth N]
+                                        A statement as given / then, the project's names in it
+                                        unfolded level by level
+  slim dossier <PROJECT_DIR> <NAME> [-o FILE.md] [--depth N] [--from BASE_URL]
+                                        A Markdown page about one declaration
+  slim diff <OLD_DIR> <NEW_DIR> [--limit N]
+                                        Two editions by declaration: added, removed, statement or
+                                        proof changed; which glosses and map entries still stand
+  slim gloss list|export <PROJECT_DIR> [-o FILE.toml] | gloss import <PROJECT_DIR> <FILE.toml>
+                                        The reader's glosses and trails as map entries, out and in
   slim check-axioms --index FILE        Compare slim's axiom analysis with Lean's own report
   slim map init <PROJECT_DIR> [-o FILE]        Print (or write, never overwriting) a starting
                                         lean-view.toml derived from directories, labelled generated
   slim map check <PROJECT_DIR> [--map FILE] [--fingerprints]
                                         Validate the project map against the index: field errors,
                                         unresolved or ambiguous names, stale annotations
+  slim map import <PROJECT_DIR> --from MODEL.json [-o FILE]
+                                        Convert a published reading model (a local file) into a
+                                        map, every entry marked imported; never overwrites
   slim trail list|export [<PROJECT_DIR> | --project NAME] [--trail ID|TITLE] [-o FILE.md]
                                         List reading trails, or export one as Markdown (with the
                                         project directory, stops are checked against its index)

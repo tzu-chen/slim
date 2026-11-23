@@ -7,6 +7,7 @@ Captured screens of everything described here are in `docs/screenshots/` (plain 
 by `scripts/capture-screens.sh`).
 
 Contents: [a first session on YM](#a-first-session-on-a-real-project-ym) ·
+[a new proof, read top down](#a-new-proof-read-top-down-vp--vnp) ·
 [the bundled demo](#the-bundled-demo) · [the demo's map](#the-demos-map) ·
 [the big picture](#the-big-picture-in-a-source-only-project) ·
 [your own projects](#your-own-projects) · [colours](#syntax-and-semantic-colours) ·
@@ -215,8 +216,9 @@ The map is a plain TOML file that slim reads and never rewrites; `docs/map.md` d
 
 No map, no snapshot, no Lean: these work from the source-only index alone (`docs/overview.md`).
 
-1. A project without a map opens on the **outline** in the left pane (`O` returns to it from
-   anywhere, `/` searches). `o` cycles its right-hand column and order: declarations, theorems,
+1. A project without a map opens on the **start page** (`H`): the theorems of the files that
+   nothing imports, with their statements, and the ways in. `O` is the **outline** in the left
+   pane (`/` searches). `o` cycles its right-hand column and order: declarations, theorems,
    proof lines, `sorry` tokens, last modified. A directory shows the sum over its files.
 2. `S` on a directory or file **skims** it: each declaration's statement and the lead of its
    documentation, proofs left out, with how many lines were folded. `j`/`k` move by statement,
@@ -244,6 +246,44 @@ Colours follow lean-lang.org's light and dark palettes
 paints its own background. It is dark unless `COLORFGBG` says the terminal is light; choose with
 `--theme lean-light|lean-dark` or `SLIM_THEME`. `--theme dark|light|contrast|mono` keep the
 terminal's own colours. `--ascii` and `NO_COLOR` are supported.
+
+## A new proof, read top down: VP ≠ VNP
+
+[anthropics/formal-math](https://github.com/anthropics/formal-math) (Apache-2.0) holds
+machine-checked proofs, each a Lake project in its own directory. `vp-vnp/` proves that the
+permanent and the Hamiltonian cycle polynomial need circuits of superpolynomial size over
+every field: 324 files, 5,397 declarations. `docs/reading.md` describes the views used here.
+
+```sh
+git clone https://github.com/anthropics/formal-math.git    # about 10 MB; nothing is built
+slim graph build formal-math/vp-vnp                        # scans, then reads the references: under a second
+slim formal-math/vp-vnp
+```
+
+Open the project directory, not the repository: the repository holds four proofs, and slim
+then says so instead of guessing what it ends in.
+
+1. slim opens on the **start page** (`H`). The project ends in the five theorems of
+   `Solution.lean`, each shown with its statement. `Challenge.lean` restates them with `sorry`
+   for the tool Comparator; a name means the proof, so the restatements are not listed.
+2. `Enter` on `Solution.mainTheorem` opens it. Its statement is one name, `MainTheorem`.
+   `u` unfolds it in place; `u` again unfolds `Computes`, `hc`, `perm` and `Beyond` under it.
+   That screen is the whole theorem in the vocabulary of Mathlib. `U` folds back.
+3. `D` is the **contents by dependence**: what the five theorems rest on, by how much is
+   reached only through each step. `→` unfolds a row; the numbers say where the proof's
+   mass is (`Paper.thm_onecut` carries about a third of everything).
+4. `N` lists the **named statements**: each definition of sort `Prop` with the theorem of
+   exactly that type. `p` opens the proof.
+5. On any declaration, the line under its place says where it stands under the endpoints,
+   and `W` shows a chain of references down to it.
+6. `/` searches names and statements. What the endpoints do not reach is dimmed and marked
+   `·`; `Esc`, then `C`, hides it.
+7. `slim dossier formal-math/vp-vnp Solution.mainTheorem -o main.md` writes the unfolded
+   statement, its place and what its proof refers to as one Markdown page.
+
+Every screen says `[lex]`: without a build, the references are identifiers matched against
+indexed names. After `lake exe cache get && lake build` in the project (its README says how),
+`slim graph build` reads Lean's own reference files instead and the screens say `[ref]`.
 
 ## Your own projects
 
@@ -305,8 +345,10 @@ section and to the help overlay (`?`).
   these edges are not a reading order, and "coverage incomplete" means missing edges are not
   evidence of no dependency.
 * **import layers**: build order, not mathematics. Module names are paths from the project
-  root, so in a source-only index the files of a Lake `srcDir` show as external unless slim is
-  opened on that directory.
+  root; `import` lines are resolved through Lake's module names, so a package below the root
+  or with a `srcDir` has its imports.
+* **`[ref]`**: from the reference graph, Lean's references: what is written in a file, as Lean
+  resolved it when the file was built. Not the kernel's dependencies (`docs/reading.md`).
 * **in scope** (under a statement): the `variable` and `open` lines in force where the
   declaration stands, read from the text between the declarations of its file. Of the
   variables, the binders whose names the declaration writes are shown, with those their types
@@ -457,10 +499,15 @@ and not in the tested list.
 | `slim scan DIR [--threads N] [--force]` | source-only index (incremental when it exists) |
 | `slim export DIR [--import] [--out F] [--pp notation\|raw] [--library full\|frontier\|none] [--timeout S] [--memory-mib M]` | semantic snapshot (explicit) |
 | `slim import SNAP [--source-root DIR \| --index FILE] [--allow-partial]` | transactional, resumable import |
-| `slim info DIR` · `search DIR WORDS [--within FILES \| --namespace NS]` · `check-axioms --index FILE` | inspection |
+| `slim info DIR` · `search DIR WORDS [--within FILES \| --namespace NS] [--reached \| --unreached]` · `check-axioms --index FILE` | inspection |
 | `slim skim DIR MODULE_OR_DIR [--namespace NS] [--group ID]` | statements without proofs, as text |
 | `slim imports DIR [FROM TO] [--limit N]` | import order: layers, endpoints, hubs; or one import path |
-| `slim map init DIR [-o FILE]` · `map check DIR [--map FILE] [--fingerprints]` | project map: starting file, validation |
+| `slim graph build DIR [--artifacts DIR] [--lexical] [--threads N]` · `graph status DIR` · `graph show DIR NAME` | the reference graph (`docs/reading.md`): built from `.ilean` files where they are of the text, lexically elsewhere |
+| `slim contents DIR [NAME] [--depth N] [--limit N]` · `why DIR NAME` · `ledger DIR [--namespace NS]` | contents by dependence · a chain from an endpoint · named statements and their proofs (all take `--goal NAME`) |
+| `slim contract DIR NAME [--depth N]` · `dossier DIR NAME [-o FILE.md] [--from BASE_URL]` | a statement with its vocabulary unfolded · a page about one declaration |
+| `slim diff OLD_DIR NEW_DIR [--limit N]` | two editions compared by declaration; which annotations stand |
+| `slim gloss list\|export DIR [-o FILE]` · `gloss import DIR FILE [--replace]` | the reader's glosses and trails as map entries, out and in |
+| `slim map init DIR [-o FILE] [--landmarks]` · `map check DIR [--map FILE] [--fingerprints]` · `map import DIR --from MODEL.json [-o FILE]` | project map: starting file (with generated landmark candidates), validation, import of a published reading model |
 | `slim trail list\|export [DIR] [--trail ID\|TITLE] [-o FILE.md]` · `bookmarks` | reading data |
 | `slim highlight build DIR [--yes] [--files PATH]… [--budget S] [--file-timeout S] [--memory-mib M] [--retry] [--refresh]` | semantic-highlight indexing (explicit, resumable) |
 | `slim highlight status DIR [--failures]` · `highlight clean DIR [--baseline] [--semantic]` | cache contents and freshness · maintenance |
@@ -481,6 +528,8 @@ server when Lean 4.33.1 and a built `fixtures/demo` are present).
   walkthrough above (an unaccepted AI-drafted map: an example of the format).
 * `docs/overview.md` — skim, outline counts, import layers, search within, the Mentions
   highlight: what each number means, limits, measurements; index format 2.
+* `docs/reading.md` — the reference graph, the start page, contents by dependence, named
+  statements, the contract view, overlays and editions: for a very large proof with no prose.
 * `docs/map.md` — the architecture map, the goal explorer, reading trails and `lean-view.toml`.
 * `docs/design.md` — reconnaissance, architecture, data formats, edge semantics, decisions.
 * `docs/limitations.md` — what is approximate, missing or untested.

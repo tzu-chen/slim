@@ -8,6 +8,8 @@
 #        scripts/capture-screens.sh --highlight-only (syntax and semantic colours)
 #        scripts/capture-screens.sh --ym YM_DIR      (the guide's walkthrough, on a checkout of
 #                                                     https://github.com/yang-mills-group/YM)
+#        scripts/capture-screens.sh --fm FORMAL_MATH_DIR  (the reading views, on vp-vnp of a
+#                                                     checkout of github.com/anthropics/formal-math)
 # The demo ships a project map and opens on it, so searches start with `/`.
 #
 # Screens show paths (the project in the title bar, the demo's cache). So that
@@ -78,6 +80,22 @@ ym() {
   keys y1 q 0.5
 }
 if [ "${1:-}" = "--ym" ]; then ym "$2"; echo "captured: ym-*.txt in $OUT"; exit 0; fi
+
+# The guide's session on a new proof (docs/reading.md): VP != VNP from a checkout of
+# https://github.com/anthropics/formal-math. The scratch cache gets its own index and graph.
+fm() {
+  $BIN graph build "$1/vp-vnp" >/dev/null 2>&1
+  run f1 140 40 "$BIN $1/vp-vnp"
+  sleep 2
+  snap f1 fm-1-start
+  keys f1 Enter 1.5; keys f1 u 1; keys f1 u 1; snap f1 fm-2-unfolded
+  keys f1 D 1.5; keys f1 Right 1; keys f1 j 0.2; keys f1 Right 1; snap f1 fm-3-contents
+  keys f1 N 1.5; snap f1 fm-4-named
+  keys f1 / 0.4; keys f1 "thm_onecut" 1; keys f1 Enter 1.5; keys f1 W 1.5; snap f1 fm-5-why
+  keys f1 Escape 0.3; keys f1 / 0.4; keys f1 C-u 0.2; keys f1 "mainTheorem" 1.2; snap f1 fm-6-search
+  keys f1 Escape 0.2; keys f1 q 0.5
+}
+if [ "${1:-}" = "--fm" ]; then fm "$2"; echo "captured: fm-*.txt in $OUT"; exit 0; fi
 
 # Map, goal explorer and reading trails (milestone 2), on the bundled demo.
 views() {

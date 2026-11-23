@@ -184,6 +184,10 @@ pub struct SearchPane {
     /// The search is restricted to a namespace or to the files below a
     /// directory (`f` sets it from what is selected, `F` clears it).
     pub scope: Option<ScopeSpec>,
+    /// All matches, or those the endpoints reach, or the rest (`C`).
+    pub reach: crate::nameindex::Reach,
+    /// Results the endpoints do not reach (marked in the list).
+    pub outside: HashSet<i64>,
 }
 
 #[derive(Clone, Debug)]
@@ -439,6 +443,13 @@ pub enum Cmd {
     ClearScope,
     Imports,
     ImportPath,
+    Start,
+    Contents,
+    Ledger,
+    Why,
+    Unfold,
+    Fold,
+    Reach,
     Bookmarks,
     Trail,
     Map,
@@ -451,6 +462,7 @@ pub enum Cmd {
     AddToTrail,
     EditNote,
     Gloss,
+    GlossNamespace,
     ExportTrail,
     ToggleLocal,
     ToggleGenerated,
@@ -493,6 +505,13 @@ pub const COMMANDS: &[(Cmd, &str, &str)] = &[
     (Cmd::ClearScope, "Search everywhere again (clear the search scope)", "F"),
     (Cmd::Imports, "Import layers: files by import depth, endpoints, hubs", "I"),
     (Cmd::ImportPath, "Why does this file import…: show a chain of import lines to another module", "p in I"),
+    (Cmd::Start, "Start here: what the project ends in, and the ways into it", "H"),
+    (Cmd::Contents, "Contents by dependence: what the endpoints rest on, largest parts first (reference graph)", "D"),
+    (Cmd::Ledger, "Named statements: definitions of sort Prop and the theorems that prove them", "N"),
+    (Cmd::Why, "Why is this here: a chain of references from an endpoint to the current declaration", "W"),
+    (Cmd::Unfold, "Statement: unfold the project's names in it, one level more", "u"),
+    (Cmd::Fold, "Statement: fold one level back", "U"),
+    (Cmd::Reach, "Search: all / reached from the endpoints / not reached", "C"),
     (Cmd::Bookmarks, "Show bookmarks", "B"),
     (Cmd::Map, "Architecture map: main results, components, landmarks (reveals the current declaration)", "M"),
     (Cmd::Goal, "Goal explorer: unfold what the pinned goal rests on", "A"),
@@ -505,6 +524,7 @@ pub const COMMANDS: &[(Cmd, &str, &str)] = &[
     (Cmd::AddToTrail, "Add the selected declaration or group to the active trail (with note)", "a"),
     (Cmd::EditNote, "Edit note of the selected bookmark", "n"),
     (Cmd::Gloss, "Gloss: your one-line note on the selected name, shown beside it everywhere", ";"),
+    (Cmd::GlossNamespace, "Gloss the namespace of the current declaration (what an abbreviation such as ZF stands for)", ","),
     (Cmd::ExportTrail, "Export a reading trail as Markdown", "E"),
     (Cmd::ToggleLocal, "Filter: local only / library-inclusive", "L"),
     (Cmd::ToggleGenerated, "Filter: show / hide Lean-generated declarations", "G"),
@@ -754,6 +774,15 @@ impl App {
     // Requests
     // ------------------------------------------------------------------
 
+    /// A module name as Lean has it (without the prefix of the Lake
+    /// package it lies in, where the project was opened above it).
+    pub fn modname<'a>(&self, m: &'a str) -> &'a str {
+        match &self.ctx.info {
+            Some(i) => i.module_shown(m),
+            None => m,
+        }
+    }
+
     fn q(&self, r: QueryReq) {
         if let Some(t) = &self.ch.query {
             let _ = t.send(r);
@@ -775,6 +804,7 @@ impl App {
             show_generated: self.filters.show_generated,
             kinds: self.filters.kinds,
             limit: 300,
+            reach: self.search.reach,
             ..Default::default()
         }
     }
@@ -857,6 +887,13 @@ impl App {
             None => self.msg("search scope cleared: searching everywhere"),
         }
         self.search.scope = next;
+        self.run_search();
+    }
+
+    /// `C`: all matches, those the endpoints reach, those they do not.
+    pub fn cmd_reach(&mut self) {
+        self.search.reach = self.search.reach.next();
+        self.msg(format!("search: {}", self.search.reach.label()));
         self.run_search();
     }
 
@@ -1535,6 +1572,20 @@ impl App {
                     items.push(LeftItem::Section("declarations".into()));
                 }
                 let n_map = map_hits.len();
+                // Nothing contains the query: the list below is near
+                // spellings, and the reader is told so.
+                if res.outcome.only_fuzzy {
+                    items.push(LeftItem::Section(format!("no name contains \"{}\" — near spellings, probably unrelated", res.query.trim())));
+                }
+                if res.groups.len() > 1 {
+                    let shown: Vec<String> = res.groups.iter().take(4).map(|(l, n)| format!("{} {n}", l.rsplit('/').next().unwrap_or(l))).collect();
+                    items.push(LeftItem::Section(format!("{}{}", shown.join(" · "), if res.groups.len() > 4 { format!(" · +{}", res.groups.len() - 4) } else { String::new() })));
+                }
+                self.search.outside = res.outside.iter().copied().collect();
+                if !res.has_cone && self.search.reach != crate::nameindex::Reach::Any {
+                    self.search.reach = crate::nameindex::Reach::Any;
+                    self.warn("the reach filter needs a reference graph and endpoints (`slim graph build`): showing all matches");
+                }
                 items.extend(res.rows.iter().zip(&res.outcome.hits).map(|(r, h)| LeftItem::Result { row: r.clone(), tier: Some(h.tier) }));
                 if !res.doc_rows.is_empty() {
                     items.push(LeftItem::Section(format!("documentation / statement text ({})", res.doc_rows.len())));
@@ -1556,6 +1607,12 @@ impl App {
                 }
                 if o.filtered_out > 0 {
                     parts.push(format!("{} hidden by filters", o.filtered_out));
+                }
+                if res.has_cone && o.outside > 0 && self.search.reach == crate::nameindex::Reach::Any {
+                    parts.push(format!("{} not reached (·)", o.outside));
+                }
+                if self.search.reach != crate::nameindex::Reach::Any {
+                    parts.push(format!("only {}", self.search.reach.label()));
                 }
                 if o.fuzzy_truncated {
                     parts.push("fuzzy stopped at time budget".into());
@@ -1721,6 +1778,7 @@ impl App {
                         self.detail_error = None;
                         self.center.version += 1;
                         self.request_scope(id);
+                        self.guide_on_open(id);
                         if let Some(sc) = self.pending_center_scroll.take() {
                             self.center.scroll = sc;
                         }
@@ -1812,6 +1870,21 @@ impl App {
                         self.apply_right_restore();
                     }
                     Err(e) => self.right.error = Some(e),
+                }
+            }
+            QueryResp::Guide(gen, req, res) => {
+                if !self.on_guide(gen, req, res) {
+                    return;
+                }
+            }
+            QueryResp::Position(gen, id, p) => {
+                if !self.on_position(gen, id, p) {
+                    return;
+                }
+            }
+            QueryResp::Contract(gen, id, res) => {
+                if !self.on_contract(gen, id, res) {
+                    return;
                 }
             }
             QueryResp::UsedBy(gen, res) => {
@@ -2902,12 +2975,20 @@ impl App {
             KeyCode::Char('f') => self.run_cmd(Cmd::SearchScope),
             KeyCode::Char('F') => self.run_cmd(Cmd::ClearScope),
             KeyCode::Char('I') => self.run_cmd(Cmd::Imports),
+            KeyCode::Char('H') => self.run_cmd(Cmd::Start),
+            KeyCode::Char('D') => self.run_cmd(Cmd::Contents),
+            KeyCode::Char('N') => self.run_cmd(Cmd::Ledger),
+            KeyCode::Char('W') => self.run_cmd(Cmd::Why),
+            KeyCode::Char('u') if !ctrl => self.run_cmd(Cmd::Unfold),
+            KeyCode::Char('U') => self.run_cmd(Cmd::Fold),
+            KeyCode::Char('C') => self.run_cmd(Cmd::Reach),
             KeyCode::Char('B') => self.run_cmd(Cmd::Bookmarks),
             KeyCode::Char('T') => self.run_cmd(Cmd::Trail),
             KeyCode::Char('m') => self.run_cmd(Cmd::ToggleBookmark),
             KeyCode::Char('a') => self.run_cmd(Cmd::AddToTrail),
             KeyCode::Char('n') => self.run_cmd(Cmd::EditNote),
             KeyCode::Char(';') => self.run_cmd(Cmd::Gloss),
+            KeyCode::Char(',') => self.run_cmd(Cmd::GlossNamespace),
             KeyCode::Char('E') => self.run_cmd(Cmd::ExportTrail),
             KeyCode::Char('L') => self.run_cmd(Cmd::ToggleLocal),
             KeyCode::Char('G') => self.run_cmd(Cmd::ToggleGenerated),
@@ -3109,6 +3190,13 @@ impl App {
             Cmd::ClearScope => self.clear_search_scope(),
             Cmd::Imports => self.cmd_imports(),
             Cmd::ImportPath => self.cmd_import_path(),
+            Cmd::Start => self.cmd_guide(super::guide::GuideMode::Start),
+            Cmd::Contents => self.cmd_guide(super::guide::GuideMode::Contents),
+            Cmd::Ledger => self.cmd_guide(super::guide::GuideMode::Ledger),
+            Cmd::Why => self.cmd_guide(super::guide::GuideMode::Why),
+            Cmd::Unfold => self.cmd_unfold(true),
+            Cmd::Fold => self.cmd_unfold(false),
+            Cmd::Reach => self.cmd_reach(),
             Cmd::Goal => self.set_view(View::Goal),
             Cmd::ToggleGoal => self.cmd_toggle_goal(),
             Cmd::Connect => self.cmd_connect(),
@@ -3183,6 +3271,16 @@ impl App {
                 }
                 None => self.msg("select a declaration first"),
             },
+            Cmd::GlossNamespace => {
+                let name = if self.v.view != View::Browse { self.subject_bundle().map(|b| b.d.row.display.clone()) } else { self.detail.as_ref().map(|b| b.d.row.display.clone()) };
+                match name.map(|n| crate::model::namespace_of(&n).to_string()).filter(|ns| !ns.is_empty()) {
+                    Some(ns) => {
+                        let text = self.glosses.get(&ns).cloned().unwrap_or_default();
+                        self.overlay = Overlay::Input { prompt: format!("Gloss for the namespace {ns} (one line; empty removes):"), purpose: InputPurpose::Gloss { name: ns.clone(), display: ns }, text };
+                    }
+                    None => self.msg("open a declaration that lies in a namespace first"),
+                }
+            }
             Cmd::ExportTrail => self.cmd_export_trail(),
             Cmd::ToggleLocal => {
                 self.filters.local_only = !self.filters.local_only;

@@ -46,6 +46,11 @@ pub mod skim;
 pub mod scope;
 pub mod leanrefs;
 pub mod lake;
+pub mod graph;
+pub mod reading;
+pub mod contract;
+pub mod overlay;
+pub mod diff;
 pub mod highlight;
 
 /// Process start, recorded by `main` so start-up timings include index

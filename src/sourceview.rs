@@ -25,6 +25,11 @@ impl SourceFileText {
     pub fn line_count(&self) -> usize {
         self.line_starts.len()
     }
+    /// A file's text held in memory, for reading many files in a row
+    /// without the cache.
+    pub fn from_text(path: PathBuf, text: &str) -> SourceFileText {
+        SourceFileText { path, text: Arc::from(text), line_starts: Arc::new(line_starts(text)), sha256: String::new(), valid_utf8: true, size: text.len() as u64, mtime: None }
+    }
     /// Line `n` (1-based) without its terminator.
     pub fn line(&self, n: usize) -> &str {
         if n == 0 || n > self.line_starts.len() {
@@ -95,6 +100,14 @@ impl Default for SourceCache {
 }
 
 impl SourceCache {
+    /// A cache for reading the project of `index`: it knows the artifact
+    /// directory recorded beside that index, if there is one.
+    pub fn for_index(index: &Path) -> SourceCache {
+        let mut c = SourceCache::default();
+        c.lean.artifacts = crate::leanrefs::artifacts_for_index(index);
+        c
+    }
+
     pub fn scope(&mut self, module: i64, sha256: &str) -> Option<Arc<crate::source::scope::FileScope>> {
         let pos = self.scopes.iter().position(|(m, h, _)| *m == module && h == sha256)?;
         let e = self.scopes.remove(pos)?;

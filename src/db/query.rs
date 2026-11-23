@@ -148,11 +148,18 @@ pub fn rows_by_ids(conn: &Connection, ids: &[i64]) -> Result<Vec<DeclRow>> {
     Ok(out)
 }
 
+/// The declaration called `name`. Of several (a source-only index holds
+/// every candidate), one whose text has no `sorry` token comes first: a
+/// project checked with Comparator restates its theorems in a challenge
+/// file with `sorry` for proofs, and a name means the proof.
 pub fn decl_by_name(conn: &Connection, name: &str) -> Result<Option<i64>> {
     Ok(conn
-        .query_row("SELECT id FROM decls WHERE name = ?1 ORDER BY origin, id LIMIT 1", [name], |r| r.get(0))
+        .query_row(&format!("SELECT id FROM decls WHERE name = ?1 ORDER BY origin, {NO_SORRY_FIRST}, id LIMIT 1"), [name], |r| r.get(0))
         .optional()?)
 }
+
+/// SQL ordering term: declarations without a lexical `sorry` first.
+pub const NO_SORRY_FIRST: &str = "(flags & 512) != 0";
 
 pub fn detail(conn: &Connection, id: i64) -> Result<Option<DeclDetail>> {
     let d = conn

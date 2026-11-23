@@ -32,6 +32,9 @@ pub enum View {
     Trails,
     /// Files by import depth, endpoints and hubs.
     Imports,
+    /// The reading views on the reference graph: start page, contents by
+    /// dependence, named statements, why a declaration is there.
+    Guide,
 }
 
 impl View {
@@ -42,6 +45,7 @@ impl View {
             View::Goal => "Goal explorer",
             View::Trails => "Reading trails",
             View::Imports => "Import layers",
+            View::Guide => "Reading guide",
         }
     }
 }
@@ -334,6 +338,7 @@ pub struct ViewsState {
     pub goal: GoalView,
     pub trails: TrailsView,
     pub imports: ImportsView,
+    pub guide: super::guide::GuideView,
     pub detail: ViewDetail,
     /// Set by the renderer: the last frame showed one pane only.
     pub single_pane: bool,
@@ -346,7 +351,7 @@ impl Default for ViewsState {
         for k in ["sec:objectives", "sec:components", "sec:foundations", "sec:unresolved", "sec:issues"] {
             map.expanded.insert(k.to_string());
         }
-        ViewsState { view: View::Browse, focus: VFocus::Outline, map, goal: GoalView::default(), trails: TrailsView::default(), imports: ImportsView::default(), detail: ViewDetail::default(), single_pane: false, list_height: 20 }
+        ViewsState { view: View::Browse, focus: VFocus::Outline, map, goal: GoalView::default(), trails: TrailsView::default(), imports: ImportsView::default(), guide: Default::default(), detail: ViewDetail::default(), single_pane: false, list_height: 20 }
     }
 }
 
@@ -401,6 +406,7 @@ impl App {
                 self.request_imports();
                 self.rebuild_import_rows();
             }
+            View::Guide => self.rebuild_guide_rows(),
         }
         self.sync_view_detail();
         self.dirty = true;
@@ -411,6 +417,7 @@ impl App {
         match self.v.view {
             View::Map => self.v.map.rows.get(self.v.map.list.selected).map(|r| r.key.clone()),
             View::Imports => self.v.imports.rows.get(self.v.imports.list.selected).map(|r| r.key.clone()),
+            View::Guide => Some(format!("{:?}|{}", self.v.guide.mode, self.v.guide.rows.get(self.v.guide.list.selected).map(|r| r.key.as_str()).unwrap_or(""))),
             _ => None,
         }
     }
@@ -434,6 +441,21 @@ impl App {
                     if !self.imports_select_key(&k) {
                         self.v.imports.pending_key = Some(k);
                     }
+                }
+            }
+            View::Guide => {
+                // "Mode|row key": the page the reader was on, and its row.
+                let (mode, row) = key.as_deref().and_then(|k| k.split_once('|')).unwrap_or(("", ""));
+                self.v.guide.mode = match mode {
+                    "Contents" => super::guide::GuideMode::Contents,
+                    "Ledger" => super::guide::GuideMode::Ledger,
+                    "Why" => super::guide::GuideMode::Why,
+                    _ => super::guide::GuideMode::Start,
+                };
+                self.guide_ensure();
+                self.rebuild_guide_rows();
+                if let Some(i) = self.v.guide.rows.iter().position(|r| r.key == row) {
+                    self.v.guide.list.selected = i;
                 }
             }
             View::Browse => {}
@@ -489,6 +511,13 @@ impl App {
         if fresh && matches!(b.load, MapLoad::Loaded(_)) {
             self.v.view = View::Map;
             self.search.editing = false;
+        } else if fresh && matches!(b.load, MapLoad::Absent { .. }) && self.ctx.index.is_some() {
+            // Without a map: what the project ends in, and the ways in.
+            self.v.view = View::Guide;
+            self.v.guide.mode = super::guide::GuideMode::Start;
+            self.search.editing = false;
+            self.guide_ask(super::guide::GuideReq::Start);
+            self.rebuild_guide_rows();
         }
         self.v.map.bundle = Some(b);
         self.rebuild_map_rows();
@@ -881,6 +910,7 @@ impl App {
                 Some(IRowKind::Note { text, .. }) => Subject::Section(text.clone()),
                 None => Subject::None,
             },
+            View::Guide => self.guide_subject(),
         }
     }
 
@@ -889,7 +919,7 @@ impl App {
             View::Map => self.view_key().unwrap_or_default(),
             View::Goal => format!("{}", self.v.goal.list.selected),
             View::Trails => format!("{}", self.v.trails.list.selected),
-            View::Imports => self.view_key().unwrap_or_default(),
+            View::Imports | View::Guide => self.view_key().unwrap_or_default(),
             View::Browse => String::new(),
         };
         format!("{:?}/{row}/{}", self.v.view, self.subject().decl_name().unwrap_or(""))
@@ -1142,6 +1172,8 @@ impl App {
         let n = &mut self.v.goal.nodes[pi];
         n.children = children;
         n.loaded = true;
+        let more_weights = if offset == 0 { HashMap::new() } else { meta.weights.clone() };
+        n.page.weights.extend(more_weights);
         if offset == 0 {
             n.page = meta;
         } else {
@@ -2142,6 +2174,10 @@ impl App {
                 let n = self.v.imports.rows.len();
                 (&mut self.v.imports.list, n)
             }
+            View::Guide => {
+                let n = self.v.guide.rows.len();
+                (&mut self.v.guide.list, n)
+            }
             _ => {
                 let n = self.v.trails.rows.len();
                 (&mut self.v.trails.list, n)
@@ -2184,6 +2220,7 @@ impl App {
             View::Goal => self.goal_activate(),
             View::Trails => self.trails_activate(),
             View::Imports => self.imports_activate(),
+            View::Guide => self.guide_activate(),
             View::Browse => {}
         }
         self.sync_view_detail();
@@ -2195,6 +2232,7 @@ impl App {
             View::Goal => self.goal_toggle(open),
             View::Trails => self.trails_toggle(open),
             View::Imports => self.imports_toggle(open),
+            View::Guide => self.guide_toggle(open),
             View::Browse => {}
         }
         self.sync_view_detail();
@@ -2269,6 +2307,7 @@ impl App {
                     View::Goal => self.goal_key(k),
                     View::Trails => self.trails_key(k),
                     View::Imports => self.imports_key(k),
+                    View::Guide => self.guide_key(k),
                     View::Browse => false,
                 };
                 if handled {

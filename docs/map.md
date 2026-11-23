@@ -77,7 +77,18 @@ slim map check <PROJECT_DIR> [--map FILE] [--fingerprints]
 
 `map init` derives groups from directories and marks every one `origin = "generated"`,
 `reviewed = false`: a directory or namespace is not automatically a mathematical chapter. It
-never proposes objectives.
+never proposes objectives. With `--landmarks` (and a reference graph, `docs/reading.md`) it
+appends two generated groups of landmark candidates: the bottlenecks of the graph, and the
+theorems whose statements use library names only.
+
+```sh
+slim map import <PROJECT_DIR> --from MODEL.json [-o lean-view.toml]   # never overwrites
+```
+
+`map import` converts a published reading model (the riemann-rev model, the reading routes of
+its atlas) into a map. Every entry it writes is `origin = "imported"`: what a cited source
+says, taken over as it stands and reviewed by nobody here. The views show that label where
+they show `generated` or `ai-suggestion`.
 
 All names are fully qualified Lean names. Files, lines and fingerprints are locators, not
 identity. `fixtures/demo/lean-view.toml` is a complete example.
@@ -103,7 +114,7 @@ purpose = "…"                    # optional one or two sentences
 explanation = "…"                # optional longer text
 paper = [{ text = "Theorem 1.1", source = "paper" }, "Lemma 3.9"]
 limitations = ["…"]
-origin = "authored"              # authored | generated | ai-suggestion | ai-accepted
+origin = "authored"              # authored | generated | ai-suggestion | ai-accepted | imported
 source_sha256 = "…"              # optional fingerprint, see "Freshness"
 
 [[group]]

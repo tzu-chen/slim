@@ -395,12 +395,36 @@ impl Builder {
     }
 }
 
+/// The files of a directory in reading order: within each directory the
+/// files that say what it is about (`Statement.lean`, `Statements.lean`,
+/// `Defs.lean`, `Basic.lean`) before the others, which keep name order.
 fn module_ids(conn: &Connection, prefix: &str, limit: usize) -> Result<Vec<i64>> {
+    let lead = |name: &str| -> u8 {
+        let base = name.rsplit('.').next().unwrap_or(name);
+        if base.starts_with("Statement") {
+            0
+        } else if matches!(base, "Defs" | "Definitions" | "Basic") {
+            1
+        } else {
+            2
+        }
+    };
     let mut st = conn.prepare_cached(
-        "SELECT id FROM modules WHERE is_local = 1 AND (name = ?1 OR (name >= ?1 || '.' AND name < ?1 || '/')) ORDER BY name LIMIT ?2",
+        "SELECT id, name FROM modules WHERE is_local = 1 AND (name = ?1 OR (name >= ?1 || '.' AND name < ?1 || '/')) ORDER BY name LIMIT ?2",
     )?;
-    let v = st.query_map(params![prefix, limit as i64], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
-    Ok(v)
+    let mut v: Vec<(i64, String)> = st.query_map(params![prefix, limit as i64], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<rusqlite::Result<_>>()?;
+    // A leading file of the directory itself may sort after the cut.
+    let mut st = conn.prepare_cached("SELECT id, name FROM modules WHERE is_local = 1 AND name >= ?1 || '.Statement' AND name < ?1 || '.Statemenu' ORDER BY name LIMIT 8")?;
+    let extra: Vec<(i64, String)> = st.query_map(params![prefix], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<rusqlite::Result<_>>()?;
+    for e in extra {
+        if !e.1[prefix.len() + 1..].contains('.') && !v.iter().any(|x| x.0 == e.0) {
+            v.push(e);
+        }
+    }
+    let dir = |name: &str| name.rsplit_once('.').map(|x| x.0.to_string()).unwrap_or_default();
+    v.sort_by(|a, b| dir(&a.1).cmp(&dir(&b.1)).then(lead(&a.1).cmp(&lead(&b.1))).then(a.1.cmp(&b.1)));
+    v.truncate(limit);
+    Ok(v.into_iter().map(|x| x.0).collect())
 }
 
 pub fn skim(env: &mut Env, scope: &SkimScope) -> Result<Skim> {

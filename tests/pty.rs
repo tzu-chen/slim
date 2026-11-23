@@ -526,7 +526,13 @@ fn overview_session_on_a_source_only_project() {
     let sz = (120, 34);
     let mut p = spawn_in_pty_sized(&[proj.to_str().unwrap(), "--ascii"], &env, &[], 120, 34);
     assert!(p.wait_screen("SOURCE-ONLY", sz));
-    // It opens on the outline; the right column is the quantity it is ordered by.
+    // Without a map it opens on the start page: what the project ends in
+    // (the files nothing imports) and the ways into it.
+    assert!(p.wait_screen("Start here", sz));
+    assert!(p.wait_screen("What the project ends in", sz));
+    assert!(p.wait_screen("Files and namespaces", sz));
+    // `O` is the outline; its right column is the quantity it is ordered by.
+    p.send("O");
     assert!(p.wait_screen("Outline [declarations]", sz));
     assert!(p.wait_screen("> SlimDemo", sz));
     p.send("o");
@@ -660,6 +666,8 @@ fn indexes_of_another_format_are_rebuilt_or_explained() {
     assert!(cli(&["info", dir]).contains("index format 1"), "the old index is refused, not misread");
     let mut p = spawn_in_pty_sized(&[dir, "--ascii"], &env, &[], 120, 30);
     assert!(p.wait_screen("SOURCE-ONLY", sz));
+    assert!(p.wait_screen("Start here", sz));
+    p.send("O");
     assert!(p.wait_screen("> SlimDemo", sz), "the source index was rebuilt on opening");
     p.send("\x1bq");
     assert!(p.wait_exit(Duration::from_secs(5)).expect("did not exit").success());
@@ -922,4 +930,79 @@ fn semantic_indexing_from_the_browser_cancels_and_quits_cleanly() {
     }
     let left: Vec<_> = tree.iter().filter(|q| alive(**q)).collect();
     assert!(left.is_empty(), "server processes outlived a killed browser: {left:?}");
+}
+
+/// The reading views on a project with a reference graph: start page,
+/// contents by dependence, named statements, the unfolded statement with
+/// the line that says where a declaration stands, and why it is there.
+#[test]
+fn reading_views_on_a_project_with_a_reference_graph() {
+    let (d, cache, data) = dirs();
+    let proj = d.path().join("repo");
+    let write = |rel: &str, text: &str| {
+        let p = proj.join(rel);
+        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        std::fs::write(p, text).unwrap();
+    };
+    write("lean/lakefile.toml", "name = \"tree\"\nsrcDir = \"src\"\n");
+    write("lean/src/Defs.lean", "namespace P\n\ndef Good (n : Nat) : Prop := n = n\n\ndef Big : Prop := ∀ n, Good n\n\nend P\n");
+    write("lean/src/Lemmas.lean", "import Defs\nnamespace P\ntheorem good_all (n : Nat) : Good n := rfl\ntheorem big_holds : Big := fun n => good_all n\ntheorem unused (key : Nat) : key = key := rfl\nend P\n");
+    write("lean/src/Main.lean", "import Lemmas\ntheorem main_thm : P.Big := P.big_holds\n");
+    let dir = proj.to_str().unwrap();
+    let cli = |args: &[&str]| -> String {
+        let out = Command::new(BIN).args(args).env("SLIM_DATA_DIR", &data).env("SLIM_CACHE_DIR", &cache).output().unwrap();
+        format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr))
+    };
+    cli(&["scan", dir]);
+    assert!(cli(&["graph", "build", dir, "--lexical"]).contains("reached from the endpoints: 5 of 6"));
+    let env: [(&str, &Path); 2] = [("SLIM_CACHE_DIR", &cache), ("SLIM_DATA_DIR", &data)];
+    let sz = (140, 36);
+    let mut p = spawn_in_pty_sized(&[dir, "--ascii"], &env, &[], 140, 36);
+    // The start page: the theorem of the file nothing imports, with its statement.
+    assert!(p.wait_screen("Start here", sz));
+    assert!(p.wait_screen("chosen by: the theorems of the files", sz));
+    assert!(p.wait_screen("thm main_thm", sz) && p.wait_screen(": P.Big", sz));
+    assert!(p.wait_screen("Contents by dependence", sz) && p.wait_screen("5 of 6 reached", sz));
+    // Contents: the endpoint with what is reached only through it; a relay names its target.
+    p.send("D");
+    assert!(p.wait_screen("5 of 6 reached from", sz));
+    assert!(p.wait_screen("= P.big_holds", sz), "a relay is shown with what it hands over to");
+    p.send("l");
+    assert!(p.wait_screen("thm P.big_holds", sz), "unfolding lists what the endpoint rests on");
+    p.send("j");
+    p.send("l");
+    assert!(p.wait_screen("thm P.good_all", sz), "and so on down");
+    // Named statements, each with the theorem of exactly that type.
+    p.send("N");
+    assert!(p.wait_screen("2 named statements", sz));
+    assert!(p.wait_screen("by P.big_holds", sz));
+    // A declaration: where it stands, and its statement unfolded.
+    p.send("/");
+    p.send("big_holds");
+    assert!(p.wait_screen("P.big_holds", sz));
+    p.send("\r");
+    assert!(p.wait_screen(" Declaration ", sz));
+    assert!(p.wait_screen("[lex] main_thm", sz), "the position line names the chain from the endpoint");
+    p.send("u");
+    assert!(p.wait_screen("its names unfolded 1 level", sz));
+    assert!(p.wait_screen("def Big : Prop", sz));
+    p.send("u");
+    assert!(p.wait_screen("def Good (n : Nat) : Prop", sz));
+    p.send("U");
+    p.send("U");
+    assert!(p.wait_screen("Statement (source text", sz), "U folds back to the statement as written");
+    // Why it is there.
+    p.send("W");
+    assert!(p.wait_screen("Why is this here", sz));
+    assert!(p.wait_screen("A shortest chain of references", sz) && p.wait_screen("1 steps", sz));
+    // Search marks what the endpoint does not reach.
+    p.send("\x1b");
+    p.send("/");
+    for _ in 0..9 {
+        p.send("\x7f");
+    }
+    p.send("unused");
+    assert!(p.wait_screen("1 not reached", sz));
+    p.send("\x1bq");
+    assert!(p.wait_exit(Duration::from_secs(5)).expect("did not exit").success());
 }

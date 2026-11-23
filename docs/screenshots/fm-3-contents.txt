@@ -1,0 +1,40 @@
+ slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ vp-vnp (/home/someone/Codes/formal-math/vp-vnp)
+Reading guide │ goal: none │ from the reference graph: what is reached only through each row │ / search │ Esc declarations
+╭ Contents by dependence ────────────────────────────────╮╭ Detail ────────────────────────────────────────────────────────────────────────╮
+│4 396 of 5 397 reached from the theorems of the files t…││theorem Paper.cutHyp_of_laws                                                    │
+│the number: what is reached only through the row        ││ module Paper.Cuts · Paper/Cuts.lean:560 · source candidate                     │
+│    2 071 ▾ thm Paper.exists_setting                    ││                                                                                │
+│    1 770   ▾ thm Paper.cutHyp_of_laws                  ││Purpose ─────────────────────────────────────────────────────────────────────── │
+│    1 769     ▸ thm Paper.thm_cut                       ││ not annotated                                                                  │
+│      203   ▸ thm Paper.exists_laws                     ││                                                                                │
+│       18   ▸ struc Nc.G.Law                            ││Statement (source text, not elaborated) ─────────────────────────────────────── │
+│       17   ▸ struc Nc.Tow.VLaws                        ││  theorem cutHyp_of_laws {θ : List Bool → A} (hθ : Generates θ) {h' : ℕ}        │
+│       16   ▸ thm Paper.lem_words                       ││      [NeZero h']                                                               │
+│        7   ▸ thm Nc.Flag.mem_of_x                      ││      (VL : VLaws A (cNear (h := h')) (dNear (h := h')) 1 (2 ^ ee h')) (h3 : 3  │
+│        5   ▸ struc Nc.Flag.Len                         ││          ≤ h')                                                                 │
+│        4   ▸ thm Paper.exists_generates                ││      (hgain : 1 + 8 * VL.C₁ ≤ (h' : ℝ) / 4) : ∃ h C₀ v₀ : ℕ, 17 ≤ h ∧ CutHyp θ │
+│        3   ▸ thm Nc.Tower.card_U                       ││          (16 * h) C₀ v₀                                                        │
+│        2   ▸ thm Nc.Tower.x_ne_one                     ││                                                                                │
+│        1     abbr Nc.Flag.mat                          ││In scope (source text) ──────────────────────────────────────────────────────── │
+│        1     thm Nc.Flag.mat_inj                       ││  variable {A : Type} [CommRing A]                                              │
+│        1     thm Nc.Flag.mat_mul                       ││  open Finset NS1 Nc.Vp Nc.Tow                                                  │
+│        1     thm Nc.Flag.mat_one                       ││  open Nc.Tower (U ee)                                                          │
+│        1     thm Nc.Flag.mat_x                         ││  open _root_.NS1.Tree                                                          │
+│        1     thm Nc.Flag.mat_lt                        ││                                                                                │
+│        1     thm Nc.Flag.mat_diag                      ││Prerequisites and dependents ────────────────────────────────────────────────── │
+│        1     def Nc.Flag.mk                            ││ no project map: nothing curated                                                │
+│        1     def Nc.Flag.Len.S                         ││ Lean-derived: unavailable in a source-only index                               │
+│        1     def Nc.Tower.ee                           ││                                                                                │
+│        1     thm Nc.Tower.exists_first                 ││Evidence and freshness ──────────────────────────────────────────────────────── │
+│        1     thm Nc.Tower.x_mul_self                   ││ · source candidate (lexical scan, not elaborated)                              │
+│        1     thm Nc.Tower.exists_firstU                ││ · no `sorry` token in its text (proves nothing)                                │
+│        1     def Nc.Tower.FU                           ││ · axioms and proof status: unknown without a semantic snapshot                 │
+│        1     thm Nc.Tower.FU_iff                       ││ ✓ source file matches the index (SHA-256)                                      │
+│        1     abbr Nc.Tower.SL2                         ││                                                                                │
+│        1     def Nc.Tower.lo                           ││Documentation (from the source) ─────────────────────────────────────────────── │
+│        1     def Nc.Tower.hi                           ││ What the next section starts from, in the form NS1.CutHyp: the conclusion of   │
+│        1     thm Nc.Tower.lo_lt_hi                     ││  Theorem thm:cut multiplied out.                                               │
+│        1     thm Nc.Tower.lo_ne_hi                     ││                                                                                │
+│        1     abbr Nc.Tower.NN                          ││                                                                                │
+╰────────────────────────────────────────────────────────╯╰────────────────────────────────────────────────────────────────────────────────╯
+ Space/→ unfold · ← up · ⏎ open · W why · * pin as goal · H start · Esc declarations · ? help

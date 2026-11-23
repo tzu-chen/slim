@@ -239,6 +239,10 @@ pub struct ChildPage {
     pub remaining_capped: bool,
     /// Explanations of what is unavailable or approximate (text, is-warning).
     pub notes: Vec<(String, bool)>,
+    /// From the reference graph, by child name: how many declarations the
+    /// endpoints reach only through it (0: not reached), and the
+    /// declaration a relay hands over to.
+    pub weights: HashMap<String, (u32, Option<String>)>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -352,10 +356,25 @@ pub fn lexical_mentions(conn: &Connection, root: Option<&Path>, cache: &mut Sour
     };
     // Per identifier: written in the statement, written after it.
     let mut parts: Vec<(bool, bool)> = Vec::new();
+    // What the declaration binds itself (a hypothesis `key`, a `have main`)
+    // is not a mention of a declaration that happens to be called so.
+    let locals = crate::graph::local_binders(text, header.map(|h| h.saturating_sub(sb)).unwrap_or(0).min(text.len()));
+    // Names written `_root_.A.b`: looked up as `A.b` only.
+    let mut rooted: HashSet<String> = HashSet::new();
     while let Some(t) = lx.next_token() {
         if t.kind == TokKind::Ident {
             let w = t.text(text);
             if w.len() <= 1 || is_keyword(w) {
+                continue;
+            }
+            let w = match w.strip_prefix("_root_.") {
+                Some(r) if !r.is_empty() => {
+                    rooted.insert(r.to_string());
+                    r
+                }
+                _ => w,
+            };
+            if locals.contains(w.split('.').next().unwrap_or(w)) && !rooted.contains(w) {
                 continue;
             }
             // The first 300 distinct identifiers are looked up; all their
@@ -459,7 +478,7 @@ pub fn lexical_mentions(conn: &Connection, root: Option<&Path>, cache: &mut Sour
     for ((ident, occurrences), part) in idents.into_iter().zip(places).zip(parts) {
         let part = part_of(part);
         let hit = |p: &String| found(&format!("{p}{ident}"));
-        let mut groups: Vec<Vec<DeclRow>> = inner.iter().find_map(hit).into_iter().collect();
+        let mut groups: Vec<Vec<DeclRow>> = if rooted.contains(&ident) { Vec::new() } else { inner.iter().find_map(hit).into_iter().collect() };
         if groups.is_empty() {
             groups = outer.iter().filter_map(hit).take(5).collect();
         }

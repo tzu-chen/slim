@@ -85,6 +85,14 @@ fn run(args: &Args) -> Result<i32> {
         Some("search") => cmd_search(args),
         Some("skim") => cmd_skim(args),
         Some("imports") => cmd_imports(args),
+        Some("graph") => slim::reading::cmd_graph(args),
+        Some("why") => slim::reading::cmd_why(args),
+        Some("contents") => slim::reading::cmd_contents(args),
+        Some("ledger") => slim::reading::cmd_ledger(args),
+        Some("contract") => slim::reading::cmd_contract(args),
+        Some("dossier") => slim::reading::cmd_dossier(args),
+        Some("diff") => slim::diff::cmd_diff(args),
+        Some("gloss") => slim::overlay::cmd_gloss(args),
         Some("import") => cmd_import(args),
         Some("export") => slim::export::cmd_export(args),
         Some("check-axioms") => cmd_check_axioms(args),
@@ -118,16 +126,62 @@ fn run(args: &Args) -> Result<i32> {
 fn cmd_map(args: &Args) -> Result<i32> {
     use slim::map::{self, MapLoad, Severity};
     let sub = args.positional.first().map(|s| s.as_str()).unwrap_or("");
-    if !matches!(sub, "init" | "check") {
-        bail!("usage: slim map init <PROJECT_DIR> [-o FILE] | slim map check <PROJECT_DIR> [--map FILE] [--fingerprints]");
+    if !matches!(sub, "init" | "check" | "import") {
+        bail!("usage: slim map init <PROJECT_DIR> [-o FILE] [--landmarks] | slim map check <PROJECT_DIR> [--map FILE] [--fingerprints] | slim map import <PROJECT_DIR> --from MODEL.json [-o FILE]");
     }
     let dir = args.positional.get(1).map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
     let project = Project::open(&dir)?;
     let (idx, what) = if project.semantic_index().exists() { (project.semantic_index(), "semantic snapshot") } else { (project.source_index(), "source-only index") };
     let conn = db::open_read(&idx).with_context(|| format!("no index for {} yet: run `slim scan {}` first (it only reads .lean files)", project.name, dir.display()))?;
+    // Writes a map file that does not exist yet, or prints it.
+    let write_new = |text: &str, what_written: &str| -> Result<()> {
+        match args.path("o").or(args.path("out")) {
+            Some(p) => {
+                use std::io::Write;
+                let mut f = std::fs::OpenOptions::new().write(true).create_new(true).open(&p).with_context(|| format!("{} exists or cannot be created; nothing was overwritten", p.display()))?;
+                f.write_all(text.as_bytes())?;
+                eprintln!("wrote {what_written} to {}", p.display());
+            }
+            None => print!("{text}"),
+        }
+        Ok(())
+    };
+    if sub == "import" {
+        let from = args.path("from").context("slim map import needs --from MODEL.json (a reading model you downloaded; slim does not fetch it)")?;
+        let (text, rep) = slim::overlay::import_file(&from, &conn, &project.name)?;
+        write_new(&text, "the imported map")?;
+        eprintln!(
+            "{} nodes in the model; {} name a declaration of the {what} ({} by the end of the name only); {} groups, {} relations, {} trails",
+            rep.nodes,
+            rep.resolved,
+            rep.by_suffix.len(),
+            rep.groups,
+            rep.relations,
+            rep.trails
+        );
+        for (short, full) in &rep.by_suffix {
+            eprintln!("  {short} read as {full}");
+        }
+        for u in &rep.unresolved {
+            eprintln!("  not in the index, left out: {u}");
+        }
+        eprintln!("every entry is marked origin = \"imported\"; check it with `slim map check`");
+        return Ok(0);
+    }
     if sub == "init" {
         let mods: Vec<(String, u64)> = query::modules(&conn, true)?.into_iter().map(|m| (m.name, m.decl_count)).collect();
-        let text = map::skeleton_toml(&project.name, &mods);
+        let mut text = map::skeleton_toml(&project.name, &mods);
+        if args.has("landmarks") {
+            // Landmark candidates from the reference graph: nobody's choice.
+            let gen = db::get_meta(&conn, "name_index_generation")?.unwrap_or_default();
+            let g = slim::graph::Graph::load(&idx, &gen)?.context("--landmarks needs the reference graph: run `slim graph build` first")?;
+            let roots = slim::reading::pick_roots(&conn, &g, None, &args.get_all("goal"))?;
+            if roots.nodes.is_empty() {
+                bail!("--landmarks needs endpoints: name one with --goal NAME");
+            }
+            let cone = g.cone(&roots.nodes, slim::graph::Follow::All);
+            text.push_str(&slim::overlay::generated_landmarks(&conn, &g, &cone, args.num::<usize>("top")?.unwrap_or(40))?);
+        }
         match args.path("o").or(args.path("out")) {
             Some(p) => {
                 use std::io::Write;
@@ -378,15 +432,34 @@ fn cmd_search(args: &Args) -> Result<i32> {
     if let Some(s) = &spec {
         println!("within {}", s.label());
     }
+    // Reading order: what the endpoints reach first, and the matches by
+    // component (with a reference graph; components without one).
+    let map = match (args.path("map"), _p.as_ref()) {
+        (Some(p), _) => slim::map::load(&p).map().cloned(),
+        (None, Some(p)) => slim::map::load_for_root(&p.root).map().cloned(),
+        _ => None,
+    };
+    let rank = slim::reading::rank_for_index(&idx, &conn, map.as_deref()).ok().map(std::sync::Arc::new);
+    let reach = match (args.has("reached"), args.has("unreached")) {
+        (true, _) => nameindex::Reach::Inside,
+        (_, true) => nameindex::Reach::Outside,
+        _ => nameindex::Reach::Any,
+    };
+    if reach != nameindex::Reach::Any && rank.as_ref().is_none_or(|r| !r.has_cone) {
+        bail!("--reached and --unreached need a reference graph and endpoints: run `slim graph build` first");
+    }
     let params = nameindex::SearchParams {
         query: words.clone(),
         local_only: args.has("local"),
         show_generated: args.has("generated"),
         limit: args.num::<usize>("limit")?.unwrap_or(20),
         scope,
+        rank: rank.clone(),
+        reach,
         ..Default::default()
     };
     let out = ni.search(&params, &|| false);
+    let info = query::index_info(&conn)?;
     let ids: Vec<i64> = out.hits.iter().map(|h| h.id as i64).collect();
     let rows = query::rows_by_ids(&conn, &ids)?;
     println!(
@@ -399,8 +472,24 @@ fn cmd_search(args: &Args) -> Result<i32> {
         if out.filtered_out > 0 { format!("; {} hidden by filters", out.filtered_out) } else { String::new() },
         if out.fuzzy_truncated { "; fuzzy stopped at time budget" } else { "" }
     );
+    if out.only_fuzzy {
+        println!("no name contains {words:?}; the nearest spellings (fuzzy, probably unrelated):");
+    }
+    if let Some(r) = &rank {
+        if out.groups.len() > 1 {
+            let shown: Vec<String> = out.groups.iter().take(6).map(|(c, n)| format!("{} {n}", r.components[*c as usize].0)).collect();
+            println!("  by component: {}{}", shown.join(" · "), if out.groups.len() > 6 { format!(" · {} more", out.groups.len() - 6) } else { String::new() });
+        }
+        if r.has_cone && reach == nameindex::Reach::Any && out.outside > 0 {
+            println!("  {} of the matches are not reached from the endpoints (marked ·; --reached hides them)", out.outside);
+        }
+    }
     for (h, r) in out.hits.iter().zip(&rows) {
-        println!("  {:<11} {} {}  [{}]", h.tier.label(), r.kind.short(), r.display, r.module.as_deref().unwrap_or("-"));
+        let mark = match rank.as_ref().and_then(|k| k.in_cone(h.id)) {
+            Some(false) => "·",
+            _ => " ",
+        };
+        println!(" {mark}{:<11} {} {}  [{}]", h.tier.label(), r.kind.short(), r.display, r.module.as_deref().map(|m| info.module_shown(m)).unwrap_or("-"));
     }
     let t = Instant::now();
     let docs = query::text_search(&conn, &words, if spec.is_some() { 600 } else { 10 })?;

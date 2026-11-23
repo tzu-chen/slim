@@ -1,0 +1,40 @@
+ slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ vp-vnp (/home/someone/Codes/formal-math/vp-vnp)
+Solution › Solution › mainTheorem   │ route: Start here Solution.mainTheorem
+╭ Outline [declarations] ──────────╮╭ Declaration ───────────────────────────────────────────────╮╭ [1 Ment] 2 By 3 Evid 4 Mod 5 Idx ──────╮
+│▸ NS1                          608││theorem Solution.mainTheorem                                ││Mentions (lexical, not resolved by Lean)│
+│▸ Nc                          3798││module Solution · Solution.lean:25 · source candidate       ││in its statement — 1                    │
+│▸ Ov                           194││[lex] Solution.mainTheorem · step 0 · 1 reached only        ││MainTheorem → def   Statement.MainTheor…│
+│▸ Paper                        770││    through it · W why                                      ││in its proof / body — 1                 │
+│▾ Solution                       7││                                                            ││Paper.thm_allfields → thm   Paper.thm_a…│
+│  Proofs of the statements, each …││Statement, its names unfolded 2 levels (u more · U less) ── ││                                        │
+│  def toNc                     :20││  then  MainTheorem.{u}                                     ││                                        │
+│  def ofNc                     :23││        │ def MainTheorem : Prop :=  (Statement.lean:44)    ││                                        │
+│  thm mainTheorem              :26││        │   ∃ c : ℝ, 0 < c ∧ ∀ p : ℕ, ∃ m₀ : ℕ, ∀ (F : Type ││                                        │
+│  thm separation               :34││        │       u) [Field F] [CharP F p], ∀ m ≥ m₀, ∀ s : ℕ,││                                        │
+│  thm mainTheoremApprox        :39││        │     (Computes (hc F m) s → Beyond c m s) ∧ (p ≠ 2 ││                                        │
+│  thm separationClosure        :47││        │         → Computes (perm F m) s → Beyond c m s)   ││                                        │
+│  thm permanent_over_real      :51││            │ def Computes {R : Type u} {V : Type}          ││                                        │
+│▸ Statement                     15││            │     [CommSemiring R] (f : MvPolynomial V R)   ││                                        │
+│▸ scripts                        0││            │     (s : ℕ) : Prop :=  (Statement.lean:23)    ││                                        │
+│                                  ││            │   ∃ l : ℕ → MvPolynomial V R,                 ││                                        │
+│                                  ││            │     (∀ k < s, (∃ v : V, l k = X v) ∨ (∃ a :   ││                                        │
+│                                  ││            │         R, l k = C a) ∨                       ││                                        │
+│                                  ││            │       (∃ i < k, ∃ j < k, l k = l i + l j) ∨   ││                                        │
+│                                  ││            │           (∃ i < k, ∃ j < k, l k = l i * l    ││                                        │
+│                                  ││            │           j)) ∧                               ││                                        │
+│                                  ││            │     ∃ k < s, l k = f                          ││                                        │
+│                                  ││            │ def hc (F : Type u) [CommSemiring F] (m : ℕ)  ││                                        │
+│                                  ││            │     : MvPolynomial (Fin m × Fin m) F :=       ││                                        │
+│                                  ││            │     (Statement.lean:35)                       ││                                        │
+│                                  ││            │   ∑ σ : Equiv.Perm (Fin m) with σ.IsCycleOn   ││                                        │
+│                                  ││            │       Set.univ, ∏ i, X (i, σ i)               ││                                        │
+│                                  ││            │ def Beyond (c : ℝ) (m s : ℕ) : Prop := (m :   ││                                        │
+│                                  ││            │     ℝ) ^ (c * Real.logb 2 m ^ (1 / 3 : ℝ)) <  ││                                        │
+│                                  ││            │     s  (Statement.lean:39)                    ││                                        │
+│                                  ││            │ def perm (F : Type u) [CommSemiring F] (m :   ││                                        │
+│                                  ││            │     ℕ) : MvPolynomial (Fin m × Fin m) F :=    ││────────────────────────────────────────│
+│                                  ││            │     (Statement.lean:30)                       ││`MainTheorem` on line 26; lexical match │
+│                                  ││            │   ∑ σ : Equiv.Perm (Fin m), ∏ i, X (σ i, i)   ││with Statement.MainTheorem              │
+│                                  ││5 definition(s) unfolded to depth 2, names by lexical       ││                                        │
+╰──────────────────────────────────╯╰────────────────────────────────────────────────────── 53% ─╯╰────────────────────────────────────────╯
+ unfolding the statement's names: level 2 (u more, U less)

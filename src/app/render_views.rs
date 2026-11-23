@@ -61,6 +61,12 @@ pub fn view_crumbs(app: &App, width: usize) -> Line<'static> {
                 None => "no active trail".into(),
             },
             View::Imports => "from import lines: build order, not mathematics".into(),
+            View::Guide => match app.v.guide.mode {
+                super::guide::GuideMode::Start => "what the project ends in, and the ways in".into(),
+                super::guide::GuideMode::Contents => "from the reference graph: what is reached only through each row".into(),
+                super::guide::GuideMode::Ledger => "definitions of sort Prop and the theorems of exactly that type".into(),
+                super::guide::GuideMode::Why => "a shortest chain of references; a path, not a reading order".into(),
+            },
             View::Browse => String::new(),
         };
         spans.push(Span::styled(format!("{} {} ", app.sym.sep, clean(app, &scope)), t.dim));
@@ -103,6 +109,7 @@ fn draw_outline(f: &mut Frame, area: Rect, app: &mut App) {
         View::Goal => " Goal explorer ".to_string(),
         View::Trails => " Reading trails ".to_string(),
         View::Imports => " Import layers ".to_string(),
+        View::Guide => app.v.guide.mode.title().to_string(),
         View::Browse => String::new(),
     };
     let b = block(app, Line::from(Span::styled(title, t.title)), focused);
@@ -168,6 +175,12 @@ fn draw_outline(f: &mut Frame, area: Rect, app: &mut App) {
             app.v.imports.list.clamp(n, h);
             let (sel, scroll) = (app.v.imports.list.selected, app.v.imports.list.scroll);
             (scroll..n.min(scroll + h)).map(|i| import_row_line(app, i, w, i == sel, focused)).collect()
+        }
+        View::Guide => {
+            let n = app.v.guide.rows.len();
+            app.v.guide.list.clamp(n, h);
+            let (sel, scroll) = (app.v.guide.list.selected, app.v.guide.list.scroll);
+            (scroll..n.min(scroll + h)).map(|i| guide_row_line(app, i, w, i == sel, focused)).collect()
         }
         View::Browse => Vec::new(),
     };
@@ -279,6 +292,44 @@ fn depth_range(lo: u32, hi: u32) -> String {
         format!("depth {lo}")
     } else {
         format!("depth {lo}–{hi}")
+    }
+}
+
+/// A row of the reading views: a number or step on the left, the name cut
+/// from its front (the end of a dotted name says most), a note on the right.
+fn guide_row_line(app: &App, i: usize, w: usize, sel: bool, focused: bool) -> Line<'static> {
+    use super::guide::GuideKind;
+    let t = &app.theme;
+    let s = &app.sym;
+    let row = &app.v.guide.rows[i];
+    let ind = "  ".repeat(row.depth as usize);
+    match &row.kind {
+        GuideKind::Section { title, right } => row_line(app, &chrome(app, &clean(app, title)), &chrome(app, right), w, sel_style(app, sel, focused, t.heading), t.dim, sel),
+        GuideKind::Text { text, warn } => row_line(app, &format!("{ind}{}", chrome(app, &clean(app, text))), "", w, sel_style(app, sel, focused, if *warn { t.warn } else { t.dim }), t.dim, sel),
+        GuideKind::More { text, .. } => row_line(app, &format!("{ind}  {}", chrome(app, text)), "", w, sel_style(app, sel, focused, t.accent), t.dim, sel),
+        GuideKind::Door { title, hint, .. } => row_line(app, &format!("{ind}{} {}", s.arrow, chrome(app, title)), &chrome(app, hint), w, sel_style(app, sel, focused, t.accent), t.dim, sel),
+        GuideKind::Decl { name, kind, label, left, right, expandable, expanded, note, dim, .. } => {
+            let mk = if *expandable { if *expanded { s.expanded } else { s.collapsed } } else { " " };
+            // What the row itself says (a statement, a relay, a count)
+            // comes before the reader's or the map's line about the name.
+            let right = match (note, app.gloss_of(name)) {
+                (Some(n), _) if right.is_empty() => n.clone(),
+                (_, Some((g, _))) if right.is_empty() => format!("= {g}"),
+                _ => right.clone(),
+            };
+            let right = chrome(app, &clean(app, &right));
+            let lead = if left.is_empty() { format!("{ind}{mk} {} ", kind.short().trim_end()) } else { format!("{left:>9} {ind}{mk} {} ", kind.short().trim_end()) };
+            // The name keeps two thirds of the row; half where the right
+            // side names the theorem that proves it.
+            let share = if app.v.guide.mode == super::guide::GuideMode::Ledger { w / 2 } else { w / 3 };
+            let rw = text_width(&right).min(share);
+            let right = truncate(&right, rw, app.ascii);
+            let room = w.saturating_sub(text_width(&lead) + rw + 1).max(8);
+            let shown = format!("{lead}{}", truncate_left(&clean(app, label), room, app.ascii));
+            let avail = w.saturating_sub(text_width(&right) + 1);
+            let st = sel_style(app, sel, focused, if *dim { t.dim } else { t.text });
+            Line::from(vec![Span::styled(pad(&truncate(&shown, avail, app.ascii), avail + 1), st), Span::styled(right, if sel { st } else { t.dim })])
+        }
     }
 }
 
@@ -451,6 +502,18 @@ fn goal_row_line(app: &App, i: usize, w: usize, sel: bool, focused: bool) -> Lin
             }
             if n.loading {
                 right.push(s.ellipsis.to_string());
+            }
+            // From the reference graph: a relay's hand-over, and how much
+            // is reached only through this row.
+            if let Some((excl, relay)) = n.parent.and_then(|p| g.nodes.get(p)).and_then(|p| p.page.weights.get(&n.name)) {
+                if *excl > 1 {
+                    right.insert(0, crate::reading::thousands(*excl as u64));
+                } else if *excl == 0 {
+                    right.insert(0, "·".into());
+                }
+                if let Some(r) = relay {
+                    right.insert(0, format!("= {r}"));
+                }
             }
             let left = if n.depth == 0 {
                 let display = g.goal.as_ref().map(|x| x.display.clone()).unwrap_or(display);
@@ -1016,7 +1079,7 @@ fn decl_lines(o: &mut Out, name: &str, role: Option<&str>, stop: Option<(usize, 
             o.lines.push(Line::from(title));
             let mut loc = String::new();
             if let Some(m) = &b.d.row.module {
-                loc.push_str(&format!("module {m}"));
+                loc.push_str(&format!("module {}", app.modname(m)));
             }
             if let Some(p) = &b.d.module_path {
                 loc.push_str(&format!(" · {p}{}", b.d.pos.start_line.map(|l| format!(":{l}")).unwrap_or_default()));

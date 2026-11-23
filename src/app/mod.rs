@@ -8,6 +8,7 @@
 //! is cancelled, owned child processes are killed and reaped, and the
 //! session is saved.
 
+pub mod guide;
 pub mod hl;
 pub mod render;
 pub mod render_views;

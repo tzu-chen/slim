@@ -157,6 +157,27 @@ pub struct LeanMemo {
     packages: Option<(PathBuf, Vec<(String, PathBuf)>)>,
     /// Who uses what, over the whole project (read when first asked).
     index: Option<Arc<RefIndex>>,
+    /// A directory laid out like a Lake build directory (`lib/lean/…`)
+    /// that holds the artifacts of a package which has none of its own:
+    /// one fetched from a published build cache, say. Set per index.
+    pub artifacts: Option<PathBuf>,
+}
+
+/// The file beside an index that names such a directory.
+pub fn artifacts_file(index: &Path) -> PathBuf {
+    index.with_file_name("artifacts")
+}
+
+/// The artifact directory recorded for an index, when it still exists.
+pub fn artifacts_for_index(index: &Path) -> Option<PathBuf> {
+    let s = std::fs::read_to_string(artifacts_file(index)).ok()?;
+    let p = PathBuf::from(s.trim());
+    (p.is_absolute() && external_lib_dir(&p).is_some()).then_some(p)
+}
+
+/// `lib/lean` (or `lib`) below an artifact directory.
+pub fn external_lib_dir(dir: &Path) -> Option<PathBuf> {
+    ["lib/lean", "lib", ".lake/build/lib/lean"].iter().map(|d| dir.join(d)).find(|p| p.is_dir())
 }
 
 /// The package that owns the file `rel` below `root`.
@@ -174,7 +195,9 @@ pub fn package_of(cache: &mut SourceCache, root: &Path, rel: &str) -> Arc<Packag
         }
         at = at.rsplit_once('/').map(|x| x.0).unwrap_or("");
     };
-    let p = Arc::new(Package { lib: build_lib_dir(&found.0), src_dirs: src_dirs(&found.0), dir: found.0, rel: found.1 });
+    // Its own build; failing that, the artifact directory given for the index.
+    let lib = build_lib_dir(&found.0).or_else(|| cache.lean.artifacts.as_deref().and_then(external_lib_dir));
+    let p = Arc::new(Package { lib, src_dirs: src_dirs(&found.0), dir: found.0, rel: found.1 });
     if cache.lean.owners.len() > 4096 {
         cache.lean.owners.clear();
     }
@@ -188,8 +211,9 @@ fn module_rel<'a>(src_dirs: &[String], rel: &'a str) -> &'a str {
     src_dirs.iter().filter(|d| !d.is_empty()).filter_map(|d| rel.strip_prefix(d.as_str())).min_by_key(|r| r.len()).unwrap_or(rel)
 }
 
-/// The hash recorded for the module's source and for its `.ilean`.
-fn trace_hashes(trace: &serde_json::Value) -> Option<(u64, Option<u64>)> {
+/// The hash recorded for the module's source and for its `.ilean`. A trace
+/// restored from a cache may record the outputs only.
+fn trace_hashes(trace: &serde_json::Value) -> (Option<u64>, Option<u64>) {
     fn source(v: &serde_json::Value) -> Option<u64> {
         let a = v.as_array()?;
         if let [k, h] = a.as_slice() {
@@ -201,9 +225,9 @@ fn trace_hashes(trace: &serde_json::Value) -> Option<(u64, Option<u64>)> {
         }
         a.iter().find_map(source)
     }
-    let src = source(trace.get("inputs")?)?;
+    let src = trace.get("inputs").and_then(source);
     let ilean = trace.get("outputs").and_then(|o| o.get("i")).and_then(|i| i.as_str()).and_then(|s| u64::from_str_radix(s.strip_suffix(".ilean").unwrap_or(s), 16).ok());
-    Some((src, ilean))
+    (src, ilean)
 }
 
 #[derive(serde::Deserialize)]
@@ -273,10 +297,10 @@ fn names_stand(il: &Ilean, f: &SourceFileText) -> bool {
 fn load_ilean(lib: &Path, mrel: &str, src: &Path, text: &str, file: &mut dyn FnMut() -> Option<SourceFileText>) -> Result<(Ilean, RefStatus), RefStatus> {
     let ilean_path = lib.join(format!("{mrel}.ilean"));
     let Ok(ilean_md) = std::fs::metadata(&ilean_path) else { return Err(RefStatus::NoArtifact) };
-    let hashes = std::fs::read(lib.join(format!("{mrel}.trace"))).ok().and_then(|t| serde_json::from_slice::<serde_json::Value>(&t).ok()).as_ref().and_then(trace_hashes);
+    let hashes = std::fs::read(lib.join(format!("{mrel}.trace"))).ok().and_then(|t| serde_json::from_slice::<serde_json::Value>(&t).ok()).as_ref().map(trace_hashes).unwrap_or((None, None));
     let parse = |bytes: &[u8]| serde_json::from_slice::<Ilean>(bytes).map_err(|e| RefStatus::Unreadable(format!("the .ilean is not read: {e}")));
     match hashes {
-        Some((src_hash, ilean_hash)) => {
+        (Some(src_hash), ilean_hash) => {
             if lake_text_hash(text) != src_hash {
                 return Err(RefStatus::SourceDiffers);
             }
@@ -286,18 +310,62 @@ fn load_ilean(lib: &Path, mrel: &str, src: &Path, text: &str, file: &mut dyn FnM
             }
             Ok((parse(&bytes)?, RefStatus::Verified))
         }
-        None => {
+        (None, ilean_hash) => {
             let newer = std::fs::metadata(src).ok().and_then(|s| Some(s.modified().ok()? > ilean_md.modified().ok()?)).unwrap_or(true);
             if newer {
                 return Err(RefStatus::SourceNewer);
             }
-            let il = parse(&read_bounded(&ilean_path).map_err(RefStatus::Unreadable)?)?;
+            let bytes = read_bounded(&ilean_path).map_err(RefStatus::Unreadable)?;
+            // The trace says which `.ilean` it goes with, if not from what text.
+            if ilean_hash.is_some_and(|h| h != lake_hash(&bytes)) {
+                return Err(RefStatus::ArtifactDiffers);
+            }
+            let il = parse(&bytes)?;
             match file() {
                 Some(f) if names_stand(&il, &f) => Ok((il, RefStatus::Consistent)),
                 _ => Err(RefStatus::Inconsistent),
             }
         }
     }
+}
+
+/// Everything one module's `.ilean` says, for reading a whole project:
+/// the declarations it records with their ranges, and for every constant
+/// the module refers to, the ranges of its uses (0-based lines, UTF-16
+/// columns, as Lean wrote them).
+#[derive(Debug, Default)]
+pub struct ModuleRefs {
+    pub decls: Vec<(String, [u32; 8])>,
+    /// Declaring module, name, uses.
+    pub refs: Vec<(String, String, Vec<[u32; 4]>)>,
+}
+
+/// The package directory of a file and its module path below the
+/// package's build directory, when the package has artifacts.
+pub fn artifact_place(cache: &mut SourceCache, root: &Path, rel: &str) -> Option<(PathBuf, String)> {
+    let pkg = package_of(cache, root, rel);
+    Some((pkg.lib.clone()?, pkg.module_rel(rel).to_string()))
+}
+
+/// [`ModuleRefs`] of the module `mrel` below `lib`, if its `.ilean` is of
+/// the text `f` (the same checks as for a single file).
+pub fn module_refs(lib: &Path, mrel: &str, f: &SourceFileText) -> Result<(ModuleRefs, RefStatus), RefStatus> {
+    let (il, status) = load_ilean(lib, mrel, &f.path, &f.text, &mut || Some(f.clone()))?;
+    let mut out = ModuleRefs::default();
+    for (name, r) in il.decls {
+        if let [a, b, c, d, e, g, h, i] = r.as_slice() {
+            out.decls.push((name, [*a, *b, *c, *d, *e, *g, *h, *i]));
+        }
+    }
+    for (k, info) in il.references {
+        if info.usages.is_empty() {
+            continue;
+        }
+        let Some((module, name)) = ref_ident(&k) else { continue };
+        let uses: Vec<[u32; 4]> = info.usages.iter().filter_map(|u| range_of(u)).map(|r| [r[0] as u32, r[1] as u32, r[2] as u32, r[3] as u32]).collect();
+        out.refs.push((module, name, uses));
+    }
+    Ok((out, status))
 }
 
 fn read_refs(lib: &Path, mrel: &str, f: &SourceFileText) -> (Option<FileRefs>, RefStatus) {

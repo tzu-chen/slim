@@ -39,6 +39,9 @@ pub enum Provenance {
     AiSuggestion,
     /// Proposed by an agent and accepted by a person.
     AiAccepted,
+    /// Taken over from a cited third-party source (a published reading
+    /// guide, say) and not reviewed by whoever keeps this map.
+    Imported,
 }
 
 impl Provenance {
@@ -48,6 +51,7 @@ impl Provenance {
             Provenance::Generated => "generated organization (not reviewed)",
             Provenance::AiSuggestion => "AI suggestion (not accepted)",
             Provenance::AiAccepted => "accepted AI suggestion",
+            Provenance::Imported => "imported from a cited source (not reviewed here)",
         }
     }
     pub fn tag(self) -> &'static str {
@@ -56,6 +60,7 @@ impl Provenance {
             Provenance::Generated => "generated",
             Provenance::AiSuggestion => "suggestion",
             Provenance::AiAccepted => "ai-accepted",
+            Provenance::Imported => "imported",
         }
     }
 }
@@ -1048,7 +1053,7 @@ pub fn resolve_name(conn: &Connection, name: &str) -> Result<Option<(DeclRow, u6
             "SELECT d.id, d.name, d.display, d.kind, d.origin, d.flags, m.name, m.sha256,
                     (SELECT count(*) FROM decls x WHERE x.name = d.name)
                FROM decls d LEFT JOIN modules m ON m.id = d.module_id
-              WHERE d.name = ?1 ORDER BY d.origin, d.id LIMIT 1",
+              WHERE d.name = ?1 ORDER BY d.origin, (d.flags & 512) != 0, d.id LIMIT 1",
             [name],
             |r| {
                 Ok((
@@ -1226,7 +1231,7 @@ pub fn paper_candidates(text: &str) -> Vec<String> {
 // Starting skeleton
 // ---------------------------------------------------------------------------
 
-fn toml_str(s: &str) -> String {
+pub(crate) fn toml_str(s: &str) -> String {
     let mut o = String::from("\"");
     for c in s.chars() {
         match c {

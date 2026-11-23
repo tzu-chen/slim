@@ -1,0 +1,40 @@
+ slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ vp-vnp (/home/someone/Codes/formal-math/vp-vnp)
+Reading guide │ goal: none │ a shortest chain of references; a path, not a reading order │ / search │ Esc declarations
+╭ Why is this here ──────────────────────────────────────╮╭ Detail ────────────────────────────────────────────────────────────────────────╮
+│A shortest chain of references to Paper.thm_one… 8 steps││theorem Paper.thm_onecut                                                        │
+│source mentions (lexical) · endpoints: the theorems of …││ module Paper.Cuts · Paper/Cuts.lean:101 · source candidate                     │
+│each row is written in the one above it: in its stateme…││                                                                                │
+│        0   thm Solution.mainTheorem            endpoint││Purpose ─────────────────────────────────────────────────────────────────────── │
+│        1   thm Paper.thm_allfields         in its proof││ not annotated                                                                  │
+│        2   thm Paper.contracting_hc        in its proof││                                                                                │
+│        3   thm Paper.contracting_complete  in its proof││Statement (source text, not elaborated) ─────────────────────────────────────── │
+│        4   thm Paper.scales_setting        in its proof││  theorem thm_onecut {θ : List Bool → A} (hθ : Generates θ) {h : ℕ} [NeZero h]  │
+│        5   thm Paper.exists_setting        in its proof││      (VL : VLaws A (cNear (h := h)) (dNear (h := h)) 1 (2 ^ ee h)) (h3 : 3 ≤ h)│
+│        6   thm Paper.cutHyp_of_laws        in its proof││      (hgain : 1 + 8 * VL.C₁ ≤ (h : ℝ) / 4) :                                   │
+│        7   thm Paper.thm_cut               in its proof││      ∃ a₀ C v₀ : ℕ, ∀ v, v₀ ≤ v → ∀ τ s k, v ^ a₀ ≤ τ → 4 * lg τ ≤ lg v ^ 2 →  │
+│        8   thm Paper.thm_onecut            in its proof││          s ≤ τ → 2 ≤ k → k ≤ v ^ 64 →                                          │
+│Every chain to it passes through          3 declarations││        ∃ G : Tree, G.size ≤ v ^ a₀ ∧ CutD θ τ s (τ * lg v ^ C / k) ((s / k + τ │
+│    thm Paper.exists_setting                            ││            / v ^ 256) * lg v ^ C)                                              │
+│    thm Paper.cutHyp_of_laws                            ││          (k * lg v ^ C) ((s + τ * k / v ^ 256) * lg v ^ C) G                   │
+│    thm Paper.thm_cut                                   ││                                                                                │
+│1 759 declaration(s) are reached only through it · 1 re…││In scope (source text) ──────────────────────────────────────────────────────── │
+│                                                        ││  variable {A : Type} [CommRing A]                                              │
+│                                                        ││  open Finset NS1 Nc.Vp Nc.Tow                                                  │
+│                                                        ││  open Nc.Tower (U ee)                                                          │
+│                                                        ││  open _root_.NS1.Tree                                                          │
+│                                                        ││                                                                                │
+│                                                        ││Prerequisites and dependents ────────────────────────────────────────────────── │
+│                                                        ││ no project map: nothing curated                                                │
+│                                                        ││ Lean-derived: unavailable in a source-only index                               │
+│                                                        ││                                                                                │
+│                                                        ││Evidence and freshness ──────────────────────────────────────────────────────── │
+│                                                        ││ · source candidate (lexical scan, not elaborated)                              │
+│                                                        ││ · no `sorry` token in its text (proves nothing)                                │
+│                                                        ││ · axioms and proof status: unknown without a semantic snapshot                 │
+│                                                        ││ ✓ source file matches the index (SHA-256)                                      │
+│                                                        ││                                                                                │
+│                                                        ││Documentation (from the source) ─────────────────────────────────────────────── │
+│                                                        ││ **Paper: Theorem thm:onecut.** "There are constants a₀, C, v₀ such that for    │
+│                                                        ││  all v ≥ v₀, all τ ≥ v^a₀ with 4 lg τ ≤ (lg v)², all s ≤ τ and 2 ≤ k ≤ v^64,   │
+╰────────────────────────────────────────────────────────╯╰────────────────────────────────────────────────────────────────────────── 85% ─╯
+ ⏎ open · D contents · H start · Esc declarations · ? help

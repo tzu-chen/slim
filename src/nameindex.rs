@@ -214,6 +214,67 @@ impl MatchTier {
     }
 }
 
+/// What reading order knows about declarations, for ranking the matches of
+/// one tier and for grouping them: whether the project's endpoints reach a
+/// declaration, a bonus for standing near them and being used, and the
+/// component (a directory) of each module.
+#[derive(Clone, Debug, Default)]
+pub struct Rank {
+    /// By declaration id: added to the score, below the gap between tiers.
+    pub bonus: Vec<u16>,
+    /// By declaration id: [`Rank::IN_CONE`], [`Rank::KNOWN`].
+    pub flags: Vec<u8>,
+    /// Whether anything is known about reach (a graph and endpoints).
+    pub has_cone: bool,
+    /// By module id: index into `components`, `u16::MAX` for none.
+    pub component: Vec<u16>,
+    /// Display label and dotted module prefix of each component.
+    pub components: Vec<(String, String)>,
+}
+
+impl Rank {
+    pub const IN_CONE: u8 = 1;
+    pub const KNOWN: u8 = 2;
+    /// The largest bonus: less than the distance between two tiers.
+    pub const MAX_BONUS: u16 = 4000;
+    pub fn in_cone(&self, id: u32) -> Option<bool> {
+        if !self.has_cone {
+            return None;
+        }
+        let f = *self.flags.get(id as usize)?;
+        (f & Self::KNOWN != 0).then_some(f & Self::IN_CONE != 0)
+    }
+    pub fn component_of(&self, module: u32) -> Option<u16> {
+        self.component.get(module as usize).copied().filter(|&c| c != u16::MAX)
+    }
+}
+
+/// Restriction of a search to what the endpoints reach, or to the rest.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum Reach {
+    #[default]
+    Any,
+    Inside,
+    Outside,
+}
+
+impl Reach {
+    pub fn next(self) -> Reach {
+        match self {
+            Reach::Any => Reach::Inside,
+            Reach::Inside => Reach::Outside,
+            Reach::Outside => Reach::Any,
+        }
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            Reach::Any => "all declarations",
+            Reach::Inside => "reached from the endpoints",
+            Reach::Outside => "not reached from the endpoints",
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SearchParams {
     pub query: String,
@@ -225,6 +286,9 @@ pub struct SearchParams {
     /// Restrict the search; with an empty query the scope's first entries
     /// are listed in name order.
     pub scope: Option<Scope>,
+    /// Ranks matches of one tier and groups them; `None`: by name only.
+    pub rank: Option<std::sync::Arc<Rank>>,
+    pub reach: Reach,
 }
 
 impl Default for SearchParams {
@@ -237,6 +301,8 @@ impl Default for SearchParams {
             limit: 200,
             fuzzy_budget: Duration::from_millis(30),
             scope: None,
+            rank: None,
+            reach: Reach::Any,
         }
     }
 }
@@ -259,6 +325,12 @@ pub struct SearchOutcome {
     pub fuzzy_truncated: bool,
     pub cancelled: bool,
     pub elapsed: Duration,
+    /// The matches by component, most first (with a [`Rank`]).
+    pub groups: Vec<(u16, u32)>,
+    /// Matches the endpoints do not reach (with a [`Rank`] that knows).
+    pub outside: usize,
+    /// Nothing contains the query: every hit is a fuzzy near-spelling.
+    pub only_fuzzy: bool,
 }
 
 /// Entry handed to [`NameIndex::build`].
@@ -366,6 +438,13 @@ impl NameIndex {
         }
         if p.local_only && !m_origin(m).is_local() {
             return false;
+        }
+        if p.reach != Reach::Any {
+            // What the graph does not know is neither inside nor outside.
+            match p.rank.as_ref().and_then(|r| r.in_cone(self.ids[i])) {
+                Some(inside) if inside == (p.reach == Reach::Inside) => {}
+                _ => return false,
+            }
         }
         p.kinds.accepts(m_kind(m))
     }
@@ -675,8 +754,19 @@ impl NameIndex {
         }
         // Top-k selection.
         let mut heap: BinaryHeap<Reverse<(i32, Reverse<u32>)>> = BinaryHeap::with_capacity(limit + 1);
+        let mut groups: std::collections::HashMap<u16, u32> = std::collections::HashMap::new();
         for (&i, &tier) in &best {
             let mut s = self.score(i as usize, tier);
+            if let Some(r) = &p.rank {
+                let id = self.ids[i as usize];
+                s += r.bonus.get(id as usize).copied().unwrap_or(0).min(Rank::MAX_BONUS) as i32;
+                if tier != MatchTier::Fuzzy {
+                    out.outside += (r.in_cone(id) == Some(false)) as usize;
+                    if let Some(c) = r.component_of(self.module[i as usize]) {
+                        *groups.entry(c).or_default() += 1;
+                    }
+                }
+            }
             if tier == MatchTier::Fuzzy {
                 s += fuzzy_score(q.as_bytes(), self.entry(i as usize)).unwrap_or(0).min(9_000);
             }
@@ -692,6 +782,10 @@ impl NameIndex {
             .map(|(s, i)| Hit { id: self.ids[i as usize], score: s, tier: best[&i] })
             .collect();
         out.total = best.len();
+        out.only_fuzzy = !best.is_empty() && best.values().all(|t| *t == MatchTier::Fuzzy);
+        let mut groups: Vec<(u16, u32)> = groups.into_iter().collect();
+        groups.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        out.groups = groups;
         out.total_capped = capped;
         out.filtered_out = filtered.len();
         out.elapsed = t0.elapsed();
