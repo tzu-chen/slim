@@ -367,7 +367,11 @@ pub fn cmd_bench(args: &Args) -> Result<i32> {
 }
 
 fn tempfile_dir() -> Result<PathBuf> {
-    let d = std::env::temp_dir().join(format!("slim-hlbench-{}", std::process::id()));
-    std::fs::create_dir_all(&d)?;
+    // A fresh private directory: creation fails if anything (a symlink
+    // planted by another user of a shared /tmp, say) already has the name.
+    use std::os::unix::fs::DirBuilderExt;
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|t| t.subsec_nanos()).unwrap_or(0);
+    let d = std::env::temp_dir().join(format!("slim-hlbench-{}-{nanos:09}", std::process::id()));
+    std::fs::DirBuilder::new().mode(0o700).create(&d).with_context(|| format!("creating {}", d.display()))?;
     Ok(d)
 }

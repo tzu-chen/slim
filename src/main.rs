@@ -8,6 +8,23 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
+// Everything this crate prints outside the UI goes through
+// `text::emit`, which makes control characters visible: names and paths from
+// an inspected project, and the output of sandboxed processes, must not be
+// able to send escape sequences to the terminal. These shadow the standard
+// macros for this file.
+macro_rules! print {
+    ($($t:tt)*) => { slim::text::emit(false, format_args!($($t)*)) };
+}
+macro_rules! println {
+    () => { slim::text::emit(false, format_args!("\n")) };
+    ($($t:tt)*) => { slim::text::emit(false, format_args!("{}\n", format_args!($($t)*))) };
+}
+macro_rules! eprintln {
+    () => { slim::text::emit(true, format_args!("\n")) };
+    ($($t:tt)*) => { slim::text::emit(true, format_args!("{}\n", format_args!($($t)*))) };
+}
+
 fn main() {
     let _ = slim::PROCESS_START.set(Instant::now());
     let args = match Args::parse(std::env::args_os()) {

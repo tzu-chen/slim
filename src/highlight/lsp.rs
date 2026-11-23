@@ -60,8 +60,13 @@ pub fn read_frame(r: &mut impl BufRead) -> Result<Option<Value>> {
     if len > MAX_MESSAGE_BYTES {
         bail!("message of {len} bytes exceeds the limit");
     }
-    let mut body = vec![0u8; len];
-    r.read_exact(&mut body).context("stream ended inside a message body")?;
+    // Memory follows the bytes that actually arrive, not the announced
+    // length: the sender is the sandboxed server.
+    let mut body = Vec::new();
+    r.by_ref().take(len as u64).read_to_end(&mut body).context("stream ended inside a message body")?;
+    if body.len() != len {
+        bail!("stream ended inside a message body");
+    }
     Ok(Some(serde_json::from_slice(&body).context("message body is not JSON")?))
 }
 

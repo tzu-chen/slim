@@ -83,10 +83,14 @@ pub fn elan_dir_name(tc: &str) -> String {
     tc.trim().replace('/', "--").replace(':', "---")
 }
 
+/// Always absolute: a relative `ELAN_HOME` (or none and no `HOME`) would make
+/// the toolchain, whose `lake` and `lean` slim executes, a path below the
+/// current directory, which may be the inspected project.
 pub fn elan_home() -> PathBuf {
     std::env::var_os("ELAN_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".elan"))
+        .filter(|p| p.is_absolute())
+        .unwrap_or_else(|| crate::paths::home().join(".elan"))
 }
 
 pub fn toolchain_dir(tc: &str) -> PathBuf {
@@ -192,20 +196,6 @@ pub fn utc_now() -> String {
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = if m <= 2 { y + 1 } else { y };
     format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z", rem / 3600, (rem % 3600) / 60, rem % 60)
-}
-
-/// Reads the checked-out git revision from `.git` files (no git process).
-pub fn git_revision(root: &Path) -> Option<String> {
-    let head = std::fs::read_to_string(root.join(".git/HEAD")).ok()?;
-    let head = head.trim();
-    if let Some(r) = head.strip_prefix("ref: ") {
-        if let Ok(s) = std::fs::read_to_string(root.join(".git").join(r)) {
-            return Some(s.trim().to_string());
-        }
-        let packed = std::fs::read_to_string(root.join(".git/packed-refs")).ok()?;
-        return packed.lines().find(|l| l.ends_with(r)).and_then(|l| l.split_whitespace().next()).map(String::from);
-    }
-    (head.len() == 40).then(|| head.to_string())
 }
 
 pub struct ExportPlan {
@@ -583,8 +573,13 @@ pub fn run_export(p: &ExportPlan, out: &Path, cancel: &AtomicBool, log: &dyn Fn(
 
 fn wrap_snapshot(p: &ExportPlan, f: std::fs::File, out: &Path, before: &[Option<String>], canon_root: &Path) -> Result<ExportResult> {
     let mut r = BufReader::new(f);
+    // The exporter ran project code: its output is bounded like any other
+    // untrusted snapshot, the first line included.
     let mut first = String::new();
-    r.read_line(&mut first)?;
+    r.by_ref().take(snapshot::limits::MAX_LINE_BYTES as u64 + 1).read_line(&mut first)?;
+    if first.len() > snapshot::limits::MAX_LINE_BYTES {
+        bail!("exporter header line too long");
+    }
     let eh: serde_json::Value = serde_json::from_str(&first).context("exporter header")?;
     if eh.get("record").and_then(|v| v.as_str()) != Some("exporter_header") {
         bail!("exporter output does not start with its header");
@@ -617,7 +612,7 @@ fn wrap_snapshot(p: &ExportPlan, f: std::fs::File, out: &Path, before: &[Option<
             root_hint: Some(p.project.root.to_string_lossy().into()),
             lean_toolchain: p.project.toolchain.clone(),
             lake_manifest_sha256: p.project.lake_manifest_sha256.clone(),
-            revision: git_revision(&p.project.root),
+            revision: crate::paths::git_revision(&p.project.root),
         }),
         scope: Some(serde_json::json!({
             "local_modules": p.modules.len(),

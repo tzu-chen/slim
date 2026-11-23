@@ -60,6 +60,40 @@ pub fn sanitize_char(c: char, ascii: bool, out: &mut String) {
     }
 }
 
+/// Like [`sanitize`] for text printed outside the UI (plain `stdout` and
+/// `stderr`): tabs and newlines are kept as they are, every other control
+/// character and every bidirectional override is made visible. Project names,
+/// file names, declaration names, map text and the output of sandboxed
+/// processes all reach these streams, and none of them may drive the terminal.
+pub fn sanitize_cli(s: &str) -> Cow<'_, str> {
+    let plain = |c: char| c == '\n' || c == '\t' || !(c.is_control() || is_bidi_control(c));
+    if s.chars().all(plain) {
+        return Cow::Borrowed(s);
+    }
+    let mut out = String::with_capacity(s.len() + 8);
+    for c in s.chars() {
+        if plain(c) {
+            out.push(c);
+        } else {
+            sanitize_char(c, false, &mut out);
+        }
+    }
+    Cow::Owned(out)
+}
+
+/// What the crate's `print!`/`println!`/`eprint!`/`eprintln!` expand to (they
+/// shadow the standard macros, see `lib.rs`): formats, sanitises with
+/// [`sanitize_cli`] and writes to `stdout` or `stderr`.
+pub fn emit(to_stderr: bool, args: std::fmt::Arguments<'_>) {
+    let text = args.to_string();
+    let text = sanitize_cli(&text);
+    if to_stderr {
+        std::eprint!("{text}");
+    } else {
+        std::print!("{text}");
+    }
+}
+
 /// Terminal cell width of a (sanitised) string.
 pub fn width(s: &str) -> usize {
     s.chars().map(|c| c.width().unwrap_or(0)).sum()
@@ -318,6 +352,11 @@ mod tests {
         // Mathematical text is untouched.
         let m = "∀ (α : Type u) {R : α → α → Prop}, ReflTransGen R a b → ℕ";
         assert!(matches!(sanitize(m, false), Cow::Borrowed(_)));
+        // Outside the UI: the same, except that tabs and newlines stay.
+        let c = sanitize_cli("a\tb\n\x1b]52;c;eA==\x07\r\u{9b}2J\u{202E}");
+        assert!(c.starts_with("a\tb\n"));
+        assert!(!c.chars().any(|ch| ch != '\n' && ch != '\t' && (ch.is_control() || is_bidi_control(ch))));
+        assert!(matches!(sanitize_cli("plain\ttext\n"), Cow::Borrowed(_)));
     }
 
     #[test]

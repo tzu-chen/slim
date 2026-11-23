@@ -11,8 +11,30 @@ use anyhow::{bail, Context, Result};
 use sha2::{Digest, Sha256};
 use std::path::{Component, Path, PathBuf};
 
-fn home() -> PathBuf {
-    std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/tmp"))
+/// The user's home directory: `$HOME` when it is an absolute path, else the
+/// one in the password database. There is deliberately no fallback to a
+/// shared directory such as `/tmp`: the cache holds the exporter executable
+/// slim builds and runs, and indexes it trusts, so another local user must
+/// not be able to create it first. Without any home directory the result is
+/// a path that cannot be created, and the caller's error names it.
+pub fn home() -> PathBuf {
+    if let Some(h) = std::env::var_os("HOME").map(PathBuf::from).filter(|p| p.is_absolute()) {
+        return h;
+    }
+    passwd_home().unwrap_or_else(|| PathBuf::from("/nonexistent/slim-no-home-directory"))
+}
+
+fn passwd_home() -> Option<PathBuf> {
+    use std::os::unix::ffi::OsStringExt;
+    let mut buf = vec![0 as libc::c_char; 16 << 10];
+    let mut pw: libc::passwd = unsafe { std::mem::zeroed() };
+    let mut res: *mut libc::passwd = std::ptr::null_mut();
+    let rc = unsafe { libc::getpwuid_r(libc::getuid(), &mut pw, buf.as_mut_ptr(), buf.len(), &mut res) };
+    if rc != 0 || res.is_null() || pw.pw_dir.is_null() {
+        return None;
+    }
+    let dir = unsafe { std::ffi::CStr::from_ptr(pw.pw_dir) }.to_bytes().to_vec();
+    Some(PathBuf::from(std::ffi::OsString::from_vec(dir))).filter(|p| p.is_absolute())
 }
 
 pub fn cache_dir() -> PathBuf {
@@ -106,7 +128,7 @@ pub fn read_package_name(root: &Path) -> Option<String> {
                 let rest = rest.trim_start();
                 if let Some(v) = rest.strip_prefix('=') {
                     let v = v.trim().trim_matches('"').trim_matches('\'');
-                    if !v.is_empty() && v.len() < 100 {
+                    if !v.is_empty() && v.len() < 100 && !v.chars().any(char::is_control) {
                         return Some(v.to_string());
                     }
                 }
@@ -124,7 +146,7 @@ pub fn read_package_name(root: &Path) -> Option<String> {
                     .take_while(|c| !c.is_whitespace() && *c != '»' && *c != '{' && *c != '(' && *c != ':')
                     .collect();
                 let v = v.trim_matches('"').to_string();
-                if !v.is_empty() && v.len() < 100 {
+                if !v.is_empty() && v.len() < 100 && !v.chars().any(char::is_control) {
                     return Some(v);
                 }
             }

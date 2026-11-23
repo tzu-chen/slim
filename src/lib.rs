@@ -3,6 +3,26 @@
 //! The crate is split into a library (index, importer, scanner, queries,
 //! UI) and a thin binary (`src/main.rs`).
 
+// Everything this crate prints outside the UI goes through
+// `text::emit`, which makes control characters visible: names and paths from
+// an inspected project, and the output of sandboxed processes, must not be
+// able to send escape sequences to the terminal. These shadow the standard
+// macros for every module below.
+macro_rules! print {
+    ($($t:tt)*) => { $crate::text::emit(false, format_args!($($t)*)) };
+}
+macro_rules! println {
+    () => { $crate::text::emit(false, format_args!("\n")) };
+    ($($t:tt)*) => { $crate::text::emit(false, format_args!("{}\n", format_args!($($t)*))) };
+}
+macro_rules! eprint {
+    ($($t:tt)*) => { $crate::text::emit(true, format_args!($($t)*)) };
+}
+macro_rules! eprintln {
+    () => { $crate::text::emit(true, format_args!("\n")) };
+    ($($t:tt)*) => { $crate::text::emit(true, format_args!("{}\n", format_args!($($t)*))) };
+}
+
 pub mod model;
 pub mod source;
 pub mod text;
