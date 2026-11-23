@@ -119,6 +119,15 @@ CREATE TABLE import_state (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 ) WITHOUT ROWID;
+
+-- The name Lake gives a local module, where it differs from `modules.name`
+-- (a package below the opened root, or one with a source directory). An
+-- added table: an index written before it existed simply has none.
+CREATE TABLE IF NOT EXISTS module_lake (
+  module_id INTEGER PRIMARY KEY,
+  name      TEXT NOT NULL,
+  pkg       TEXT NOT NULL
+);
 "#;
 
 /// Indexes created after bulk loading (faster than maintaining them during
@@ -129,6 +138,7 @@ CREATE INDEX IF NOT EXISTS decls_module ON decls(module_id, start_line);
 CREATE INDEX IF NOT EXISTS edges_rev ON edges(dst, kind, src);
 CREATE INDEX IF NOT EXISTS module_imports_rev ON module_imports(dst, src);
 CREATE INDEX IF NOT EXISTS decl_axioms_axiom ON decl_axioms(axiom_id, decl_id);
+CREATE INDEX IF NOT EXISTS module_lake_name ON module_lake(name);
 "#;
 
 pub const FTS_SCHEMA: &str = r#"

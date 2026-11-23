@@ -20,7 +20,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
-pub const SCANNER_VERSION: &str = "3";
+/// Version 4: imports resolve through the Lake name of a module (a package
+/// below the opened root, a source directory), and statements are searchable.
+pub const SCANNER_VERSION: &str = "4";
 
 /// True when the index was written by this version of the scanner. An index
 /// from another version is built again: its candidates may differ.
@@ -151,6 +153,32 @@ pub struct FileResult {
     pub src: Option<String>,
     /// Counts for the outline's roll-ups (lexical, like everything here).
     pub stats: ModStats,
+    /// What each candidate states, for the full-text table: its header
+    /// without the keyword and the name, as written (bounded).
+    pub sigs: Vec<String>,
+}
+
+/// At most this much of a statement is made searchable.
+pub const MAX_SIG_BYTES: usize = 2000;
+
+/// The header of a candidate without its keyword and name.
+pub fn statement_text(text: &str, d: &super::scan::Candidate) -> String {
+    let (a, z) = (d.kw as usize, (d.header_end as usize).min(text.len()));
+    if a >= z || !text.is_char_boundary(a) || !text.is_char_boundary(z) {
+        return String::new();
+    }
+    let h = &text[a..z];
+    // Past the keyword(s), then past the name when one is written.
+    let mut rest = h.strip_prefix(d.keyword).unwrap_or(h).trim_start();
+    if !rest.starts_with(['(', '{', '[', ':', '⦃']) {
+        rest = rest.find(|c: char| c.is_whitespace() || matches!(c, '(' | '{' | '[' | '⦃')).map(|i| &rest[i..]).unwrap_or("");
+    }
+    let rest = rest.trim();
+    let mut end = rest.len().min(MAX_SIG_BYTES);
+    while !rest.is_char_boundary(end) {
+        end -= 1;
+    }
+    rest[..end].to_string()
 }
 
 /// Counts of one scanned file: candidates by kind, documented ones, `sorry`
@@ -199,7 +227,7 @@ pub fn file_stats(scan: &FileScan, text: &str) -> ModStats {
 }
 
 pub fn process_file(root: &Path, f: &SourceFile, cfg: &ScanConfig, keep_src: bool) -> FileResult {
-    let mut r = FileResult { file: f.clone(), sha256: None, status: "ok", detail: None, scan: None, src: None, stats: ModStats::default() };
+    let mut r = FileResult { file: f.clone(), sha256: None, status: "ok", detail: None, scan: None, src: None, stats: ModStats::default(), sigs: Vec::new() };
     if f.size > cfg.max_file_bytes {
         r.status = "too-large";
         r.detail = Some(format!("{} bytes exceeds the {} byte limit; not scanned", f.size, cfg.max_file_bytes));
@@ -234,6 +262,7 @@ pub fn process_file(root: &Path, f: &SourceFile, cfg: &ScanConfig, keep_src: boo
         r.detail = Some(serde_json::Value::Array(items).to_string());
     }
     r.stats = file_stats(&scan, &text);
+    r.sigs = scan.decls.iter().map(|d| statement_text(&text, d)).collect();
     if keep_src {
         r.src = Some(text.into_owned());
     }
@@ -311,9 +340,76 @@ struct Writer<'c> {
     conn: &'c Connection,
     modules: HashMap<String, i64>,
     pending_imports: Vec<(i64, String, i64)>,
+    /// Where Lake says each local file's module lives.
+    layout: crate::lake::Layout,
+    /// Local modules by their Lake name, where it differs from the index's.
+    by_lake: HashMap<String, Vec<i64>>,
+    /// The package (its directory below the root) of each local module.
+    pkg_of: HashMap<i64, String>,
+    local: HashSet<i64>,
+    /// Local modules written in this run whose Lake name differs.
+    fresh: Vec<(i64, String)>,
+    /// What the index puts before Lake's module names (`lean.src.`).
+    prefixes: std::collections::BTreeSet<String>,
 }
 
 impl<'c> Writer<'c> {
+    fn new(conn: &'c Connection, root: &Path, modules: HashMap<String, i64>) -> Result<Writer<'c>> {
+        // An index written before the table existed is brought up to date.
+        conn.execute_batch("CREATE TABLE IF NOT EXISTS module_lake (module_id INTEGER PRIMARY KEY, name TEXT NOT NULL, pkg TEXT NOT NULL)")?;
+        let mut w = Writer { conn, modules, pending_imports: Vec::new(), layout: crate::lake::Layout::new(root), by_lake: HashMap::new(), pkg_of: HashMap::new(), local: HashSet::new(), fresh: Vec::new(), prefixes: Default::default() };
+        // An index being updated: what it already says about its local files.
+        let mut st = conn.prepare("SELECT id, name, path FROM modules WHERE is_local = 1 AND path IS NOT NULL")?;
+        let rows: Vec<(i64, String, String)> = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?.collect::<rusqlite::Result<_>>()?;
+        for (id, name, rel) in rows {
+            w.note_local(id, &name, &rel, false)?;
+        }
+        Ok(w)
+    }
+
+    /// Records the Lake name and the package of a local module.
+    fn note_local(&mut self, id: i64, name: &str, rel: &str, write: bool) -> Result<()> {
+        let pkg = self.layout.package_of(rel);
+        let lake = pkg.lake_name(rel);
+        self.local.insert(id);
+        self.pkg_of.insert(id, pkg.rel.clone());
+        if lake != name {
+            if let Some(p) = name.strip_suffix(lake.as_str()).filter(|p| p.ends_with('.')) {
+                self.prefixes.insert(p.to_string());
+            }
+            let v = self.by_lake.entry(lake.clone()).or_default();
+            if !v.contains(&id) {
+                v.push(id);
+            }
+            if write {
+                self.conn.execute("INSERT OR REPLACE INTO module_lake(module_id, name, pkg) VALUES (?1, ?2, ?3)", params![id, lake, pkg.rel])?;
+                self.fresh.push((id, lake));
+            }
+        } else if write {
+            self.conn.execute("DELETE FROM module_lake WHERE module_id = ?1", [id])?;
+        }
+        Ok(())
+    }
+
+    /// The module an `import` line of `src` names: a module of the
+    /// importer's own package by its Lake name; else a local file whose
+    /// path gives that name; else the only local module Lake calls so;
+    /// else a module outside the project.
+    fn imported(&mut self, src: i64, name: &str) -> Result<i64> {
+        let lake = self.by_lake.get(name).map(|v| v.as_slice()).unwrap_or(&[]);
+        let here = self.pkg_of.get(&src);
+        if let Some(&id) = lake.iter().find(|id| self.pkg_of.get(id) == here) {
+            return Ok(id);
+        }
+        if let Some(&id) = self.modules.get(name).filter(|id| self.local.contains(id)) {
+            return Ok(id);
+        }
+        if let [only] = lake {
+            return Ok(*only);
+        }
+        self.module_id(name)
+    }
+
     fn module_id(&mut self, name: &str) -> Result<i64> {
         if let Some(&id) = self.modules.get(name) {
             return Ok(id);
@@ -348,6 +444,7 @@ impl<'c> Writer<'c> {
                 id
             }
         };
+        self.note_local(id, &f.module, &f.rel, true)?;
         let Some(scan) = &r.scan else {
             self.conn.execute(
                 "UPDATE modules SET decl_count = 0, n_thm = 0, n_def = 0, n_type = 0, n_inst = 0, n_axiom = 0, n_doc = 0, n_sorry = 0, proof_lines = 0 WHERE id = ?1",
@@ -365,7 +462,7 @@ impl<'c> Writer<'c> {
              VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
         )?;
         let mut fts = self.conn.prepare_cached("INSERT INTO fts(rowid, doc, attrs, sig) VALUES (?1, ?2, ?3, ?4)")?;
-        for d in &scan.decls {
+        for (k, d) in scan.decls.iter().enumerate() {
             st.execute(params![
                 d.name,
                 d.kind as i64,
@@ -387,9 +484,10 @@ impl<'c> Writer<'c> {
                 d.keyword,
                 d.sorry_line,
             ])?;
-            if d.doc.is_some() || d.attrs.is_some() || index_statements {
+            let sig = r.sigs.get(k).map(|s| s.as_str()).filter(|_| index_statements).unwrap_or("");
+            if d.doc.is_some() || d.attrs.is_some() || !sig.is_empty() {
                 let rowid = self.conn.last_insert_rowid();
-                fts.execute(params![rowid, d.doc.as_deref().unwrap_or(""), d.attrs.as_deref().unwrap_or(""), ""])?;
+                fts.execute(params![rowid, d.doc.as_deref().unwrap_or(""), d.attrs.as_deref().unwrap_or(""), sig])?;
             }
         }
         let st = &r.stats;
@@ -401,9 +499,26 @@ impl<'c> Writer<'c> {
     }
 
     fn flush_imports(&mut self) -> Result<()> {
+        // A file added since the index was built may be what earlier
+        // `import` lines meant: they point at a module outside the project
+        // of that name until now.
+        for (id, lake) in std::mem::take(&mut self.fresh) {
+            let Some(&ext) = self.modules.get(&lake).filter(|x| !self.local.contains(x)) else { continue };
+            let only = self.by_lake.get(&lake).is_some_and(|v| v.len() == 1);
+            let mut st = self.conn.prepare_cached("SELECT src FROM module_imports WHERE dst = ?1")?;
+            let srcs: Vec<i64> = st.query_map([ext], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
+            for src in srcs {
+                if only || self.pkg_of.get(&src) == self.pkg_of.get(&id) {
+                    self.conn.execute("UPDATE OR IGNORE module_imports SET dst = ?1 WHERE src = ?2 AND dst = ?3", params![id, src, ext])?;
+                    self.conn.execute("DELETE FROM module_imports WHERE src = ?1 AND dst = ?2", params![src, ext])?;
+                }
+            }
+        }
+        // Shown names drop these prefixes: Lean's own module names.
+        set_meta(self.conn, "lake_prefixes", &self.prefixes.iter().cloned().collect::<Vec<_>>().join("\n"))?;
         let pending = std::mem::take(&mut self.pending_imports);
         for (src, name, fl) in pending {
-            let dst = self.module_id(&name)?;
+            let dst = self.imported(src, &name)?;
             self.conn.execute(
                 "INSERT OR IGNORE INTO module_imports(src, dst, flags) VALUES (?1, ?2, ?3)",
                 params![src, dst, fl],
@@ -474,12 +589,12 @@ pub fn build_source_index(
     let conn = db::create(&staging, IndexMode::Source)?;
     write_project_meta(&conn, project, cfg)?;
     let mut summary = SourceSummary { warnings, ..Default::default() };
-    let mut w = Writer { conn: &conn, modules: HashMap::new(), pending_imports: Vec::new() };
+    let mut w = Writer::new(&conn, &project.root, HashMap::new())?;
     conn.execute_batch("BEGIN")?;
     let mut done = 0u64;
     let mut bytes_done = 0u64;
     let res = parallel_scan(&project.root, files, cfg, cancel, |r| {
-        summary.decls += w.write_file(&r, false)?;
+        summary.decls += w.write_file(&r, true)?;
         summary.files += 1;
         summary.bytes += r.file.size;
         match r.status {
@@ -678,6 +793,7 @@ pub fn apply_incremental(index_path: &Path, project: &Project, fr: &Freshness, c
             conn.execute("DELETE FROM fts WHERE rowid IN (SELECT id FROM decls WHERE module_id = ?1)", [mid])?;
             conn.execute("DELETE FROM decls WHERE module_id = ?1", [mid])?;
             conn.execute("DELETE FROM module_imports WHERE src = ?1", [mid])?;
+            let _ = conn.execute("DELETE FROM module_lake WHERE module_id = ?1", [mid]);
             Ok(())
         };
         for rel in &fr.deleted {
@@ -693,12 +809,12 @@ pub fn apply_incremental(index_path: &Path, project: &Project, fr: &Freshness, c
                 )?;
             }
         }
-        let mut w = Writer { conn: &conn, modules, pending_imports: Vec::new() };
+        let mut w = Writer::new(&conn, &project.root, modules)?;
         for r in &results {
             if let Some(&mid) = w.modules.get(&r.file.module) {
                 remove_module_contents(mid, &mut touched_names)?;
             }
-            summary.decls += w.write_file(r, false)?;
+            summary.decls += w.write_file(r, true)?;
             summary.files += 1;
             if let Some(s) = &r.scan {
                 for d in &s.decls {
@@ -806,6 +922,51 @@ mod tests {
         // the index recorded no toolchain, so nothing to compare yet
         let fr = check_freshness(&c, &root, false, false, &cancel).unwrap();
         assert!(fr.env_changed.is_empty());
+    }
+
+    #[test]
+    fn imports_resolve_through_the_lake_name_of_a_nested_package() {
+        let d = tempfile::tempdir().unwrap();
+        let root = d.path().join("repo");
+        write(&root, "lean/lakefile.toml", "name = \"tree\"\nsrcDir = \"src\"\n");
+        write(&root, "lean/src/A/Basic.lean", "theorem a_basic (n : Nat) : n = n := rfl\n");
+        write(&root, "lean/src/Main.lean", "import A.Basic\nimport Mathlib\ntheorem main_thm : True := trivial\n");
+        write(&root, "notes/Check.lean", "import Main\n");
+        let project = Project::open(&root).unwrap();
+        let idx = d.path().join("i.sqlite");
+        let cfg = ScanConfig::for_project(&project);
+        build_source_index(&project, &idx, &cfg, &AtomicBool::new(false), None).unwrap();
+        let edges = |idx: &Path| -> Vec<(String, String, i64)> {
+            let c = db::open_read(idx).unwrap();
+            let mut st = c.prepare("SELECT a.name, b.name, b.is_local FROM module_imports i JOIN modules a ON a.id = i.src JOIN modules b ON b.id = i.dst ORDER BY 1, 2").unwrap();
+            st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).unwrap().map(|x| x.unwrap()).collect()
+        };
+        let e = |a: &str, b: &str, l: i64| (a.to_string(), b.to_string(), l);
+        assert_eq!(edges(&idx), vec![e("lean.src.Main", "Mathlib", 0), e("lean.src.Main", "lean.src.A.Basic", 1), e("notes.Check", "lean.src.Main", 1)]);
+        {
+            let c = db::open_read(&idx).unwrap();
+            let lake: String = c.query_row("SELECT l.name FROM module_lake l JOIN modules m ON m.id = l.module_id WHERE m.name = 'lean.src.A.Basic'", [], |r| r.get(0)).unwrap();
+            assert_eq!(lake, "A.Basic");
+            // What a theorem states can be searched, without its name.
+            let hits = crate::db::query::text_search(&c, "Nat", 10).unwrap();
+            assert_eq!(hits.len(), 1);
+            assert!(crate::db::query::text_search(&c, "a_basic", 10).unwrap().is_empty());
+        }
+        // A file added later is what an earlier `import` line meant.
+        write(&root, "lean/src/Main.lean", "import A.Basic\nimport A.More\ntheorem main_thm : True := trivial\n");
+        let c = db::open_read(&idx).unwrap();
+        let fr = check_freshness(&c, &root, true, false, &AtomicBool::new(false)).unwrap();
+        drop(c);
+        apply_incremental(&idx, &project, &fr, &cfg, &AtomicBool::new(false)).unwrap();
+        assert!(edges(&idx).contains(&e("lean.src.Main", "A.More", 0)));
+        write(&root, "lean/src/A/More.lean", "def more := 1\n");
+        let c = db::open_read(&idx).unwrap();
+        let fr = check_freshness(&c, &root, true, false, &AtomicBool::new(false)).unwrap();
+        drop(c);
+        apply_incremental(&idx, &project, &fr, &cfg, &AtomicBool::new(false)).unwrap();
+        let after = edges(&idx);
+        assert!(after.contains(&e("lean.src.Main", "lean.src.A.More", 1)), "{after:?}");
+        assert!(!after.iter().any(|x| x.1 == "A.More"), "{after:?}");
     }
 
     #[test]

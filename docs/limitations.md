@@ -43,8 +43,11 @@
   from libraries that are not indexed, and names made by attributes such as `@[to_additive]`
   are not found. A short local name that equals a declaration's name is listed as that
   declaration.
-* Module names are paths relative to the project root; a `srcDir` in the Lake configuration is
-  not honoured (imports to such modules then show as external).
+* Module names are paths relative to the project root. Imports are resolved through the name
+  Lake gives a module (its package's directory and `srcDir`, read from `lakefile.toml`, or
+  from `srcDir := "…"` in a `lakefile.lean` as text); `globs`, `roots` and a source directory
+  computed in a `lakefile.lean` are not read. Of two packages that both have a module of one
+  name, an importer gets its own package's.
 * Lexical observations are reported as such: a `sorry` token is evidence of a placeholder in the
   text; its absence proves nothing. There is no "used by" in this mode.
 * On CFSG 29 of 229,089 files and on Stacks 11 of 62,975 files are marked partially parsed
@@ -221,7 +224,7 @@ Meanings, bounds and measurements are in `docs/overview.md`. What matters most:
   depth comes from `import` lines. Declarations made by macros are not counted or skimmed.
 * **Import layers are build order.** Depth, endpoints and hubs describe files importing files;
   nothing says a result depends mathematically on what its file imports. Endpoints include
-  unused and draft files. Module names are paths, so a Lake `srcDir` shows as external.
+  unused and draft files.
 * **Skims are bounded** (1,500 declarations, 150 files) and say when they stopped. Modifiers and
   attributes written before the keyword are not shown. Keys such as `m`, `a` and `*` still act
   on the open declaration, not on the statement selected in a skim: open it first.

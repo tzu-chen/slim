@@ -624,6 +624,8 @@ pub fn text_search(conn: &Connection, words: &str, limit: usize) -> Result<Vec<i
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct IndexInfo {
     pub mode: String,
+    /// What the index puts before Lean's module names, per Lake package.
+    pub lake_prefixes: Vec<String>,
     pub meta: Vec<(String, String)>,
     pub decls: u64,
     pub local: u64,
@@ -632,7 +634,18 @@ pub struct IndexInfo {
     pub edges: u64,
 }
 
+/// A module name as Lean has it: the index's name without the prefix of
+/// the Lake package and source directory it lies in (`lean.src.A.B` is
+/// `A.B`), when it has one.
+pub fn lake_shown<'a>(prefixes: &[String], module: &'a str) -> &'a str {
+    prefixes.iter().filter_map(|p| module.strip_prefix(p.as_str())).min_by_key(|r| r.len()).unwrap_or(module)
+}
+
 impl IndexInfo {
+    /// See [`lake_shown`].
+    pub fn module_shown<'a>(&self, module: &'a str) -> &'a str {
+        lake_shown(&self.lake_prefixes, module)
+    }
     pub fn get(&self, k: &str) -> Option<&str> {
         self.meta.iter().find(|(a, _)| a == k).map(|(_, b)| b.as_str())
     }
@@ -653,8 +666,10 @@ pub fn index_info(conn: &Connection) -> Result<IndexInfo> {
     let modules: i64 = conn.query_row("SELECT count(*) FROM modules", [], |r| r.get(0))?;
     let local_modules: i64 = conn.query_row("SELECT count(*) FROM modules WHERE is_local = 1", [], |r| r.get(0))?;
     let edges = get("edge_count").and_then(|s| s.parse().ok()).unwrap_or(0);
+    let lake_prefixes = get("lake_prefixes").map(|s| s.lines().filter(|l| !l.is_empty()).map(|l| l.to_string()).collect()).unwrap_or_default();
     Ok(IndexInfo {
         mode: get("mode").unwrap_or_default(),
+        lake_prefixes,
         meta,
         decls,
         local: local as u64,

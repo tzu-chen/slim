@@ -220,6 +220,19 @@ pub fn src_dirs(root: &Path) -> Vec<String> {
         for lib in t.get("lean_lib").and_then(|l| l.as_array()).into_iter().flatten() {
             add(lib.get("srcDir"));
         }
+    } else if let Ok(s) = std::fs::read_to_string(root.join("lakefile.lean")) {
+        // `srcDir := "src"`, read as text: the file is never evaluated.
+        for (at, _) in s.match_indices("srcDir") {
+            let rest = s[at + 6..].trim_start();
+            let Some(rest) = rest.strip_prefix(":=") else { continue };
+            let rest = rest.trim_start();
+            let Some(rest) = rest.strip_prefix('"') else { continue };
+            let Some(end) = rest.find('"') else { continue };
+            let v = rest[..end].trim_matches('/').trim_start_matches("./");
+            if !v.is_empty() && v.len() < 200 && !v.split('/').any(|c| c == "..") && !v.chars().any(char::is_control) {
+                dirs.insert(format!("{v}/"));
+            }
+        }
     }
     dirs.into_iter().collect()
 }

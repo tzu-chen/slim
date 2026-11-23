@@ -71,9 +71,11 @@ directory. `o` cycles the right-hand column and sorts by it; selecting a node in
   directory, and external imports by first name component.
 
 These are build dependencies read from import lines. They are not mathematical dependencies,
-and the view says so. In a source-only index module names are paths, so modules under a Lake
-`srcDir` or of other packages show as external. Files on or above an import cycle are counted
-and their depth is a lower bound.
+and the view says so. In a source-only index module names are paths below the opened root;
+an `import` line is resolved through the name Lake gives the module (a package below the
+root, a `srcDir`: scanner version 4, see `docs/reading.md`), so only modules of other
+packages show as external. Files on or above an import cycle are counted and their depth is
+a lower bound.
 
 ## Search within (`f`, `F`)
 
