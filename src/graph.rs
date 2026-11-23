@@ -233,7 +233,8 @@ impl Graph {
     }
 
     pub fn save(&self, path: &Path) -> Result<()> {
-        let tmp = path.with_extension("graph.part");
+        // Its own name: two slims opening one project both build the graph.
+        let tmp = path.with_extension(format!("graph.part{}", std::process::id()));
         {
             let f = std::fs::File::create(&tmp).with_context(|| format!("creating {}", tmp.display()))?;
             let mut w = BufWriter::new(f);
@@ -1008,6 +1009,38 @@ fn process_module(sh: &Shared, m: u32) -> ModOut {
 
 pub type Progress<'a> = &'a (dyn Fn(&str, u64, u64) + Sync);
 
+/// Whether the graph beside `index` was built for the index as it is now
+/// (its header is read, not the graph).
+pub fn is_current(index: &Path) -> bool {
+    let Ok(conn) = crate::db::open_read(index) else { return false };
+    let generation = crate::db::get_meta(&conn, "name_index_generation").ok().flatten().unwrap_or_default();
+    let Ok(mut f) = std::fs::File::open(graph_path(index)) else { return false };
+    let mut head = [0u8; 16];
+    if f.read_exact(&mut head).is_err() || &head[..8] != MAGIC || u32::from_le_bytes(head[8..12].try_into().expect("four")) != VERSION {
+        return false;
+    }
+    let hl = u32::from_le_bytes(head[12..16].try_into().expect("four")) as usize;
+    if hl > 1 << 20 {
+        return false;
+    }
+    let mut h = vec![0u8; hl];
+    f.read_exact(&mut h).is_ok() && serde_json::from_slice::<Header>(&h).map(|h| h.generation == generation).unwrap_or(false)
+}
+
+/// The number of threads a build takes when nobody said.
+pub fn default_threads() -> usize {
+    std::thread::available_parallelism().map(|n| n.get()).unwrap_or(2).clamp(1, 4)
+}
+
+/// Builds the graph of `index` the way `slim graph build` does without
+/// options: from Lean's reference files where they are usable (those of
+/// an artifact directory recorded beside the index included), lexically
+/// elsewhere. Files are read; nothing is run.
+pub fn build_default(index: &Path, root: Option<&Path>, threads: Option<usize>, cancel: &AtomicBool, progress: Option<Progress>) -> Result<Graph> {
+    let opts = BuildOptions { threads: threads.unwrap_or_else(default_threads), lexical_only: false, artifacts: crate::leanrefs::artifacts_for_index(index) };
+    build(index, root, &opts, cancel, progress)
+}
+
 /// Builds the graph of the index at `index` and writes it beside it.
 pub fn build(index: &Path, root: Option<&Path>, opts: &BuildOptions, cancel: &AtomicBool, progress: Option<Progress>) -> Result<Graph> {
     let t0 = Instant::now();
@@ -1284,10 +1317,17 @@ pub fn import_endpoints(conn: &Connection, max: usize) -> Result<Option<Vec<i64>
         }
     }
     let mut files: Vec<i64> = local.iter().filter(|(m, &d)| d > 0 && !marked.contains(m)).map(|(&m, _)| m).collect();
-    files.sort_unstable();
     if files.is_empty() || files.len() > max {
         return Ok(None);
     }
+    // In the order of their names: a file's id is the order in which a
+    // scan happened to reach it.
+    let mut named: Vec<(String, i64)> = Vec::with_capacity(files.len());
+    for &m in &files {
+        named.push((conn.query_row("SELECT name FROM modules WHERE id = ?1", [m], |r| r.get(0))?, m));
+    }
+    named.sort();
+    files = named.into_iter().map(|x| x.1).collect();
     let mut out = Vec::new();
     // A theorem restated with `sorry` where another file proves it under
     // the same name (a Comparator challenge file) is not what the project

@@ -63,6 +63,22 @@ fn imports_resolve_in_a_package_below_the_root_and_point_at_the_last_file() {
 }
 
 #[test]
+fn a_command_builds_the_graph_it_needs_and_status_only_reports() {
+    let w = world();
+    let (st, code) = w.run_code(&["graph", "status", w.dir()]);
+    assert_eq!(code, 1, "{st}");
+    assert!(st.contains("no reference graph yet"), "{st}");
+    let (why, code) = w.run_code(&["why", w.dir(), "P.good_all"]);
+    assert_eq!(code, 0, "{why}");
+    assert!(why.contains("building the reference graph"), "{why}");
+    assert!(why.contains("P.good_all"), "{why}");
+    let (st, code) = w.run_code(&["graph", "status", w.dir()]);
+    assert_eq!(code, 0, "{st}");
+    // The graph is there now: nothing is built a second time.
+    assert!(!w.run(&["why", w.dir(), "P.good_all"]).contains("building the reference graph"));
+}
+
+#[test]
 fn the_lexical_graph_reaches_what_the_last_file_uses_and_explains_why() {
     let w = world();
     let out = w.run(&["graph", "build", w.dir(), "--lexical"]);

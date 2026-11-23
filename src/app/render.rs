@@ -1963,7 +1963,7 @@ pub const HELP: &[&str] = &[
     "                    Inside a scope an empty query lists what is there",
     "  Counts are sizes, not progress: there is no percent proved.",
     "",
-    "THE REFERENCE GRAPH (slim graph build <PROJECT_DIR>, outside the browser)",
+    "THE REFERENCE GRAPH (written by slim when it opens a project)",
     "  Which declaration refers to which, for the whole project, in one file",
     "  beside the index. From Lean's own references (.ilean files of a build,",
     "  or of a published build cache given with --artifacts) where they are of",

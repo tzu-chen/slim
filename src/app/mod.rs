@@ -357,8 +357,13 @@ fn attach(app: &mut App, workers: &mut Workers, ctx: &IndexCtx, tx: &Sender<Even
     app.show_outline();
     if ctx.source_root.is_some() {
         app.job_queue.push(JobReq::Freshness { force_hash: false, discover_new: ctx.mode == IndexMode::Source });
-        app.run_next_job();
     }
+    // The reference graph, built when it is not there for this index. A
+    // source index without its files has nothing to build one from.
+    if ctx.mode == IndexMode::Semantic || ctx.source_root.is_some() {
+        app.job_queue.push(JobReq::Graph { index: ctx.index.clone(), root: ctx.source_root.clone() });
+    }
+    app.run_next_job();
     // The highlight worker: tokenizes and reads the cache; starts no process.
     if let (Some(root), None) = (&ctx.source_root, &app.hl.tx) {
         let store_path = match &app.ctx.project_root {

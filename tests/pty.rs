@@ -932,13 +932,10 @@ fn semantic_indexing_from_the_browser_cancels_and_quits_cleanly() {
     assert!(left.is_empty(), "server processes outlived a killed browser: {left:?}");
 }
 
-/// The reading views on a project with a reference graph: start page,
-/// contents by dependence, named statements, the unfolded statement with
-/// the line that says where a declaration stands, and why it is there.
-#[test]
-fn reading_views_on_a_project_with_a_reference_graph() {
-    let (d, cache, data) = dirs();
-    let proj = d.path().join("repo");
+/// A Lake package below the opened root: three files, one endpoint
+/// (`main_thm`), one theorem it does not reach (`P.unused`).
+fn reading_project(dir: &Path) -> PathBuf {
+    let proj = dir.join("repo");
     let write = |rel: &str, text: &str| {
         let p = proj.join(rel);
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
@@ -948,6 +945,68 @@ fn reading_views_on_a_project_with_a_reference_graph() {
     write("lean/src/Defs.lean", "namespace P\n\ndef Good (n : Nat) : Prop := n = n\n\ndef Big : Prop := ∀ n, Good n\n\nend P\n");
     write("lean/src/Lemmas.lean", "import Defs\nnamespace P\ntheorem good_all (n : Nat) : Good n := rfl\ntheorem big_holds : Big := fun n => good_all n\ntheorem unused (key : Nat) : key = key := rfl\nend P\n");
     write("lean/src/Main.lean", "import Lemmas\ntheorem main_thm : P.Big := P.big_holds\n");
+    proj
+}
+
+/// Nobody builds the reference graph by hand: the browser writes it with
+/// the index on a first open, for an index that has none, and again when
+/// the files changed.
+#[test]
+fn the_browser_builds_the_reference_graph_itself() {
+    let (d, cache, data) = dirs();
+    let proj = reading_project(d.path());
+    let dir = proj.to_str().unwrap();
+    let env: [(&str, &Path); 2] = [("SLIM_CACHE_DIR", &cache), ("SLIM_DATA_DIR", &data)];
+    let sz = (140, 36);
+    let graphs = || -> Vec<PathBuf> {
+        let mut found = Vec::new();
+        let mut stack = vec![cache.clone()];
+        while let Some(p) = stack.pop() {
+            for e in std::fs::read_dir(&p).into_iter().flatten().flatten() {
+                let q = e.path();
+                if q.is_dir() {
+                    stack.push(q);
+                } else if q.extension().is_some_and(|x| x == "graph") {
+                    found.push(q);
+                }
+            }
+        }
+        found
+    };
+    let quit = |mut p: Pty| {
+        p.send("\x1bq");
+        assert!(p.wait_exit(Duration::from_secs(5)).expect("did not exit").success());
+    };
+    // A first open: nothing in the cache.
+    let mut p = spawn_in_pty_sized(&[dir, "--ascii"], &env, &[], 140, 36);
+    assert!(p.wait_screen("Start here", sz) && p.wait_screen("5 of 6 reached", sz));
+    p.send("D");
+    assert!(p.wait_screen("5 of 6 reached from", sz) && p.wait_screen("= P.big_holds", sz));
+    quit(p);
+    let g = graphs();
+    assert_eq!(g.len(), 1, "one graph beside the index: {g:?}");
+    // An index that has no graph (written by `slim scan`, or by an earlier slim).
+    std::fs::remove_file(&g[0]).unwrap();
+    let p = spawn_in_pty_sized(&[dir, "--ascii"], &env, &[], 140, 36);
+    assert!(p.wait_screen("Start here", sz) && p.wait_screen("5 of 6 reached", sz), "the start page fills in when the graph is there");
+    quit(p);
+    assert_eq!(graphs().len(), 1);
+    // The files changed: the rescan leaves the graph of the new index.
+    let lemmas = proj.join("lean/src/Lemmas.lean");
+    let text = std::fs::read_to_string(&lemmas).unwrap().replace("end P\n", "theorem more (key : Nat) : key = key := rfl\nend P\n");
+    std::fs::write(&lemmas, text).unwrap();
+    let p = spawn_in_pty_sized(&[dir, "--ascii"], &env, &[], 140, 36);
+    assert!(p.wait_screen("5 of 7 reached", sz), "the graph follows the index");
+    quit(p);
+}
+
+/// The reading views on a project with a reference graph: start page,
+/// contents by dependence, named statements, the unfolded statement with
+/// the line that says where a declaration stands, and why it is there.
+#[test]
+fn reading_views_on_a_project_with_a_reference_graph() {
+    let (d, cache, data) = dirs();
+    let proj = reading_project(d.path());
     let dir = proj.to_str().unwrap();
     let cli = |args: &[&str]| -> String {
         let out = Command::new(BIN).args(args).env("SLIM_DATA_DIR", &data).env("SLIM_CACHE_DIR", &cache).output().unwrap();

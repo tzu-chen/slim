@@ -1656,6 +1656,8 @@ impl App {
                     let n = fr.changed.len() + fr.deleted.len() + fr.added.len();
                     self.msg(format!("{n} source files changed since indexing; updating the source index in the background"));
                     self.fresh = Fresh::Stale(fr.clone());
+                    // The rescan writes the graph of the index it leaves.
+                    self.job_queue.retain(|j| !matches!(j, JobReq::Graph { .. }));
                     self.job_queue.push(JobReq::Rescan { fr });
                 } else {
                     self.fresh = Fresh::Stale(fr);
@@ -1708,6 +1710,19 @@ impl App {
                 }
                 self.run_next_job();
             }
+            JobEvent::Graph(built) => {
+                self.job = None;
+                if built {
+                    self.q(QueryReq::ReloadGraph);
+                    if let Some(t) = &self.ch.search {
+                        let _ = t.send(SearchReq::Graph);
+                    }
+                    // What the reading views and the position line show
+                    // was asked for without it.
+                    self.guide_roots_changed();
+                }
+                self.run_next_job();
+            }
             JobEvent::ExportPlanned(r) => {
                 self.job = None;
                 match r {
@@ -1749,6 +1764,7 @@ impl App {
                 JobReq::Freshness { .. } => "checking freshness".into(),
                 JobReq::Rescan { .. } => "updating source index".into(),
                 JobReq::BuildSource => "building source index".into(),
+                JobReq::Graph { .. } => "checking the reference graph".into(),
                 JobReq::ExportPlan => "planning semantic export".into(),
                 JobReq::ExportRun => "semantic export (sandboxed)".into(),
                 JobReq::Shutdown => String::new(),

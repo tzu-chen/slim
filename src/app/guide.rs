@@ -62,7 +62,7 @@ impl GraphSlot {
         if let Some(rx) = self.loading.take() {
             match rx.recv() {
                 Ok(Ok(Some(g))) => self.graph = Some(Arc::new(g)),
-                Ok(Ok(None)) => self.why_not = Some("no reference graph for this index as it is now: `slim graph build <PROJECT_DIR>` makes one (it reads files and build artifacts, and runs nothing)".into()),
+                Ok(Ok(None)) => self.why_not = Some("the reference graph of this index is not there yet: slim builds it when it opens a project (see the status line), and `slim graph build <PROJECT_DIR>` builds it by hand".into()),
                 Ok(Err(e)) => self.why_not = Some(format!("the reference graph could not be read: {e}")),
                 Err(_) => self.why_not = Some("the reference graph could not be read".into()),
             }

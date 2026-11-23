@@ -53,7 +53,17 @@ pub fn open(args: &Args, dir: Option<&str>) -> Result<Opened> {
 }
 
 impl Opened {
+    /// The graph of the index as it is now; built here when there is none
+    /// (files and build artifacts are read, nothing is run).
     pub fn graph(&self) -> Result<Graph> {
+        if let Some(g) = Graph::load(&self.index, &self.generation)? {
+            return Ok(g);
+        }
+        eprintln!("building the reference graph of this index (files are read, nothing is run) …");
+        graph::build_default(&self.index, self.root.as_deref(), None, &AtomicBool::new(false), None)
+    }
+    /// The graph as it is on disk: `graph status` reports, it does not build.
+    pub fn graph_on_disk(&self) -> Result<Graph> {
         match Graph::load(&self.index, &self.generation)? {
             Some(g) => Ok(g),
             None if graph::graph_path(&self.index).exists() => bail!("the reference graph was built for an earlier state of the index; run `slim graph build` again"),
@@ -330,7 +340,7 @@ pub fn cmd_graph(args: &Args) -> Result<i32> {
         return Ok(0);
     }
     if sub == "status" {
-        let g = o.graph()?;
+        let g = o.graph_on_disk()?;
         println!("graph: {}", graph::graph_path(&o.index).display());
         println!("  {}", g.stats.describe());
         if let Some(a) = &g.stats.artifacts {
@@ -367,7 +377,7 @@ pub fn cmd_graph(args: &Args) -> Result<i32> {
         }
         None => crate::leanrefs::artifacts_for_index(&o.index),
     };
-    let threads = args.num::<usize>("threads")?.unwrap_or_else(|| std::thread::available_parallelism().map(|n| n.get()).unwrap_or(2).clamp(1, 4));
+    let threads = args.num::<usize>("threads")?.unwrap_or_else(graph::default_threads);
     let opts = graph::BuildOptions { threads, lexical_only: args.has("lexical"), artifacts };
     let pp = progress_printer();
     let g = graph::build(&o.index, o.root.as_deref(), &opts, &AtomicBool::new(false), Some(&pp))?;

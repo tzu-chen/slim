@@ -29,10 +29,18 @@ slim graph status <PROJECT_DIR>
 slim graph show <PROJECT_DIR> <NAME>      # what a declaration refers to, and what refers to it
 ```
 
-One file beside the index (`<index>.graph`), built on request, read whole into memory by the
-browser. For every declaration of the index it holds the declarations of the index it refers
-to, and whether each reference stands in the statement, after it, or both. Building reads
-files and runs nothing.
+One file beside the index (`<index>.graph`), read whole into memory by the browser. For every
+declaration of the index it holds the declarations of the index it refers to, and whether
+each reference stands in the statement, after it, or both. Building reads files and runs
+nothing.
+
+Nobody has to build it by hand. The browser writes it with the index on a first open, again
+after a rescan, and for an index that has none; this is a background job, shown in the status
+line, and the views fill in when it ends. `why`, `contents`, `ledger`, `contract` and
+`dossier` build it when it is missing. `slim graph build` is for what slim cannot see by
+itself: a Lean build that appeared after the graph was written (the index did not change, so
+the graph counts as current), a published build cache (`--artifacts`), or a lexical graph on
+purpose (`--lexical`). `graph status` reports and never builds.
 
 Where the edges come from is decided per file, recorded, and shown wherever they are used:
 

@@ -25,7 +25,7 @@ pub use crate::relations::Mention;
 use crate::relations::{ChildPage, ChildQuery, ConnQuery, ConnResult, Env, Limits};
 use crate::userdata::{Mark, Question, ReadState, RefKind, Stop, StopStatus, Trail, UserStore};
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
@@ -252,6 +252,8 @@ pub enum QueryReq {
     /// A statement with its vocabulary unfolded to `depth` levels.
     Contract { gen: u64, id: i64, depth: u8 },
     Reopen,
+    /// A new reference graph was written beside the index.
+    ReloadGraph,
     Shutdown,
 }
 
@@ -393,6 +395,7 @@ fn query_loop(ctx: IndexCtx, rx: Receiver<QueryReq>, tx: Sender<Event>) {
             }
             match req {
                 QueryReq::Shutdown => return,
+                QueryReq::ReloadGraph => slot = super::guide::GraphSlot::new(&ctx.index),
                 QueryReq::Reopen | QueryReq::ReloadMap => {
                     if matches!(req, QueryReq::Reopen) {
                         conn = db::open_read(&ctx.index).ok();
@@ -806,7 +809,7 @@ fn handle(ctx: &IndexCtx, c: &rusqlite::Connection, users: Option<&UserStore>, c
             u.save_session(&ctx.user_key, &state)?;
             Ok((String::new(), None))
         }),
-        QueryReq::Reopen | QueryReq::ReloadMap | QueryReq::Shutdown => QueryResp::Message(String::new()),
+        QueryReq::Reopen | QueryReq::ReloadMap | QueryReq::ReloadGraph | QueryReq::Shutdown => QueryResp::Message(String::new()),
     }
 }
 
@@ -926,6 +929,8 @@ pub enum SearchReq {
     /// What reach is measured from: the pinned goal, or (`None`) the
     /// project's own endpoints. Also sent when the map was read again.
     Roots { goal: Option<String> },
+    /// A new reference graph was written: reach is worked out again.
+    Graph,
     Reload,
     Shutdown,
 }
@@ -1066,20 +1071,25 @@ fn search_loop(ctx: IndexCtx, rx: Receiver<SearchReq>, tx: Sender<Event>, latest
         // Of what has queued up: the newest query, the newest choice of roots.
         let mut query: Option<(u64, SearchParams, bool, Option<ScopeSpec>)> = None;
         let mut roots: Option<Option<String>> = None;
+        let mut regraph = false;
         for req in first.into_iter().chain(rx.try_iter()) {
             match req {
                 SearchReq::Shutdown => return,
                 SearchReq::Reload => reload = true,
                 SearchReq::Roots { goal } => roots = Some(goal),
+                SearchReq::Graph => regraph = true,
                 SearchReq::Query { gen, params, docs, scope } => query = Some((gen, params, docs, scope)),
             }
         }
         if let Some(g) = roots {
             if g != goal {
                 goal = g;
-                // The old rank stays in use until the new one is there.
-                rank_rx = Some(start_rank(goal.clone()));
+                regraph = true;
             }
+        }
+        if regraph {
+            // The old rank stays in use until the new one is there.
+            rank_rx = Some(start_rank(goal.clone()));
         }
         if reload {
             continue;
@@ -1172,6 +1182,10 @@ pub enum JobReq {
     Freshness { force_hash: bool, discover_new: bool },
     Rescan { fr: Freshness },
     BuildSource,
+    /// Build the reference graph of this index (the one the browser is
+    /// attached to), unless the one beside it was built for the index as
+    /// it is now.
+    Graph { index: PathBuf, root: Option<PathBuf> },
     /// Compute (but do not run) a semantic-export plan for the project.
     ExportPlan,
     /// Run the previously computed plan (after explicit confirmation).
@@ -1184,6 +1198,8 @@ pub enum JobEvent {
     Progress { label: String, done: u64, total: u64 },
     Freshness(Freshness),
     IndexReplaced(String),
+    /// The reference graph was looked at; `true`: a new one was written.
+    Graph(bool),
     ExportPlanned(Result<String, String>),
     /// Semantic index built and imported at this path.
     ExportDone(PathBuf, String),
@@ -1204,6 +1220,26 @@ pub fn spawn_job_runner(jc: JobCtx, tx: Sender<Event>, cancel: Arc<AtomicBool>) 
         .spawn(move || job_loop(jc, jrx, tx, cancel))
         .expect("spawn job runner");
     (jtx, h)
+}
+
+/// Builds the reference graph beside the index unless it is there for the
+/// index as it is now (`Ok(false)`). Files are read; nothing is run.
+fn ensure_graph(index: &Path, root: Option<&Path>, threads: Option<usize>, cancel: &AtomicBool, progress: crate::graph::Progress) -> anyhow::Result<bool> {
+    if crate::graph::is_current(index) {
+        return Ok(false);
+    }
+    progress("building the reference graph", 0, 0);
+    crate::graph::build_default(index, root, threads, cancel, Some(progress))?;
+    Ok(true)
+}
+
+/// What a message about a new index says of its graph: nothing when it is
+/// there. The index stands either way.
+fn graph_note(r: anyhow::Result<bool>) -> String {
+    match r {
+        Ok(_) => String::new(),
+        Err(e) => format!("; the reference graph was not built: {e:#}"),
+    }
 }
 
 fn job_loop(jc: JobCtx, rx: Receiver<JobReq>, tx: Sender<Event>, cancel: Arc<AtomicBool>) {
@@ -1241,7 +1277,8 @@ fn job_loop(jc: JobCtx, rx: Receiver<JobReq>, tx: Sender<Event>, cancel: Arc<Ato
                     }
                     progress("rescanning changed files", 0, 1);
                     let s = sindex::apply_incremental(&jc.ctx.index, p, &fr, &cfg, &cancel)?;
-                    send(JobEvent::IndexReplaced(format!("rescanned {} files ({} candidates) in {:.1}s", s.files, s.decls, s.elapsed.as_secs_f64())));
+                    let note = graph_note(ensure_graph(&jc.ctx.index, jc.ctx.source_root.as_deref(), jc.threads, &cancel, &progress));
+                    send(JobEvent::IndexReplaced(format!("rescanned {} files ({} candidates) in {:.1}s{note}", s.files, s.decls, s.elapsed.as_secs_f64())));
                 }
                 JobReq::BuildSource => {
                     let Some(p) = jc.project.as_ref() else { anyhow::bail!("no project") };
@@ -1250,12 +1287,18 @@ fn job_loop(jc: JobCtx, rx: Receiver<JobReq>, tx: Sender<Event>, cancel: Arc<Ato
                         cfg.threads = t;
                     }
                     let s = sindex::build_source_index(p, &jc.ctx.index, &cfg, &cancel, Some(&progress))?;
+                    let note = graph_note(ensure_graph(&jc.ctx.index, jc.ctx.source_root.as_deref(), jc.threads, &cancel, &progress));
                     send(JobEvent::IndexReplaced(format!(
-                        "indexed {} files, {} declaration candidates in {:.1}s",
+                        "indexed {} files, {} declaration candidates in {:.1}s{note}",
                         s.files,
                         s.decls,
                         s.elapsed.as_secs_f64()
                     )));
+                }
+                JobReq::Graph { index, root } => {
+                    use anyhow::Context;
+                    let built = ensure_graph(&index, root.as_deref(), jc.threads, &cancel, &progress).context("the reference graph was not built")?;
+                    send(JobEvent::Graph(built));
                 }
                 JobReq::ExportPlan => {
                     let Some(p) = jc.project.as_ref() else { anyhow::bail!("semantic export needs a project directory") };
