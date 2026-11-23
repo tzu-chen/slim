@@ -16,7 +16,7 @@
 it shows what the project proves, what each step rests on, and any statement with the
 project's own definitions unfolded under it.
 
-It needs no Lean installation, and it never runs anything from the project it reads.
+It needs no Lean installation. Opening a project runs no Lean and none of the project's code.
 
 ## Try it
 
@@ -35,7 +35,7 @@ git clone https://github.com/anthropics/formal-math.git
 slim formal-math/vp-vnp
 ```
 
-Then do what the animation does:
+Four keys to start with, the ones the animation uses:
 
 1. slim opens on the five theorems the project ends in. `Enter` opens the main theorem.
 2. `u` unfolds its statement, one level of the project's definitions at a time.
@@ -62,7 +62,7 @@ terminal: copy the `slim` file to a directory on your `PATH` to keep it.
 
 slim is not a proof checker. It never says a theorem is "proved": it shows evidence and where
 the evidence came from. Without a Lean build it matches names in the source text, and every
-screen says so with `[lex]`. With a build it reads Lean's own reference data instead;
+screen says so with `[lex]`. With a build it can read Lean's own reference data instead;
 [docs/reading.md](docs/reading.md) has the details.
 
 ## Build from source
