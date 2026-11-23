@@ -61,7 +61,9 @@ pub fn load_side(index: &Path, root: &Path) -> Result<BTreeMap<String, Vec<Entry
             cur = Some((path.clone(), crate::text::decode_lossy(&bytes).0.into_owned()));
         }
         let text = &cur.as_ref().expect("just set").1;
-        let (kw, end) = (kw as usize, (end as usize).min(text.len()));
+        // A file that shrank since it was indexed has offsets past its end.
+        let end = (end as usize).min(text.len());
+        let kw = (kw as usize).min(end);
         let hend = hend.map(|h| (h as usize).clamp(kw, end)).unwrap_or(end);
         // What a definition states is all of it; a theorem's statement
         // ends where its proof begins.
@@ -200,14 +202,19 @@ pub fn cmd_diff(args: &Args) -> Result<i32> {
     noted.dedup();
     if !noted.is_empty() {
         let mut by: BTreeMap<Change, Vec<String>> = BTreeMap::new();
+        let mut elsewhere = 0usize;
         for (name, what) in &noted {
-            let c = ch.get(name).copied().unwrap_or(Change::Removed);
-            by.entry(c).or_default().push(format!("{name} ({what})"));
+            // A gloss on a namespace or a bookmark on a library name is a
+            // declaration of neither edition: nothing to say about it.
+            match ch.get(name) {
+                Some(c) => by.entry(*c).or_default().push(format!("{name} ({what})")),
+                None => elsewhere += 1,
+            }
         }
         println!("\nannotations (glosses, bookmarks, map entries): {} names", noted.len());
         for (c, names) in by {
             match c {
-                Change::Same | Change::Moved | Change::Proof => println!("  {} stand: {}", names.len(), c.label()),
+                Change::Same | Change::Moved | Change::Proof | Change::Added => println!("  {} stand: {}", names.len(), c.label()),
                 _ => {
                     println!("  {} to read again: {}", names.len(), c.label());
                     for n in names.iter().take(limit) {
@@ -215,6 +222,9 @@ pub fn cmd_diff(args: &Args) -> Result<i32> {
                     }
                 }
             }
+        }
+        if elsewhere > 0 {
+            println!("  {elsewhere} name no declaration of either edition (a namespace, a library name)");
         }
     }
     Ok(0)

@@ -217,14 +217,20 @@ pub struct GuideEnv<'a> {
 fn statement_of(env: &mut GuideEnv, id: i64) -> String {
     let Some(root) = env.ctx.source_root.as_deref() else { return String::new() };
     let Ok(Some(d)) = crate::db::query::detail(env.c, id) else { return String::new() };
+    // A semantic index has the elaborated type.
     if let Some(t) = &d.type_text {
-        return t.clone();
+        return format!(": {t}");
     }
     let Some(rel) = d.module_path.clone() else { return String::new() };
     let Ok(f) = env.cache.get(root, &rel) else { return String::new() };
     let (Some(kw), Some(he)) = (d.pos.kw_byte.or(d.pos.start_byte), d.pos.header_end_byte.or(d.pos.end_byte)) else { return String::new() };
     let text = f.text.get(kw as usize..(he as usize).min(f.text.len())).unwrap_or("").trim_end();
-    crate::skim::cut_statement(text).0
+    // Without the keyword and the name, which the row above it shows.
+    let mut rest = text.strip_prefix(d.keyword.as_deref().unwrap_or("")).unwrap_or(text).trim_start();
+    if d.row.flags & crate::model::flags::ANONYMOUS == 0 {
+        rest = rest.find(|c: char| c.is_whitespace() || matches!(c, '(' | '{' | '[' | '⦃')).map(|i| &rest[i..]).unwrap_or("");
+    }
+    crate::skim::cut_statement(rest.trim()).0
 }
 
 fn how_used(g: &Graph, from: u32, to: u32) -> &'static str {
@@ -481,6 +487,10 @@ pub struct GuideView {
     /// The goal the data on screen was computed for.
     pub for_goal: Option<String>,
     pub gen: u64,
+    /// Answers to requests up to this one are for other roots: dropped.
+    pub min_gen: u64,
+    /// A page of the ledger was asked for and has not arrived.
+    pub ledger_pending: bool,
     /// Where the open declaration stands (the declaration view).
     pub position: Option<Position>,
     /// The open declaration's statement unfolded, and to what depth.
@@ -508,15 +518,8 @@ impl App {
         if self.ctx.index.is_none() {
             return;
         }
-        let goal = self.guide_goal();
-        if self.v.guide.for_goal != goal {
-            let g = &mut self.v.guide;
-            g.start = None;
-            g.kids.clear();
-            g.asked.clear();
-            g.expanded.clear();
-            g.ledger = None;
-            g.for_goal = goal;
+        if self.v.guide.for_goal != self.guide_goal() {
+            self.guide_forget();
         }
         // Why: of the declaration at hand (the row selected in a view,
         // else the one that is open).
@@ -543,6 +546,54 @@ impl App {
         self.sync_view_detail();
     }
 
+    /// Drops what was computed for other roots; answers still on their way
+    /// for them will be ignored.
+    fn guide_forget(&mut self) {
+        let goal = self.guide_goal();
+        let g = &mut self.v.guide;
+        g.start = None;
+        g.kids.clear();
+        g.asked.clear();
+        g.expanded.clear();
+        g.contents_head.clear();
+        g.ledger = None;
+        g.ledger_pending = false;
+        g.why = None;
+        g.error = None;
+        g.for_goal = goal;
+        g.min_gen = g.gen;
+    }
+
+    /// The pinned goal changed, or the map was read again: what is reached
+    /// is measured from other declarations now. The page on screen is
+    /// asked for again, the line under the open declaration too, and
+    /// search is told.
+    pub fn guide_roots_changed(&mut self) {
+        let why = self.v.guide.why.as_ref().map(|w| w.id);
+        self.guide_forget();
+        if let Some(t) = &self.ch.search {
+            let _ = t.send(super::worker::SearchReq::Roots { goal: self.guide_goal() });
+        }
+        if self.v.view == View::Guide {
+            match (self.v.guide.mode, why) {
+                // The chain on screen led from the old roots: asked again.
+                (GuideMode::Why, Some(id)) => self.guide_ask(GuideReq::Why { id }),
+                (GuideMode::Why, None) => self.v.guide.mode = GuideMode::Start,
+                _ => {}
+            }
+            self.guide_ensure();
+            self.rebuild_guide_rows();
+        }
+        if let Some(id) = self.current {
+            let goal = self.guide_goal();
+            self.v.guide.position = None;
+            self.center.version += 1;
+            if let Some(t) = &self.ch.query {
+                let _ = t.send(QueryReq::Position { gen: self.gens.detail, goal, id });
+            }
+        }
+    }
+
     /// Asks for what the page on screen shows, when it is not there yet.
     pub fn guide_ensure(&mut self) {
         match self.v.guide.mode {
@@ -557,8 +608,9 @@ impl App {
                 }
             }
             GuideMode::Ledger => {
-                if self.v.guide.ledger.is_none() {
+                if self.v.guide.ledger.is_none() && !self.v.guide.ledger_pending {
                     let ns = self.v.guide.ledger_ns.clone();
+                    self.v.guide.ledger_pending = true;
                     self.guide_ask(GuideReq::Ledger { namespace: ns, offset: 0 });
                 }
             }
@@ -568,12 +620,18 @@ impl App {
 
     pub fn on_guide(&mut self, gen: u64, req: GuideReq, res: Result<GuideData, String>) -> bool {
         // Children arrive per parent and stay valid; the rest belongs to
-        // the newest request.
+        // the newest request. Nothing asked for other roots is taken.
         let g = &mut self.v.guide;
+        if gen <= g.min_gen {
+            return false;
+        }
         match res {
             Err(e) => {
                 if let GuideReq::Children { parent, .. } = &req {
                     g.asked.remove(parent);
+                }
+                if matches!(req, GuideReq::Ledger { .. }) {
+                    g.ledger_pending = false;
                 }
                 if gen == g.gen || matches!(req, GuideReq::Children { .. }) {
                     g.error = Some(e);
@@ -590,10 +648,20 @@ impl App {
                 }
                 g.asked.remove(&c.parent);
             }
-            Ok(GuideData::Ledger(l)) => match &mut g.ledger {
-                Some(old) if l.offset > 0 && l.offset == old.rows.len() && old.namespace == l.namespace => old.rows.extend(l.rows),
-                _ => g.ledger = Some(l),
-            },
+            Ok(GuideData::Ledger(l)) => {
+                g.ledger_pending = false;
+                match &mut g.ledger {
+                    // A further page continues the list where it ends; one
+                    // that does not (asked twice) is not taken.
+                    Some(old) if l.offset > 0 => {
+                        if l.offset == old.rows.len() && old.namespace == l.namespace {
+                            old.rows.extend(l.rows);
+                        }
+                    }
+                    _ if l.offset == 0 && l.namespace == g.ledger_ns => g.ledger = Some(l),
+                    _ => {}
+                }
+            }
             Ok(GuideData::Why(w)) => g.why = Some(w),
         }
         if self.v.view == View::Guide {
@@ -682,8 +750,7 @@ impl App {
                             },
                         });
                         // What it states, under its name (the detail pane has all of it).
-                        // (Without the keyword and the name, which the row above has.)
-                        let stated = sig.split_whitespace().skip(2).collect::<Vec<_>>().join(" ");
+                        let stated = sig.split_whitespace().collect::<Vec<_>>().join(" ");
                         if !stated.is_empty() {
                             rows.push(GuideRow { key: format!("es:{}", r.id), depth: 3, kind: GuideKind::Text { text: stated, warn: false } });
                         }
@@ -833,8 +900,11 @@ impl App {
             GuideKind::Door { cmd, .. } => self.run_cmd(cmd),
             GuideKind::More { parent, offset, .. } => match self.v.guide.mode {
                 GuideMode::Ledger => {
-                    let ns = self.v.guide.ledger_ns.clone();
-                    self.guide_ask(GuideReq::Ledger { namespace: ns, offset });
+                    if !self.v.guide.ledger_pending {
+                        let ns = self.v.guide.ledger_ns.clone();
+                        self.v.guide.ledger_pending = true;
+                        self.guide_ask(GuideReq::Ledger { namespace: ns, offset });
+                    }
                 }
                 _ => {
                     if self.v.guide.asked.insert(parent) {
@@ -895,6 +965,8 @@ impl App {
                 };
                 self.v.guide.ledger_ns = next.clone();
                 self.v.guide.ledger = None;
+                self.v.guide.ledger_pending = true;
+                // (Only the newest of these is taken: see `on_guide`.)
                 self.guide_ask(GuideReq::Ledger { namespace: next.clone(), offset: 0 });
                 self.msg(match next {
                     Some(n) => format!("named statements under {n} (f: wider, F: all)"),
@@ -906,6 +978,7 @@ impl App {
             (GuideMode::Ledger, KeyCode::Char('F')) => {
                 self.v.guide.ledger_ns = None;
                 self.v.guide.ledger = None;
+                self.v.guide.ledger_pending = true;
                 self.guide_ask(GuideReq::Ledger { namespace: None, offset: 0 });
                 self.rebuild_guide_rows();
                 true
@@ -1010,5 +1083,81 @@ impl App {
     /// The contract of the open declaration, when one is unfolded.
     pub fn contract_for(&self, id: i64) -> Option<&Contract> {
         self.v.guide.contract.as_ref().filter(|(i, _)| *i == id && self.v.guide.contract_depth > 0).map(|(_, c)| c.as_ref())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::state::{Channels, Ctx};
+    use crate::app::theme::ThemeName;
+    use crate::db::IndexMode;
+    use crate::model::Origin;
+    use std::sync::atomic::{AtomicBool, AtomicU64};
+
+    fn app() -> (App, std::sync::mpsc::Receiver<QueryReq>) {
+        let index = IndexCtx { index: "/nonexistent/i.sqlite".into(), source_root: None, mode: IndexMode::Source, user_key: "lake:t".into(), encoding: crate::text::PosEncoding::Utf8, map_path: None };
+        let ctx = Ctx { title: "t".into(), mode: IndexMode::Source, index: Some(index), user_key: "lake:t".into(), editor: None, info: None, synthetic: false, project_root: None };
+        let ch = Channels { query: None, search: None, jobs: None, events: None, search_latest: Arc::new(AtomicU64::new(0)), job_cancel: Arc::new(AtomicBool::new(false)) };
+        let mut a = App::new(ctx, ThemeName::Mono, true, ch);
+        let (tx, rx) = std::sync::mpsc::channel();
+        a.ch.query = Some(tx);
+        a.search.editing = false;
+        a.user_acted = true;
+        (a, rx)
+    }
+
+    fn row(id: i64, name: &str) -> DeclRow {
+        DeclRow { id, name: name.into(), display: name.into(), kind: DeclKind::Definition, origin: Origin::SourceCandidate, flags: 0, module: Some("M".into()) }
+    }
+
+    fn page(offset: usize, n: usize) -> GuideData {
+        let rows = (offset..offset + n).map(|k| LedgerItem { statement: row(k as i64 + 1, &format!("S{k}")), prover: None, provers: 0, users: 0, depth: None }).collect();
+        GuideData::Ledger(LedgerData { namespace: None, offset, rows, total: 500, proved: 0, reached: 0, label: "lex".into() })
+    }
+
+    fn asked(rx: &std::sync::mpsc::Receiver<QueryReq>) -> Vec<(u64, GuideReq)> {
+        rx.try_iter().filter_map(|r| if let QueryReq::Guide { gen, req, .. } = r { Some((gen, req)) } else { None }).collect()
+    }
+
+    #[test]
+    fn a_ledger_page_asked_twice_is_taken_once() {
+        let (mut a, rx) = app();
+        a.cmd_guide(GuideMode::Ledger);
+        let first = asked(&rx);
+        assert_eq!(first.len(), 1);
+        a.on_guide(first[0].0, first[0].1.clone(), Ok(page(0, 200)));
+        assert_eq!(a.v.guide.ledger.as_ref().unwrap().rows.len(), 200);
+        // Enter on "… more", twice before any answer: one request goes out.
+        a.v.guide.list.selected = a.v.guide.rows.len() - 1;
+        a.guide_activate();
+        a.guide_activate();
+        let more = asked(&rx);
+        assert_eq!(more.len(), 1, "{more:?}");
+        a.on_guide(more[0].0, more[0].1.clone(), Ok(page(200, 200)));
+        // An answer that does not continue the list where it ends is not taken.
+        a.on_guide(more[0].0, more[0].1.clone(), Ok(page(200, 200)));
+        let l = a.v.guide.ledger.as_ref().unwrap();
+        assert_eq!(l.rows.len(), 400);
+        assert_eq!((l.rows[0].statement.name.as_str(), l.rows[399].statement.name.as_str()), ("S0", "S399"));
+    }
+
+    #[test]
+    fn answers_for_other_roots_are_dropped_when_the_goal_changes() {
+        let (mut a, rx) = app();
+        a.cmd_guide(GuideMode::Contents);
+        let old = asked(&rx);
+        assert_eq!(old.len(), 1);
+        // The goal is pinned while the first answer is on its way.
+        a.set_goal(Some(crate::app::views::GoalRef { name: "G".into(), display: "G".into() }));
+        let new = asked(&rx);
+        assert_eq!(new.len(), 1, "the page on screen is asked for again: {new:?}");
+        let kids = |name: &str| {
+            GuideData::Children(ChildrenData { parent: None, offset: 0, rows: vec![ContentRow { row: row(1, name), excl: 3, kids: 0, relay: vec![], below: 1 }], more: 0, rest_size: 0, label: "lex".into(), how: "x".into(), reached: 3, total: 9 })
+        };
+        assert!(!a.on_guide(old[0].0, old[0].1.clone(), Ok(kids("from_the_old_roots"))));
+        assert!(a.v.guide.kids.is_empty());
+        assert!(a.on_guide(new[0].0, new[0].1.clone(), Ok(kids("from_the_goal"))));
+        assert_eq!(a.v.guide.kids[&None].0[0].row.name, "from_the_goal");
     }
 }

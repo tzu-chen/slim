@@ -281,6 +281,9 @@ fn a_challenge_file_with_sorry_does_not_stand_in_for_the_proofs() {
     let why = w.run(&["why", w.dir(), "paper_main"]);
     assert!(why.contains("Solution.mainTheorem  [Solution.lean:4]  endpoint"), "{why}");
     // A name given as the goal means the proof too.
+    // (Also by the end of the name: one name declared twice is one name.)
+    let by_end = w.run(&["why", w.dir(), "paper_main", "--goal", "mainTheorem"]);
+    assert!(by_end.contains("endpoints (the goal): Solution.mainTheorem") && by_end.contains("[Solution.lean:4]  endpoint"), "{by_end}");
     let goal = w.run(&["why", w.dir(), "paper_main", "--goal", "Solution.mainTheorem"]);
     assert!(goal.contains("endpoints (the goal): Solution.mainTheorem") && goal.contains("[Solution.lean:4]  endpoint") && goal.contains("paper_main"), "{goal}");
     // The ledger names a theorem that proves the statement, not the restatement.
@@ -311,4 +314,49 @@ fn a_directory_of_several_packages_says_to_open_one() {
     w.run(&["scan", one.to_str().unwrap()]);
     let out = w.run(&["graph", "build", one.to_str().unwrap(), "--lexical"]);
     assert!(out.contains("endpoints (the theorems of the files that nothing imports): t0_a"), "{out}");
+}
+
+/// A file that changed since it was indexed: no command reads its old
+/// extents against its new text, and none of them stops on it.
+#[test]
+fn a_file_changed_since_the_scan_is_left_out_not_misread() {
+    let w = world();
+    // Shorter than the offsets the index holds for it.
+    write(&w.root, "lean/src/Lemmas.lean", "import Defs\n");
+    let out = w.run(&["graph", "build", w.dir(), "--lexical"]);
+    assert!(out.contains("1 left out: changed since the index was written"), "{out}");
+    assert!(out.contains("1 files left out: the file changed since it was indexed"), "{out}");
+    let (c, code) = w.run_code(&["contract", w.dir(), "P.big_holds"]);
+    assert!(code == 0 || c.contains("error"), "{c}");
+    assert!(!c.contains("panicked"), "{c}");
+    let other = w.root.parent().unwrap().join("copy");
+    write(&other, "lean/lakefile.toml", "name = \"tree\"\nsrcDir = \"src\"\n");
+    write(&other, "lean/src/Defs.lean", DEFS);
+    w.run(&["scan", other.to_str().unwrap()]);
+    let (d, code) = w.run_code(&["diff", w.dir(), other.to_str().unwrap()]);
+    assert_eq!(code, 0, "{d}");
+    assert!(!d.contains("panicked") && d.contains("removed"), "{d}");
+}
+
+#[test]
+fn names_are_found_by_their_end_and_reach_follows_the_goal_given() {
+    let w = world();
+    w.run(&["graph", "build", w.dir(), "--lexical"]);
+    // The end of exactly one name.
+    let why = w.run(&["why", w.dir(), "good_all"]);
+    assert!(why.contains("P.good_all") && why.contains("a shortest chain"), "{why}");
+    // Search marks what the roots in force do not reach: with the goal
+    // given, that one is reached and the old endpoint is not.
+    let un = w.run(&["search", w.dir(), "unused", "--goal", "P.unused"]);
+    assert!(un.lines().any(|l| l.contains("P.unused") && !l.trim_start().starts_with('·')), "{un}");
+    let main = w.run(&["search", w.dir(), "main_thm", "--goal", "P.unused"]);
+    assert!(main.lines().any(|l| l.trim_start().starts_with('·') && l.contains("main_thm")), "{main}");
+    // A gloss on a namespace is a declaration of neither edition.
+    let theirs = w.root.parent().unwrap().join("ns.toml");
+    std::fs::write(&theirs, "schema = 1\n[project]\nname = \"tree\"\n[[landmark]]\ndecl = \"P\"\npurpose = \"the P namespace\"\n[[landmark]]\ndecl = \"P.Good\"\npurpose = \"good\"\n").unwrap();
+    w.run(&["gloss", "import", w.dir(), theirs.to_str().unwrap()]);
+    let d = w.run(&["diff", w.dir(), w.dir()]);
+    assert!(d.contains("1 stand: unchanged"), "{d}");
+    assert!(d.contains("1 name no declaration of either edition"), "{d}");
+    assert!(!d.contains("to read again"), "{d}");
 }

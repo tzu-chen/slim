@@ -439,7 +439,8 @@ fn cmd_search(args: &Args) -> Result<i32> {
         (None, Some(p)) => slim::map::load_for_root(&p.root).map().cloned(),
         _ => None,
     };
-    let rank = slim::reading::rank_for_index(&idx, &conn, map.as_deref()).ok().map(std::sync::Arc::new);
+    let goal = args.get("goal");
+    let rank = slim::reading::rank_for_index(&idx, &conn, map.as_deref(), goal).ok().map(std::sync::Arc::new);
     let reach = match (args.has("reached"), args.has("unreached")) {
         (true, _) => nameindex::Reach::Inside,
         (_, true) => nameindex::Reach::Outside,

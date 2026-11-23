@@ -205,7 +205,7 @@ pub enum QueryReq {
     SetGloss { name: String, display: String, text: Option<String> },
     /// Detail of a declaration (by name) for the map, goal and trail views.
     ViewDetail { gen: u64, name: String },
-    GoalChildren { gen: u64, node: u64, q: ChildQuery },
+    GoalChildren { gen: u64, node: u64, q: ChildQuery, goal: Option<String> },
     ReloadMap,
     LoadReading,
     TrailCreate { title: String },
@@ -563,14 +563,14 @@ fn handle(ctx: &IndexCtx, c: &rusqlite::Connection, users: Option<&UserStore>, c
             })();
             QueryResp::ViewDetail(gen, name, s(r))
         }
-        QueryReq::GoalChildren { gen, node, q } => {
+        QueryReq::GoalChildren { gen, node, q, goal } => {
             let mut env = Env { conn: c, mode: ctx.mode, map: map.load.map().map(|m| m.as_ref()), source_root: ctx.source_root.as_deref(), cache };
             let mut page = crate::relations::children(&mut env, &q);
             // With a reference graph: what each child weighs under the
-            // project's endpoints, and where a relay hands over; the
+            // roots in force, and where a relay hands over; the
             // heaviest first, except in an argument someone wrote, whose
             // order is theirs.
-            if let (Ok(p), Ok(Some((g, cone, roots)))) = (&mut page, slot.cone(c, map, None)) {
+            if let (Ok(p), Ok(Some((g, cone, roots)))) = (&mut page, slot.cone(c, map, goal.as_deref())) {
                 if !roots.nodes.is_empty() {
                     for ch in &p.children {
                         let Some(v) = ch.row.as_ref().and_then(|r| g.node(r.id)) else { continue };
@@ -923,6 +923,9 @@ pub fn spawn_connection(ctx: IndexCtx, tx: Sender<Event>, gen: u64, latest: Arc<
 pub enum SearchReq {
     /// `scope` restricts the search; module names are resolved here.
     Query { gen: u64, params: SearchParams, docs: bool, scope: Option<ScopeSpec> },
+    /// What reach is measured from: the pinned goal, or (`None`) the
+    /// project's own endpoints. Also sent when the map was read again.
+    Roots { goal: Option<String> },
     Reload,
     Shutdown,
 }
@@ -984,10 +987,31 @@ fn load_index(ctx: &IndexCtx) -> anyhow::Result<(NameIndex, rusqlite::Connection
 fn search_loop(ctx: IndexCtx, rx: Receiver<SearchReq>, tx: Sender<Event>, latest: Arc<AtomicU64>) {
     let mut state: Option<(NameIndex, rusqlite::Connection)> = None;
     let mut reload = true;
-    // What reading order knows: read after the index, so that the first
-    // searches are not kept waiting for it.
+    // What reading order knows about declarations (reach, nearness,
+    // components). It is worked out on a thread of its own, for the roots
+    // in force, and a search that was answered without it is answered
+    // again when it arrives.
     let mut rank: Option<Arc<crate::nameindex::Rank>> = None;
-    let mut rank_due = false;
+    let mut rank_rx: Option<Receiver<Option<crate::nameindex::Rank>>> = None;
+    let mut goal: Option<String> = None;
+    let mut last: Option<(u64, SearchParams, bool, Option<ScopeSpec>)> = None;
+    let start_rank = |goal: Option<String>| -> Receiver<Option<crate::nameindex::Rank>> {
+        let (rtx, rrx) = std::sync::mpsc::channel();
+        let ctx = ctx.clone();
+        let _ = std::thread::Builder::new().name("slim-rank".into()).spawn(move || {
+            let r = (|| -> anyhow::Result<crate::nameindex::Rank> {
+                let conn = db::open_read(&ctx.index)?;
+                let map = match (&ctx.map_path, &ctx.source_root) {
+                    (Some(p), _) => crate::map::load(p).map().cloned(),
+                    (None, Some(r)) => crate::map::load_for_root(r).map().cloned(),
+                    _ => None,
+                };
+                crate::reading::rank_for_index(&ctx.index, &conn, map.as_deref(), goal.as_deref())
+            })();
+            let _ = rtx.send(r.ok());
+        });
+        rrx
+    };
     // The module set of the scope in use (resolved once per scope).
     let mut scope_cache: Option<(String, Arc<ModuleSet>)> = None;
     loop {
@@ -1005,7 +1029,8 @@ fn search_loop(ctx: IndexCtx, rx: Receiver<SearchReq>, tx: Sender<Event>, latest
                     }));
                     state = Some((ni, conn));
                     rank = None;
-                    rank_due = true;
+                    last = None;
+                    rank_rx = Some(start_rank(goal.clone()));
                 }
                 Err(e) => {
                     let _ = tx.send(Event::Search(SearchResp::Failed(format!("{e:#}"))));
@@ -1013,28 +1038,60 @@ fn search_loop(ctx: IndexCtx, rx: Receiver<SearchReq>, tx: Sender<Event>, latest
                 }
             }
         }
-        if std::mem::take(&mut rank_due) {
-            if let Some((_, conn)) = &state {
-                let map = match (&ctx.map_path, &ctx.source_root) {
-                    (Some(p), _) => crate::map::load(p).map().cloned(),
-                    (None, Some(r)) => crate::map::load_for_root(r).map().cloned(),
-                    _ => None,
-                };
-                rank = crate::reading::rank_for_index(&ctx.index, conn, map.as_deref()).ok().map(Arc::new);
+        // Wait for a request; while a rank is being worked out, look for
+        // it now and then.
+        let first = match &rank_rx {
+            Some(_) => match rx.recv_timeout(Duration::from_millis(80)) {
+                Ok(r) => Some(r),
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => None,
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return,
+            },
+            None => match rx.recv() {
+                Ok(r) => Some(r),
+                Err(_) => return,
+            },
+        };
+        let mut rerun = false;
+        if let Some(r) = &rank_rx {
+            match r.try_recv() {
+                Ok(x) => {
+                    rank = x.map(Arc::new);
+                    rank_rx = None;
+                    rerun = true;
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {}
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => rank_rx = None,
             }
         }
-        let Ok(mut req) = rx.recv() else { return };
-        // Only the newest query matters.
-        while let Ok(next) = rx.try_recv() {
-            match (&req, &next) {
-                (SearchReq::Shutdown, _) => break,
-                _ => req = next,
+        // Of what has queued up: the newest query, the newest choice of roots.
+        let mut query: Option<(u64, SearchParams, bool, Option<ScopeSpec>)> = None;
+        let mut roots: Option<Option<String>> = None;
+        for req in first.into_iter().chain(rx.try_iter()) {
+            match req {
+                SearchReq::Shutdown => return,
+                SearchReq::Reload => reload = true,
+                SearchReq::Roots { goal } => roots = Some(goal),
+                SearchReq::Query { gen, params, docs, scope } => query = Some((gen, params, docs, scope)),
             }
         }
-        match req {
-            SearchReq::Shutdown => return,
-            SearchReq::Reload => reload = true,
-            SearchReq::Query { gen, mut params, docs, scope } => {
+        if let Some(g) = roots {
+            if g != goal {
+                goal = g;
+                // The old rank stays in use until the new one is there.
+                rank_rx = Some(start_rank(goal.clone()));
+            }
+        }
+        if reload {
+            continue;
+        }
+        let q = match query {
+            Some(q) => Some(q),
+            None if rerun => last.clone().filter(|l| latest.load(Ordering::Relaxed) == l.0),
+            None => None,
+        };
+        {
+            if let Some((gen, mut params, docs, scope)) = q {
+                last = Some((gen, params.clone(), docs, scope.clone()));
                 let Some((ni, conn)) = &state else { continue };
                 if latest.load(Ordering::Relaxed) != gen {
                     continue;

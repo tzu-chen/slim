@@ -64,7 +64,8 @@ goal pinned with `*`; the `[[objective]]` entries of the project map; the theore
 files that no declaring file imports (directly or through files that only import), when
 there are at most 32. A library with hundreds of last files has no endpoints until a goal is
 pinned, and the views say so; a directory that holds several Lake packages is told which
-ones to open instead.
+ones to open instead. The reading views, the position line, the weights in the goal explorer
+and the marks in search all follow the roots in force.
 
 A project checked with Comparator restates its theorems in a challenge file, `sorry` for
 proofs, under the names its solution file proves. A theorem with a `sorry` token is not an
@@ -226,7 +227,7 @@ that stand and those to read again.
 | name search | 1.5 ms |
 
 On `formal-math/vp-vnp` (324 files, 5,397 declarations, not built, 2026-11-23): scan and
-lexical graph together in under a second; 22,604 edges; 4,396 declarations reached from
+lexical graph together in under a second; 23,806 edges; 4,405 declarations reached from
 the five theorems of `Solution.lean`.
 
 Not measured: frame times of the new views; a second project of the first one's size; the
@@ -248,6 +249,8 @@ lexical fallback against Lean's references file by file.
 * The contract splits headers lexically. A binder group that is not bracketed, a `where`
   structure header and a pattern-matching definition are shown as written.
 * `diff` needs both editions scanned, and compares text: a renamed bound variable is a change.
-* The reach filter, rank and weights follow the project's endpoints, not a goal pinned in the
-  browser; the reading views and the position line follow the pinned goal.
+* A file that changed since the index was written has no edges in the graph (its declarations'
+  extents are those of the old text); `graph status` counts such files. Scan again, then build.
+* In the browser, search learns what the roots reach on a thread of its own: for a moment
+  after opening, or after pinning a goal, results carry the marks of the roots before.
 * Lemmas used only inside their own file are not folded in skims.

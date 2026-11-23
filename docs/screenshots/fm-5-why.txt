@@ -17,7 +17,7 @@ Reading guide │ goal: none │ a shortest chain of references; a path, not a r
 │    thm Paper.exists_setting                            ││            / v ^ 256) * lg v ^ C)                                              │
 │    thm Paper.cutHyp_of_laws                            ││          (k * lg v ^ C) ((s + τ * k / v ^ 256) * lg v ^ C) G                   │
 │    thm Paper.thm_cut                                   ││                                                                                │
-│1 759 declaration(s) are reached only through it · 1 re…││In scope (source text) ──────────────────────────────────────────────────────── │
+│1 758 declaration(s) are reached only through it · 1 re…││In scope (source text) ──────────────────────────────────────────────────────── │
 │                                                        ││  variable {A : Type} [CommRing A]                                              │
 │                                                        ││  open Finset NS1 Nc.Vp Nc.Tow                                                  │
 │                                                        ││  open Nc.Tower (U ee)                                                          │

@@ -139,13 +139,15 @@ pub fn find_decl(conn: &Connection, name: &str) -> Result<i64> {
     if let Some(id) = query::decl_by_name(conn, name)? {
         return Ok(id);
     }
+    // Distinct names: one name declared twice (a proof and its
+    // restatement with `sorry`) is one name, and means the proof.
     let pat = format!("%.{}", name.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_"));
-    let mut st = conn.prepare("SELECT id, name FROM decls WHERE name LIKE ?1 ESCAPE '\\' LIMIT 6")?;
-    let hits: Vec<(i64, String)> = st.query_map([pat], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<rusqlite::Result<_>>()?;
+    let mut st = conn.prepare("SELECT DISTINCT name FROM decls WHERE name LIKE ?1 ESCAPE '\\' LIMIT 6")?;
+    let hits: Vec<String> = st.query_map([pat], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
     match hits.as_slice() {
         [] => bail!("no declaration is named {name}"),
-        [(id, _)] => Ok(*id),
-        many => bail!("{name} is the end of several names: {}", many.iter().map(|x| x.1.as_str()).collect::<Vec<_>>().join(", ")),
+        [one] => query::decl_by_name(conn, one)?.with_context(|| format!("no declaration is named {name}")),
+        many => bail!("{name} is the end of several names: {}", many.join(", ")),
     }
 }
 
@@ -245,6 +247,14 @@ fn progress_printer() -> impl Fn(&str, u64, u64) + Sync {
     }
 }
 
+/// One reason files have no Lean references, or no edges at all.
+fn fallback_line(why: &str, n: u64) -> String {
+    match why.strip_prefix("left out: ") {
+        Some(w) => format!("{n} files left out: {w}"),
+        None => format!("{n} files read lexically: {why}"),
+    }
+}
+
 fn kind_counts(conn: &Connection, g: &Graph, cone: &Cone) -> Result<Vec<(DeclKind, u64, u64)>> {
     let mut st = conn.prepare("SELECT id, kind FROM decls")?;
     let mut by: HashMap<u8, (u64, u64)> = HashMap::new();
@@ -327,7 +337,7 @@ pub fn cmd_graph(args: &Args) -> Result<i32> {
             println!("  artifacts read from {a}");
         }
         for (why, n) in &g.stats.fallbacks {
-            println!("  {n} files read lexically: {why}");
+            println!("  {}", fallback_line(why, *n));
         }
         if g.stats.unresolved > 0 {
             println!("  {} references name something the index does not hold (generated names) and were left out", g.stats.unresolved);
@@ -363,7 +373,7 @@ pub fn cmd_graph(args: &Args) -> Result<i32> {
     let g = graph::build(&o.index, o.root.as_deref(), &opts, &AtomicBool::new(false), Some(&pp))?;
     println!("{}", g.stats.describe());
     for (why, n) in &g.stats.fallbacks {
-        println!("  {n} files read lexically: {why}");
+        println!("  {}", fallback_line(why, *n));
     }
     println!("built in {:.1} s with {threads} threads; {} ({:.1} MiB)", g.stats.ms as f64 / 1000.0, graph::graph_path(&o.index).display(), std::fs::metadata(graph::graph_path(&o.index)).map(|m| m.len()).unwrap_or(0) as f64 / (1 << 20) as f64);
     let roots = pick_roots(&o.conn, &g, o.map(args).as_deref(), &goals)?;
@@ -759,7 +769,7 @@ pub fn components(conn: &Connection) -> Result<(Vec<(String, String)>, Vec<u16>)
 
 /// What search needs to rank and group: reach and nearness when there is a
 /// graph and endpoints, components always.
-pub fn rank(conn: &Connection, g: Option<&Graph>, cone: Option<&Cone>) -> Result<crate::nameindex::Rank> {
+pub fn rank(conn: &Connection, g: Option<&Graph>, depth: Option<&[u16]>) -> Result<crate::nameindex::Rank> {
     use crate::nameindex::Rank;
     let (components, component) = components(conn)?;
     let mut r = Rank { components, component, ..Default::default() };
@@ -767,7 +777,7 @@ pub fn rank(conn: &Connection, g: Option<&Graph>, cone: Option<&Cone>) -> Result
     let max_id = g.ids.last().copied().unwrap_or(0).max(0) as usize;
     r.bonus = vec![0; max_id + 1];
     r.flags = vec![0; max_id + 1];
-    r.has_cone = cone.is_some();
+    r.has_cone = depth.is_some();
     for v in 0..g.len() as u32 {
         let id = g.id(v);
         if id < 0 {
@@ -778,11 +788,9 @@ pub fn rank(conn: &Connection, g: Option<&Graph>, cone: Option<&Cone>) -> Result
         let named = if g.has(v, nf::PROP) { 300 } else { 0 };
         let mut b = used + named;
         let mut f = Rank::KNOWN;
-        if let Some(c) = cone {
-            if c.contains(v) {
-                f |= Rank::IN_CONE;
-                b += 2000 + 1200u32.saturating_sub(60 * c.depth[v as usize] as u32);
-            }
+        if let Some(d) = depth.map(|d| d[v as usize]).filter(|&d| d != u16::MAX) {
+            f |= Rank::IN_CONE;
+            b += 2000 + 1200u32.saturating_sub(60 * d as u32);
         }
         r.bonus[id as usize] = b.min(Rank::MAX_BONUS as u32) as u16;
         r.flags[id as usize] = f;
@@ -790,17 +798,22 @@ pub fn rank(conn: &Connection, g: Option<&Graph>, cone: Option<&Cone>) -> Result
     Ok(r)
 }
 
-/// The rank for an index as it is: its graph if one is built for it, the
-/// endpoints the map or the import order gives.
-pub fn rank_for_index(index: &Path, conn: &Connection, map: Option<&ProjectMap>) -> Result<crate::nameindex::Rank> {
+/// The rank for an index as it is: its graph if one is built for it, and
+/// reach from `goal` when one is given and the graph holds it, else from
+/// the endpoints the map or the import order gives.
+pub fn rank_for_index(index: &Path, conn: &Connection, map: Option<&ProjectMap>, goal: Option<&str>) -> Result<crate::nameindex::Rank> {
     let generation = crate::db::get_meta(conn, "name_index_generation")?.unwrap_or_default();
     let g = Graph::load(index, &generation).ok().flatten();
-    let cone = match &g {
+    let depth = match &g {
         Some(g) => {
-            let roots = pick_roots(conn, g, map, &[])?;
-            (!roots.nodes.is_empty()).then(|| g.cone(&roots.nodes, Follow::All))
+            let explicit: Vec<String> = goal.map(|s| s.to_string()).into_iter().collect();
+            let roots = match pick_roots(conn, g, map, &explicit) {
+                Ok(r) => r,
+                Err(_) => pick_roots(conn, g, map, &[])?,
+            };
+            (!roots.nodes.is_empty()).then(|| g.reach(&roots.nodes, Follow::All).1)
         }
         None => None,
     };
-    rank(conn, g.as_ref(), cone.as_ref())
+    rank(conn, g.as_ref(), depth.as_deref())
 }

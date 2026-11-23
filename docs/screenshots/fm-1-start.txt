@@ -14,14 +14,14 @@ Reading guide │ goal: none │ what the project ends in, and the ways in │ /
 │    thm Solution.permanent_over_real                    ││  open Statement                                                                │
 │      : ∃ c : ℝ, 0 < c ∧ ∃ m₀ : ℕ, ∀ m ≥ m₀, ∀ s : ℕ, C…││                                                                                │
 │Ways in                                                 ││Prerequisites and dependents ────────────────────────────────────────────────── │
-│  → Contents by dependence    4 396 of 5 397 reached · D││ no project map: nothing curated                                                │
+│  → Contents by dependence    4 405 of 5 397 reached · D││ no project map: nothing curated                                                │
 │  → Named statements and their proofs 161 named, 4 prov…││ Lean-derived: unavailable in a source-only index                               │
 │  → Files by import order                              I││                                                                                │
 │  → Files and namespaces                   324 files · O││Evidence and freshness ──────────────────────────────────────────────────────── │
 │  → Search names and statements                        /││ · source candidate (lexical scan, not elaborated)                              │
 │Size                                                    ││ · no `sorry` token in its text (proves nothing)                                │
 │324 files · 5 397 declarations · 3 269 theorems · 2 475…││ · axioms and proof status: unknown without a semantic snapshot                 │
-│source mentions (lexical): 22604 edges over 324 files (…││ ✓ source file matches the index (SHA-256)                                      │
+│source mentions (lexical): 23806 edges over 324 files (…││ ✓ source file matches the index (SHA-256)                                      │
 │Sizes are sizes, not progress. Nothing on this page was…││                                                                                │
 │                                                        ││Documentation (from the source) ─────────────────────────────────────────────── │
 │                                                        ││ The main theorem (Theorem thm:allfields).                                      │

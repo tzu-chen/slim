@@ -4,14 +4,14 @@ Paper.Cuts › Paper › thm_onecut   │ route: Start here Solution.mainTheorem
 │/ mainTheorem                     ││theorem Paper.thm_onecut                                    ││Mentions (lexical, not resolved by Lean)│
 │6 name matches · 2 not reached (·…││module Paper.Cuts · Paper/Cuts.lean:95 · source candidate   ││in its statement — 8                    │
 │ def   Statement.MainTheorem  name││[lex] Solution.mainTheorem → Paper.thm_allfields → … →      ││Generates → def   Paper.Generates       │
-│ thm   Solution.mainTheorem   name││    Paper.thm_cut → Paper.thm_onecut · step 8 · 1 759       ││VLaws → struc Nc.Tow.VLaws              │
+│ thm   Solution.mainTheorem   name││    Paper.thm_cut → Paper.thm_onecut · step 8 · 1 758       ││VLaws → struc Nc.Tow.VLaws              │
 │·thm   Solution.mainTheorem   name││    reached only through it · W why                         ││cNear → abbr  Nc.Vp.cNear               │
 │ def   …t.MainTheoremApprox prefix││                                                            ││dNear → abbr  Nc.Vp.dNear               │
 │ thm   …n.mainTheoremApprox prefix││Statement, its names unfolded 2 levels (u more · U less) ── ││ee → def   Nc.Tower.ee                  │
 │·thm   …n.mainTheoremApprox prefix││  given {θ : List Bool → A}                                 ││lg → def   NS1.lg                       │
 │                                  ││        (hθ : Generates θ)                                  ││Tree → induc NS1.Tree                   │
 │                                  ││        │ def Generates (θ : List Bool → A) : Prop :=       ││CutD → def   NS1.CutD                   │
-│                                  ││        │     (Function.support θ).Finite ∧ ∀ a, ∃ w : WE,  ││in its proof / body — 33                │
+│                                  ││        │     (Function.support θ).Finite ∧ ∀ a, ∃ w : WE,  ││in its proof / body — 34                │
 │                                  ││        │     w.val θ = a  (Paper/Cuts.lean:29)             ││prop_universal → thm   Paper.prop_unive…│
 │                                  ││            │ inductive WE where  (NS1/Lists.lean:479)      ││prop_pieces → thm   Paper.prop_pieces   │
 │                                  ││            │   /-- 0 -/                                    ││Nc.Tow.kindList → def   Nc.Tow.kindList │

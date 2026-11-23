@@ -76,7 +76,10 @@ pub struct Stats {
     pub files_hashed: u64,
     pub files_consistent: u64,
     pub files_lexical: u64,
-    /// Why files fell back to the lexical reading (reason, count).
+    /// Files with no edges: changed since the index was written.
+    #[serde(default)]
+    pub files_left_out: u64,
+    /// Why files fell back to the lexical reading, or were left out (reason, count).
     pub fallbacks: Vec<(String, u64)>,
     pub edges: u64,
     pub unresolved: u64,
@@ -113,6 +116,9 @@ impl Stats {
                 " ({} tied to the text by Lake's hash, {} by the recorded places, {} read lexically)",
                 self.files_hashed, self.files_consistent, self.files_lexical
             );
+            if self.files_left_out > 0 {
+                s += &format!("; {} left out: changed since the index was written", self.files_left_out);
+            }
         }
         s
     }
@@ -368,8 +374,10 @@ impl Graph {
         }
     }
 
-    pub fn cone(&self, roots: &[u32], follow: Follow) -> Cone {
-        let t = Instant::now();
+    /// The roots as given, sorted, without repeats or strangers; the
+    /// steps of every declaration from the nearest of them (`u16::MAX`:
+    /// not reached); the declaration one step nearer; how many are reached.
+    pub fn reach(&self, roots: &[u32], follow: Follow) -> (Vec<u32>, Vec<u16>, Vec<u32>, usize) {
         let n = self.len();
         let mut depth = vec![u16::MAX; n];
         let mut parent = vec![NONE; n];
@@ -394,6 +402,13 @@ impl Graph {
                 }
             }
         }
+        (roots, depth, parent, reached)
+    }
+
+    pub fn cone(&self, roots: &[u32], follow: Follow) -> Cone {
+        let t = Instant::now();
+        let n = self.len();
+        let (roots, depth, parent, reached) = self.reach(roots, follow);
         // Postorder of a depth-first walk from the virtual root.
         let mut post: Vec<u32> = Vec::with_capacity(reached + 1);
         let mut num = vec![NONE; n + 1];
@@ -593,7 +608,9 @@ pub fn local_binders(text: &str, header_len: usize) -> HashSet<&str> {
                         names.push(word(j));
                         j += 1;
                     }
-                    if j < toks.len() && (word(j) == ":" || toks[j].0 == TokKind::Close) {
+                    // (`[C α]` and `(f x)` are a class and an application,
+                    // not binders: only names before a colon are.)
+                    if j < toks.len() && word(j) == ":" {
                         out.extend(names);
                     }
                 }
@@ -633,7 +650,21 @@ pub fn local_binders(text: &str, header_len: usize) -> HashSet<&str> {
                 }
                 TokKind::Open if anonymous_ok => depth += 1,
                 TokKind::Close if anonymous_ok && depth > 0 => depth -= 1,
-                TokKind::Sym if anonymous_ok && depth > 0 && matches!(w, "," | "|" | "_" | "-" | "@" | ":") => {}
+                // `(x : T)`: what follows the colon is the type, up to
+                // the bracket that closes the binder.
+                TokKind::Sym if anonymous_ok && depth > 0 && w == ":" => {
+                    let mut d = 0i32;
+                    while j + 1 < toks.len() {
+                        match toks[j + 1].0 {
+                            TokKind::Open => d += 1,
+                            TokKind::Close if d == 0 => break,
+                            TokKind::Close => d -= 1,
+                            _ => {}
+                        }
+                        j += 1;
+                    }
+                }
+                TokKind::Sym if anonymous_ok && depth > 0 && matches!(w, "," | "|" | "_" | "-" | "@") => {}
                 TokKind::Sym if anonymous_ok && matches!(w, "|" | "_" | "-" | "@") => {}
                 _ => break,
             }
@@ -670,6 +701,8 @@ struct D {
 
 struct M {
     rel: String,
+    /// SHA-256 of the file as the index saw it.
+    sha256: Option<String>,
     /// Lean references: build directory and module path below it.
     place: Option<(PathBuf, String)>,
 }
@@ -697,7 +730,7 @@ struct ModOut {
     unresolved: Vec<(u32, u32, String)>,
     /// Names the `.ilean` gives declarations the index knows otherwise.
     aux: Vec<(u32, String, u32)>,
-    /// 0 lexical, 1 hashed, 2 consistent.
+    /// 0 lexical, 1 hashed, 2 consistent, 3 left out.
     how: u8,
     why_lexical: Option<String>,
 }
@@ -875,6 +908,13 @@ fn process_module(sh: &Shared, m: u32) -> ModOut {
         out.why_lexical = Some("the file could not be read".into());
         return out;
     };
+    // The extents of the declarations are those of the text the index
+    // saw: a file changed since then is left out, and said to be.
+    if md.sha256.as_deref().is_some_and(|h| h != crate::paths::sha256_hex(&bytes)) {
+        out.why_lexical = Some("left out: the file changed since it was indexed (scan the project again)".into());
+        out.how = 3;
+        return out;
+    }
     let (text, _) = crate::text::decode_lossy(&bytes);
     let text: &str = &text;
     // Nesting: a field or constructor is part of what its parent states.
@@ -1014,13 +1054,13 @@ fn build_source(conn: &Connection, root: &Path, generation: String, opts: &Build
     // Modules and where Lake keeps each one's artifacts.
     let mut cache = crate::sourceview::SourceCache::default();
     cache.lean.artifacts = opts.artifacts.clone();
-    let mut st = conn.prepare("SELECT id, name, path FROM modules WHERE is_local = 1 AND path IS NOT NULL ORDER BY id")?;
-    let mrows: Vec<(i64, String, String)> = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?.collect::<rusqlite::Result<_>>()?;
+    let mut st = conn.prepare("SELECT id, name, path, sha256 FROM modules WHERE is_local = 1 AND path IS NOT NULL ORDER BY id")?;
+    let mrows: Vec<(i64, String, String, Option<String>)> = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?.collect::<rusqlite::Result<_>>()?;
     let mut layout = crate::lake::Layout::new(root);
     let mut mods: Vec<M> = Vec::with_capacity(mrows.len());
     let mut mod_ix: HashMap<i64, u32> = HashMap::new();
     let mut lake: HashMap<String, u32> = HashMap::new();
-    for (id, name, rel) in mrows {
+    for (id, name, rel, sha256) in mrows {
         let k = mods.len() as u32;
         mod_ix.insert(id, k);
         let ln = layout.lake_name(&rel);
@@ -1028,7 +1068,7 @@ fn build_source(conn: &Connection, root: &Path, generation: String, opts: &Build
         lake.entry(ln).or_insert(k);
         lake.entry(name).or_insert(k);
         let place = if opts.lexical_only { None } else { crate::leanrefs::artifact_place(&mut cache, root, &rel) };
-        mods.push(M { rel, place });
+        mods.push(M { rel, sha256, place });
     }
     // Declarations with their extents.
     let mut st = conn.prepare(
@@ -1063,7 +1103,7 @@ fn build_source(conn: &Connection, root: &Path, generation: String, opts: &Build
             module,
             start: start as u32,
             kw: kw as u32,
-            hend: hend.unwrap_or(end).clamp(kw, end) as u32,
+            hend: hend.unwrap_or(end).clamp(kw.min(end), end) as u32,
             end: end as u32,
             keyword: keyword.unwrap_or_default(),
         });
@@ -1146,6 +1186,10 @@ fn build_source(conn: &Connection, root: &Path, generation: String, opts: &Build
             match o.how {
                 1 => stats.files_hashed += 1,
                 2 => stats.files_consistent += 1,
+                3 => {
+                    stats.files_left_out += 1;
+                    *why.entry(o.why_lexical.unwrap_or_default()).or_default() += 1;
+                }
                 _ => {
                     stats.files_lexical += 1;
                     *why.entry(o.why_lexical.unwrap_or_else(|| "unknown".into())).or_default() += 1;
@@ -1317,13 +1361,14 @@ mod tests {
 
     #[test]
     fn binders_are_not_mentions() {
-        let t = "theorem foo (key : Nat) {x y : Nat} : P := by\n  have main := bar key\n  obtain ⟨a, b⟩ := main\n  intro h\n  rcases lem with ⟨c, d⟩ | e\n  exact fun z => baz z h a (∀ n, Q n) (∃ m : Nat, R m)";
+        let t = "theorem foo (key : Nat) {x y : Nat} [Cls T] (hp : Pred (app arg)) : P := by\n  have main := bar key\n  obtain ⟨a, b⟩ := main\n  intro h\n  rcases lem with ⟨c, d⟩ | e\n  exact fun z => baz z h a (∀ n, Q n) (∃ m : Nat, R m) (fun (u : Ty v) (w : Ty2) => S) (∀ (q : Dom), Cod q)";
         let l = local_binders(t, t.find(":=").unwrap());
-        for w in ["key", "x", "y", "main", "a", "b", "c", "d", "e", "h", "z", "n", "m"] {
+        for w in ["key", "x", "y", "hp", "main", "a", "b", "c", "d", "e", "h", "z", "n", "m", "u", "w", "q"] {
             assert!(l.contains(w), "{w}");
         }
-        // What follows a binder list, or a word that takes a term, is not bound.
-        for w in ["bar", "baz", "P", "foo", "Q", "R", "lem", "Nat"] {
+        // What follows a binder list, or a word that takes a term, is not
+        // bound; neither is a class, an application, or a binder's type.
+        for w in ["bar", "baz", "P", "foo", "Q", "R", "lem", "Nat", "Cls", "T", "Pred", "app", "arg", "Ty", "v", "Ty2", "S", "Dom", "Cod"] {
             assert!(!l.contains(w), "{w}");
         }
     }

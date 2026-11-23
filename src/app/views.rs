@@ -520,6 +520,10 @@ impl App {
             self.rebuild_guide_rows();
         }
         self.v.map.bundle = Some(b);
+        // The map's objectives are the endpoints when no goal is pinned.
+        if !first {
+            self.guide_roots_changed();
+        }
         self.rebuild_map_rows();
         if let Some(k) = self.v.map.pending_reveal.take() {
             self.map_reveal(&k);
@@ -1030,6 +1034,9 @@ impl App {
         self.v.goal.goal = goal;
         self.v.goal.restored = true;
         self.reset_goal_tree();
+        // What is reached is measured from the goal: the reading views and
+        // the marks in search follow it.
+        self.guide_roots_changed();
         self.v.detail.version += 1;
         self.center.version += 1;
         self.dirty = true;
@@ -1090,7 +1097,8 @@ impl App {
         self.v.goal.nodes[node].loading = true;
         let (name, key) = (self.v.goal.nodes[node].name.clone(), self.v.goal.nodes[node].key);
         let q = ChildQuery { name, mode: self.v.goal.mode, dir: self.v.goal.dir, local_only, show_generated, tb, offset, limit: 50 };
-        self.q2(QueryReq::GoalChildren { gen: self.gens.goal, node: key, q });
+        let goal = self.v.goal.goal.as_ref().map(|g| g.name.clone());
+        self.q2(QueryReq::GoalChildren { gen: self.gens.goal, node: key, q, goal });
     }
 
     fn goal_expand(&mut self, node: usize) {
@@ -2783,7 +2791,7 @@ stops = [{ decl = "D.main" }]
     }
 
     fn answer(a: &mut App, rx: &std::sync::mpsc::Receiver<QueryReq>, p: ChildPage) -> ChildQuery {
-        let (gen, node, q) = rx.try_iter().filter_map(|r| if let QueryReq::GoalChildren { gen, node, q } = r { Some((gen, node, q)) } else { None }).last().expect("a children request");
+        let (gen, node, q) = rx.try_iter().filter_map(|r| if let QueryReq::GoalChildren { gen, node, q, .. } = r { Some((gen, node, q)) } else { None }).last().expect("a children request");
         a.handle(Event::Query(QueryResp::GoalChildren(gen, node, q.offset, Ok(p))));
         q
     }

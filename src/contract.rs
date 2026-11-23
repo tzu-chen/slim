@@ -234,7 +234,9 @@ fn load(conn: &Connection, root: &Path, cache: &mut SourceCache, id: i64, level:
         let item = Item { row: d.row.clone(), keyword: d.row.kind.as_str().to_string(), path: Some(rel), line: d.pos.sel_line.or(d.pos.start_line), level, parts, cut_lines: 0 };
         return Ok(Loaded { item, ranges: vec![(0, 0); n], mentions: Vec::new(), lean: false });
     };
-    let (kw, end) = (kw as usize, (end as usize).min(f.text.len()));
+    // (A file that shrank since it was indexed has offsets past its end.)
+    let end = (end as usize).min(f.text.len());
+    let kw = (kw as usize).min(end);
     let hend = d.pos.header_end_byte.map(|h| (h as usize).clamp(kw, end)).unwrap_or(end);
     let keyword = d.keyword.clone().unwrap_or_else(|| d.row.kind.as_str().to_string());
     let theorem = d.row.kind == DeclKind::Theorem;

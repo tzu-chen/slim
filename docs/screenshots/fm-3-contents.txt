@@ -1,12 +1,12 @@
  slim  SOURCE-ONLY (lexical, not elaborated) │ ✓ sources match index │ vp-vnp (/home/someone/Codes/formal-math/vp-vnp)
 Reading guide │ goal: none │ from the reference graph: what is reached only through each row │ / search │ Esc declarations
 ╭ Contents by dependence ────────────────────────────────╮╭ Detail ────────────────────────────────────────────────────────────────────────╮
-│4 396 of 5 397 reached from the theorems of the files t…││theorem Paper.cutHyp_of_laws                                                    │
+│4 405 of 5 397 reached from the theorems of the files t…││theorem Paper.cutHyp_of_laws                                                    │
 │the number: what is reached only through the row        ││ module Paper.Cuts · Paper/Cuts.lean:560 · source candidate                     │
 │    2 071 ▾ thm Paper.exists_setting                    ││                                                                                │
-│    1 770   ▾ thm Paper.cutHyp_of_laws                  ││Purpose ─────────────────────────────────────────────────────────────────────── │
-│    1 769     ▸ thm Paper.thm_cut                       ││ not annotated                                                                  │
-│      203   ▸ thm Paper.exists_laws                     ││                                                                                │
+│    1 769   ▾ thm Paper.cutHyp_of_laws                  ││Purpose ─────────────────────────────────────────────────────────────────────── │
+│    1 768     ▸ thm Paper.thm_cut                       ││ not annotated                                                                  │
+│      204   ▸ thm Paper.exists_laws                     ││                                                                                │
 │       18   ▸ struc Nc.G.Law                            ││Statement (source text, not elaborated) ─────────────────────────────────────── │
 │       17   ▸ struc Nc.Tow.VLaws                        ││  theorem cutHyp_of_laws {θ : List Bool → A} (hθ : Generates θ) {h' : ℕ}        │
 │       16   ▸ thm Paper.lem_words                       ││      [NeZero h']                                                               │
