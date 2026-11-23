@@ -45,12 +45,14 @@ Yang–Mills submissions in Lean 4 together with a group's independent checks an
 
 ```sh
 git clone https://github.com/yang-mills-group/YM.git      # about 160 MB; nothing is built
-slim YM --map examples/YM/lean-view.toml                  # from slim's checkout: ./target/release/slim …
+curl -fLO https://raw.githubusercontent.com/tzu-chen/slim/main/examples/YM/lean-view.toml
+slim YM --map lean-view.toml
 ```
 
-The first start scans the `.lean` files as text (about a second on two cores) and writes a
-source-only index to `~/.cache/slim`, never into the checkout. It runs no Lean and no project
-code. The title bar says `SOURCE-ONLY (lexical, not elaborated)`: declarations are candidates
+The second line fetches the map; in a checkout of slim it is `examples/YM/lean-view.toml`.
+The first start scans the `.lean` files as text and writes a source-only index and the
+reference graph (`docs/reading.md`) to `~/.cache/slim`, never into the checkout: about two
+seconds on four cores. It runs no Lean and no project code. The title bar says `SOURCE-ONLY (lexical, not elaborated)`: declarations are candidates
 found by a scanner, and there are no Lean-derived dependency edges in this mode.
 
 **About this map.** A project map is a plain TOML file that names main results, groups
@@ -151,7 +153,7 @@ dependencies and axiom evidence, with **no Lean installation, no network and no 
 compilation**.
 
 ```sh
-./target/release/slim demo
+slim demo
 ```
 
 The demo ships a project map (`fixtures/demo/lean-view.toml`), so it opens on the architecture
@@ -256,9 +258,10 @@ every field: 324 files, 5,397 declarations. `docs/reading.md` describes the view
 
 ```sh
 git clone https://github.com/anthropics/formal-math.git    # about 10 MB; nothing is built
-slim graph build formal-math/vp-vnp                        # scans, then reads the references: under a second
 slim formal-math/vp-vnp
 ```
+
+The first start scans the files and writes the reference graph, in under a second.
 
 Open the project directory, not the repository: the repository holds four proofs, and slim
 then says so instead of guessing what it ends in.
@@ -283,7 +286,8 @@ then says so instead of guessing what it ends in.
 
 Every screen says `[lex]`: without a build, the references are identifiers matched against
 indexed names. After `lake exe cache get && lake build` in the project (its README says how),
-`slim graph build` reads Lean's own reference files instead and the screens say `[ref]`.
+`slim graph build formal-math/vp-vnp` reads Lean's own reference files instead and the
+screens say `[ref]`.
 
 ## Your own projects
 
@@ -502,7 +506,7 @@ and not in the tested list.
 | `slim info DIR` · `search DIR WORDS [--within FILES \| --namespace NS] [--reached \| --unreached]` · `check-axioms --index FILE` | inspection |
 | `slim skim DIR MODULE_OR_DIR [--namespace NS] [--group ID]` | statements without proofs, as text |
 | `slim imports DIR [FROM TO] [--limit N]` | import order: layers, endpoints, hubs; or one import path |
-| `slim graph build DIR [--artifacts DIR] [--lexical] [--threads N]` · `graph status DIR` · `graph show DIR NAME` | the reference graph (`docs/reading.md`): built from `.ilean` files where they are of the text, lexically elsewhere |
+| `slim graph build DIR [--artifacts DIR] [--lexical] [--threads N]` · `graph status DIR` · `graph show DIR NAME` | the reference graph (`docs/reading.md`): built from `.ilean` files where they are of the text, lexically elsewhere. The browser and the commands below build it themselves when it is missing; `graph build` is for a new Lean build, `--artifacts` and `--lexical` |
 | `slim contents DIR [NAME] [--depth N] [--limit N]` · `why DIR NAME` · `ledger DIR [--namespace NS]` | contents by dependence · a chain from an endpoint · named statements and their proofs (all take `--goal NAME`) |
 | `slim contract DIR NAME [--depth N]` · `dossier DIR NAME [-o FILE.md] [--from BASE_URL]` | a statement with its vocabulary unfolded · a page about one declaration |
 | `slim diff OLD_DIR NEW_DIR [--limit N]` | two editions compared by declaration; which annotations stand |
